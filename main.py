@@ -24,24 +24,21 @@ from telegram.ext import (
     CallbackContext
 )
 
-# === CẤU HÌNH ===
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
 user_inputs = {}
 scheduler = BackgroundScheduler()
 scheduler.start()
 
-# === AI: DỰ ĐOÁN SỐ LÔ TÔ MIỀN BẮC ===
 def predict_mb_advanced():
     try:
         model = joblib.load("model_rf_loto.pkl")
-        sample = [[12, 34, 56, 78, 89, 90, 11]]  # input giả định
+        sample = [[12, 34, 56, 78, 89, 90, 11]]
         prediction = model.predict(sample)
         return [str(p).zfill(2) for p in prediction[:5]]
     except Exception as e:
         print(f"Lỗi AI: {e}")
         return ["??"]
 
-# === LẤY KẾT QUẢ MIỀN BẮC TỪ xsmn.mobi ===
 def get_kqxs_mienbac():
     url = "https://xsmn.mobi/xsmn-mien-bac"
     headers = {"User-Agent": "Mozilla/5.0"}
@@ -51,7 +48,6 @@ def get_kqxs_mienbac():
         table = soup.find("table", class_="bkqmienbac")
         if not table:
             return {"error": "Không tìm thấy bảng kết quả"}
-
         results = {}
         rows = table.find_all("tr")
         for row in rows:
@@ -65,7 +61,6 @@ def get_kqxs_mienbac():
         print(f"Lỗi khi lấy kết quả: {e}")
         return {"error": str(e)}
 
-# === GỬI ẢNH KQXS ===
 def download_lottery_image():
     try:
         url = "https://www.minhchinh.com/images/kqxsmb.jpg"
@@ -86,7 +81,6 @@ async def send_lottery_image(context: CallbackContext):
     else:
         await context.bot.send_message(chat_id=chat_id, text="❌ Không có ảnh kết quả hôm nay.")
 
-# === HANDLERS ===
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("✨ Chào mừng bạn đến với XosoBot Telegram!
 Gõ /menu để bắt đầu.")
@@ -192,7 +186,6 @@ async def bat_tudong(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
     await update.message.reply_text("✅ Đã bật gửi ảnh kết quả xổ số lúc 18:40 hàng ngày.")
 
-# === MAIN ===
 def main():
     app = ApplicationBuilder().token(TELEGRAM_TOKEN).build()
     app.add_handler(CommandHandler("start", start))
