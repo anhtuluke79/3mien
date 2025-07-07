@@ -1,0 +1,5 @@
+python-telegram-bot==20.7
+joblib
+requests
+beautifulsoup4
+apscheduler
