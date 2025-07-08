@@ -156,7 +156,7 @@ async def xi_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     xiens = list(combinations(numbers, kieu))
     formatted = [' & '.join(x) for x in xiens]
-    await query.edit_message_text(f"🎯 Kết quả xiên {kieu}:\n" + "\n".join(formatted))
+    await query.edit_message_text(f"🎯 Kết quả xiên:\n" + "\n".join(formatted))
     del user_inputs[user_id]
 
         await update.message.reply_text("⚠️ Gõ: / <số>")
