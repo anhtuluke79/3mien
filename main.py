@@ -118,7 +118,7 @@ async def kqxs(update: Update, context: ContextTypes.DEFAULT_TYPE):
     reply = "🎰 Kết quả miền Bắc hôm nay:\n"
     for label, val in result.items():
         reply += f"{label}: {val}\n"
-"
+    
     await update.message.reply_text(reply)
 
 async def ghepxien(update: Update, context: ContextTypes.DEFAULT_TYPE):
