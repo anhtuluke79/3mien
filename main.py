@@ -117,7 +117,7 @@ async def kqxs(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     reply = "🎰 Kết quả miền Bắc hôm nay:\n"
     for label, val in result.items():
-        reply += f"{label}: {val}
+        reply += f"{label}: {val}\n"
 "
     await update.message.reply_text(reply)
 
