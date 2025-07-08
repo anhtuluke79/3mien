@@ -82,8 +82,7 @@ async def send_lottery_image(context: CallbackContext):
         await context.bot.send_message(chat_id=chat_id, text="❌ Không có ảnh kết quả hôm nay.")
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("✨ Chào mừng bạn đến với XosoBot Telegram!
-Gõ /menu để bắt đầu.")
+    await update.message.reply_text("✨ Chào mừng bạn đến với XosoBot Telegram!\nGõ /menu để bắt đầu.")
 
 async def menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyboard = [
