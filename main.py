@@ -87,7 +87,8 @@ async def menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
             InlineKeyboardButton("🧠 Gợi ý số bằng AI", callback_data="goi_y_so_ai")
         ],
         [
-            InlineKeyboardButton("🎯 Ghép số (Càng / Xiên)", callback_data="chon_ghep")
+            InlineKeyboardButton("🎯 Ghép Càng", callback_data="ghepcang"),
+            InlineKeyboardButton("➕ Ghép Xiên", callback_data="ghepxien")
         ],
         [
             InlineKeyboardButton("🕒 Tự động gửi kết quả", callback_data="bat_tudong")
@@ -127,7 +128,7 @@ async def ghepcang_type(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def ghepcang_cang(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
-    cangs = [x.strip() for x in update.message.text.replace(',', ' ').split()]
+    cangs = [x.strip() for x in update.message.text.replace(',', ' ').split() if x.strip()]
     if not cangs:
         await update.effective_message.reply_text("⚠️ Bạn chưa nhập càng. Vui lòng nhập lại:")
         return GH_CANG_LIST
@@ -194,14 +195,7 @@ async def handle_menu_callback(update: Update, context: ContextTypes.DEFAULT_TYP
         await query.edit_message_text("⏳ Đang phát triển...")
     elif cmd == "bat_tudong":
         await bat_tudong(update, context)
-    elif cmd == "chon_ghep":
-        keyboard = [
-            [InlineKeyboardButton("🎯 Ghép càng", callback_data="ghepcang")],
-            [InlineKeyboardButton("➕ Ghép xiên", callback_data="ghepxien")],
-            [InlineKeyboardButton("⬅️ Trở về menu chính", callback_data="back_to_menu")]
-        ]
-        await query.edit_message_text("📌 Chọn kiểu ghép số:", reply_markup=InlineKeyboardMarkup(keyboard))
-
+    
     elif cmd == "goi_y_so_ai":
         await query.edit_message_text("🧠 Tính năng 🧠 Gợi ý số bằng AI đang phát triển...")
     elif cmd == "back_to_menu":
@@ -220,7 +214,7 @@ async def ghepxien_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def ghepxien_sos(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
-    numbers = update.message.text.strip().split()
+    numbers = [x.strip() for x in update.message.text.replace(',', ' ').split() if x.strip()]
     if len(numbers) < 2:
         await update.effective_message.reply_text("⚠️ Bạn cần nhập ít nhất 2 số. Nhập lại:")
         return XIEN_SO_LIST
