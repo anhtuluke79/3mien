@@ -10,7 +10,7 @@ from telegram import (
     InlineKeyboardButton,
     InlineKeyboardMarkup,
     ForceReply,
-    ReplyKeyboardMarkup, # Added for consistency
+    ReplyKeyboardMarkup,
     ReplyKeyboardRemove
 )
 from telegram.ext import (
@@ -20,10 +20,10 @@ from telegram.ext import (
     CallbackQueryHandler,
     MessageHandler,
     filters,
-    ConversationHandler # Moved here
+    ConversationHandler
 )
 
-# Configure logging
+# Cấu hình logging
 logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     level=logging.INFO
@@ -32,24 +32,24 @@ logger = logging.getLogger(__name__)
 
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
 
-# Initialize scheduler globally
+# Khởi tạo scheduler toàn cục
 scheduler = BackgroundScheduler()
 scheduler.start()
 
-# --- Conversation States ---
-# States for ghepxien_popup
+# --- Trạng thái hội thoại ---
+# Trạng thái cho ghepxien_popup
 XIEN_SO_LIST, XIEN_KIEU = range(2)
 
-# States for ghepcang_popup
+# Trạng thái cho ghepcang_popup
 GH_CANG_TYPE, GH_CANG_LIST, GH_SO_LIST = range(3)
 
-# --- Utility Functions ---
+# --- Các hàm tiện ích ---
 def get_kqxs_mienbac():
     url = "https://xsmn.mobi/xsmn-mien-bac"
     headers = {"User-Agent": "Mozilla/5.0"}
     try:
         response = requests.get(url, headers=headers, timeout=10)
-        response.raise_for_status() # Raise an HTTPError for bad responses (4xx or 5xx)
+        response.raise_for_status() # Ném lỗi HTTP cho các phản hồi xấu (4xx hoặc 5xx)
         soup = BeautifulSoup(response.text, "html.parser")
         table = soup.find("table", class_="bkqmienbac")
         if not table:
@@ -84,12 +84,12 @@ def download_lottery_image():
     except Exception as e:
         logger.error(f"Lỗi không xác định khi tải ảnh: {e}")
 
-# --- Telegram Handlers ---
+# --- Các hàm xử lý Telegram ---
 
 async def send_lottery_image(context: ContextTypes.DEFAULT_TYPE):
     chat_id = context.job.data.get("chat_id")
     if not chat_id:
-        logger.error("Không tìm thấy chat_id trong job data để gửi ảnh.")
+        logger.error("Không tìm thấy chat_id trong dữ liệu công việc để gửi ảnh.")
         return
 
     download_lottery_image()
@@ -103,7 +103,7 @@ async def send_lottery_image(context: ContextTypes.DEFAULT_TYPE):
             logger.error(f"Lỗi khi gửi ảnh đến chat_id {chat_id}: {e}")
             await context.bot.send_message(chat_id=chat_id, text="❌ Lỗi khi gửi ảnh kết quả hôm nay.")
     else:
-        logger.warning(f"Không tìm thấy file ảnh tại {image_path} để gửi đến chat_id: {chat_id}")
+        logger.warning(f"Không tìm thấy tệp ảnh tại {image_path} để gửi đến chat_id: {chat_id}")
         await context.bot.send_message(chat_id=chat_id, text="❌ Không có ảnh kết quả hôm nay để gửi.")
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -122,31 +122,25 @@ async def handle_menu_selection(update: Update, context: ContextTypes.DEFAULT_TY
     if text == "📊 Kết quả":
         await kqxs(update, context)
     elif text == "➕ Ghép xiên":
-        # Start the conversation for ghepxien_popup
         await ghepxien_popup(update, context)
     elif text == "🎯 Ghép càng":
-        # Start the conversation for ghepcang_popup
         await ghepcang_popup(update, context)
     elif text == "🕒 Bật tự động":
         await bat_tudong(update, context)
     else:
-        await update.message.reply_text("❓ Không rõ bạn chọn gì. Gõ /menu để chọn lại.")
+        await update.message.reply_text("❓ Tôi không hiểu lựa chọn của bạn. Vui lòng gõ /menu để chọn lại.")
 
 async def kqxs(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    # Use query.message if it's from a callback, otherwise update.message
     message_to_reply = update.callback_query.message if update.callback_query else update.message
 
     result = get_kqxs_mienbac()
     if "error" in result:
         await message_to_reply.reply_text(f"❌ Lỗi khi lấy kết quả: {result['error']}")
         return
-    reply = "🎰 Kết quả miền Bắc hôm nay:\n\n"
+    reply = "🎰 **Kết quả miền Bắc hôm nay:**\n\n"
     for label, val in result.items():
-        reply += f"{label}: {val}\n"
-    await message_to_reply.reply_text(reply)
-
-# Removed the old `ghepxien` and `handle_reply` functions as ConversationHandler is preferred.
-# The `xi_handler` (inline button version) is also removed as it's replaced by `ghepxien_kieu` in ConversationHandler.
+        reply += f"**{label}:** {val}\n"
+    await message_to_reply.reply_text(reply, parse_mode='Markdown') # Dùng Markdown để in đậm
 
 async def bat_tudong(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id
@@ -158,32 +152,31 @@ async def bat_tudong(update: Update, context: ContextTypes.DEFAULT_TYPE):
         id=f'xsmb_{chat_id}',
         replace_existing=True
     )
-    await update.message.reply_text("✅ Đã bật gửi ảnh kết quả xổ số lúc 18:40 hàng ngày.")
+    await update.message.reply_text("✅ Đã bật tính năng tự động gửi ảnh kết quả xổ số lúc **18:40 hàng ngày**.")
     logger.info(f"Đã lên lịch gửi ảnh KQXS cho chat_id: {chat_id}")
 
-# --- Ghepcang (Conversation Handler version) ---
+# --- Ghép càng (Phiên bản hội thoại) ---
 async def ghepcang_popup(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    # Using context.user_data for state management
     context.user_data['ghepcang'] = {}
-    await update.message.reply_text("🔢 Nhập loại ghép (3D hoặc 4D):", reply_markup=ReplyKeyboardRemove())
+    await update.message.reply_text("🔢 Vui lòng nhập **loại ghép** bạn muốn (ví dụ: `3D` hoặc `4D`):", reply_markup=ReplyKeyboardRemove())
     return GH_CANG_TYPE
 
 async def ghepcang_type(update: Update, context: ContextTypes.DEFAULT_TYPE):
     kieu = update.message.text.strip().upper()
     if kieu not in ["3D", "4D"]:
-        await update.message.reply_text("⚠️ Chỉ chấp nhận 3D hoặc 4D. Nhập lại:")
+        await update.message.reply_text("⚠️ **Chỉ chấp nhận 3D hoặc 4D**. Vui lòng nhập lại:")
         return GH_CANG_TYPE
     context.user_data['ghepcang']["kieu"] = kieu
-    await update.message.reply_text("✏️ Nhập các số càng (VD: 1 2):")
+    await update.message.reply_text("✏️ Tiếp theo, nhập **các số càng** (ví dụ: `1 2`):")
     return GH_CANG_LIST
 
 async def ghepcang_cang(update: Update, context: ContextTypes.DEFAULT_TYPE):
     cangs = update.message.text.strip().split()
     if not cangs:
-        await update.message.reply_text("⚠️ Bạn chưa nhập càng. Nhập lại:")
+        await update.message.reply_text("⚠️ Bạn chưa nhập số càng nào. Vui lòng nhập lại:")
         return GH_CANG_LIST
     context.user_data['ghepcang']["cangs"] = cangs
-    await update.message.reply_text("✏️ Nhập các số lô cần ghép (VD: 23 45):")
+    await update.message.reply_text("✏️ Cuối cùng, nhập **các số lô** bạn muốn ghép (ví dụ: `23 45`):")
     return GH_SO_LIST
 
 async def ghepcang_so(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -191,8 +184,8 @@ async def ghepcang_so(update: Update, context: ContextTypes.DEFAULT_TYPE):
     data = context.user_data.get('ghepcang', {})
 
     if not numbers or "kieu" not in data or "cangs" not in data:
-        await update.message.reply_text("❌ Thiếu dữ liệu hoặc phiên đã hết hạn. Gõ lại /menu để bắt đầu.")
-        context.user_data.pop('ghepcang', None) # Clean up
+        await update.message.reply_text("❌ Dữ liệu bị thiếu hoặc phiên đã hết hạn. Vui lòng gõ /menu để bắt đầu lại.")
+        context.user_data.pop('ghepcang', None) # Dọn dẹp dữ liệu
         return ConversationHandler.END
 
     results = []
@@ -205,35 +198,35 @@ async def ghepcang_so(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 results.append(f"{cang}{num}")
 
     if not results:
-        await update.message.reply_text("❌ Không có kết quả. Kiểm tra lại dữ liệu.")
+        await update.message.reply_text("❌ Không tạo được kết quả nào. Vui lòng kiểm tra lại dữ liệu đã nhập.")
     else:
-        await update.message.reply_text(f"🔢 Kết quả ghép {kieu}:\n\n{', '.join(results)}")
+        await update.message.reply_text(f"🔢 **Kết quả ghép {kieu}:**\n\n`{', '.join(results)}`", parse_mode='Markdown')
 
-    context.user_data.pop('ghepcang', None) # Clean up
+    context.user_data.pop('ghepcang', None) # Dọn dẹp dữ liệu
     return ConversationHandler.END
 
-# --- Ghepxien (Conversation Handler version) ---
+# --- Ghép xiên (Phiên bản hội thoại) ---
 async def ghepxien_popup(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data['ghepxien'] = {}
-    await update.message.reply_text("✏️ Nhập dãy số bạn muốn ghép xiên (VD: 12 34 56):")
+    await update.message.reply_text("✏️ Vui lòng nhập **dãy số** bạn muốn ghép xiên (ví dụ: `12 34 56`):")
     return XIEN_SO_LIST
 
 async def ghepxien_sonhap(update: Update, context: ContextTypes.DEFAULT_TYPE):
     numbers = [n for n in update.message.text.strip().split() if n.isdigit()]
     if len(numbers) < 2:
-        await update.message.reply_text("⚠️ Cần ít nhất 2 số để ghép xiên. Vui lòng nhập lại:")
+        await update.message.reply_text("⚠️ Cần **ít nhất 2 số** để ghép xiên. Vui lòng nhập lại:")
         return XIEN_SO_LIST
     context.user_data['ghepxien']['numbers'] = numbers
     keyboard = [["2", "3", "4"]]
     reply_markup = ReplyKeyboardMarkup(keyboard, one_time_keyboard=True, resize_keyboard=True)
-    await update.message.reply_text("🔢 Chọn kiểu xiên (2, 3 hoặc 4):", reply_markup=reply_markup)
+    await update.message.reply_text("🔢 Vui lòng **chọn kiểu xiên** (xiên 2, 3 hoặc 4) từ bàn phím bên dưới:", reply_markup=reply_markup)
     return XIEN_KIEU
 
 async def ghepxien_kieu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         kieu = int(update.message.text.strip())
     except ValueError:
-        await update.message.reply_text("⚠️ Kiểu xiên không hợp lệ. Vui lòng nhập 2, 3 hoặc 4:")
+        await update.message.reply_text("⚠️ Kiểu xiên không hợp lệ. Vui lòng nhập **2, 3 hoặc 4**:")
         return XIEN_KIEU
 
     if kieu not in [2, 3, 4]:
@@ -242,83 +235,75 @@ async def ghepxien_kieu(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     numbers = context.user_data['ghepxien']['numbers']
     if len(numbers) < kieu:
-        await update.message.reply_text(f"⚠️ Cần ít nhất {kieu} số để tạo xiên {kieu}. Vui lòng nhập lại dãy số hoặc chọn kiểu xiên khác.")
-        context.user_data.pop('ghepxien', None) # Clean up
+        await update.message.reply_text(f"⚠️ Cần ít nhất **{kieu} số** để tạo xiên {kieu}. Vui lòng nhập lại dãy số hoặc chọn kiểu xiên khác.")
+        context.user_data.pop('ghepxien', None) # Dọn dẹp dữ liệu
         return ConversationHandler.END
 
     xiens = list(combinations(numbers, kieu))
     formatted = [ '&'.join(x) for x in xiens ]
     result = ', '.join(formatted)
-    await update.message.reply_text(f"🎯 Kết quả xiên {kieu}:\n\n{result}")
+    await update.message.reply_text(f"🎯 **Kết quả xiên {kieu}:**\n\n`{result}`", parse_mode='Markdown')
 
-    context.user_data.pop('ghepxien', None) # Clean up
+    context.user_data.pop('ghepxien', None) # Dọn dẹp dữ liệu
     return ConversationHandler.END
 
 def main():
-    # Ensure TELEGRAM_TOKEN is set
+    # Đảm bảo TELEGRAM_TOKEN đã được đặt
     if not TELEGRAM_TOKEN:
-        logger.error("TELEGRAM_TOKEN environment variable not set. Please set it before running the bot.")
+        logger.error("Biến môi trường TELEGRAM_TOKEN chưa được đặt. Vui lòng đặt nó trước khi chạy bot.")
         return
 
-    # 1. Build the Application instance FIRST
+    # 1. Khởi tạo đối tượng Application ĐẦU TIÊN
     app = ApplicationBuilder().token(TELEGRAM_TOKEN).build()
-    logger.info("Bot Application built successfully.")
+    logger.info("Ứng dụng Bot đã được xây dựng thành công.")
 
-    # 2. Define Conversation Handlers
+    # 2. Định nghĩa các Conversation Handlers
     conv_xien = ConversationHandler(
         entry_points=[
             CommandHandler("ghepxien_popup", ghepxien_popup),
-            MessageHandler(filters.Regex("^➕ Ghép xiên$"), ghepxien_popup) # Entry point from menu button
+            MessageHandler(filters.Regex("^➕ Ghép xiên$"), ghepxien_popup) # Điểm vào từ nút menu
         ],
         states={
             XIEN_SO_LIST: [MessageHandler(filters.TEXT & ~filters.COMMAND, ghepxien_sonhap)],
             XIEN_KIEU: [MessageHandler(filters.TEXT & ~filters.COMMAND, ghepxien_kieu)],
         },
-        fallbacks=[], # Add fallbacks if needed for cancellation/error
+        fallbacks=[], # Thêm fallbacks nếu cần để hủy/xử lý lỗi
         map_to_parent={
-            ConversationHandler.END: ConversationHandler.END # Allows child conversation to end parent if applicable
+            ConversationHandler.END: ConversationHandler.END # Cho phép hội thoại con kết thúc hội thoại cha nếu có thể
         }
     )
 
     conv_ghepcang = ConversationHandler(
         entry_points=[
             CommandHandler("ghepcang_popup", ghepcang_popup),
-            MessageHandler(filters.Regex("^🎯 Ghép càng$"), ghepcang_popup) # Entry point from menu button
+            MessageHandler(filters.Regex("^🎯 Ghép càng$"), ghepcang_popup) # Điểm vào từ nút menu
         ],
         states={
             GH_CANG_TYPE: [MessageHandler(filters.TEXT & ~filters.COMMAND, ghepcang_type)],
             GH_CANG_LIST: [MessageHandler(filters.TEXT & ~filters.COMMAND, ghepcang_cang)],
             GH_SO_LIST: [MessageHandler(filters.TEXT & ~filters.COMMAND, ghepcang_so)],
         },
-        fallbacks=[], # Add fallbacks if needed for cancellation/error
+        fallbacks=[], # Thêm fallbacks nếu cần để hủy/xử lý lỗi
         map_to_parent={
             ConversationHandler.END: ConversationHandler.END
         }
     )
 
-    # 3. Add Handlers to the Application (Order matters!)
-    # Specific command handlers first
+    # 3. Thêm các Handlers vào Ứng dụng (Thứ tự rất quan trọng!)
+    # Các handlers lệnh cụ thể trước
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("menu", menu))
     app.add_handler(CommandHandler("bat_tudong", bat_tudong))
 
-    # Add Conversation Handlers
+    # Thêm các Conversation Handlers
     app.add_handler(conv_xien)
     app.add_handler(conv_ghepcang)
 
-    # Callback Query Handlers (for inline buttons, if any remain or are added)
-    # The original button_handler for 'kqxs' is now handled by the menu selection
-    app.add_handler(CallbackQueryHandler(kqxs, pattern="^kqxs$")) # Kept this for direct 'kqxs' callback if needed
+    # Callback Query Handlers (dành cho các nút inline, nếu có hoặc được thêm)
+    app.add_handler(CallbackQueryHandler(kqxs, pattern="^kqxs$"))
 
-    # Message Handler for menu selection (should be general but after specific ones)
-    # This handler should only catch messages that are *not* commands and *not* replies to specific messages
-    # and are part of the main menu keyboard. Using Regex for specific menu buttons is safer.
+    # Message Handler cho lựa chọn menu (nên chung nhưng sau các handlers cụ thể)
     app.add_handler(MessageHandler(filters.Regex("^(📊 Kết quả|➕ Ghép xiên|🎯 Ghép càng|🕒 Bật tự động)$"), handle_menu_selection))
-
-    # Fallback for unhandled text messages (optional, but good for debugging)
-    # Be careful with this, as it can catch messages intended for conversation handlers if filters are not precise.
-    # app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, unknown_message))
-
 
     logger.info("🚀 Bot Telegram đang chạy...")
     app.run_polling()
