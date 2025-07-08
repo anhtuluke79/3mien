@@ -72,7 +72,8 @@ async def send_lottery_image(context: CallbackContext):
         await context.bot.send_message(chat_id=chat_id, text="❌ Không có ảnh kết quả hôm nay.")
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("✨ Chào mừng bạn đến với XosoBot Telegram!\nGõ /menu để bắt đầu.")
+    await update.message.reply_text("✨ Chào mừng bạn đến với XosoBot Telegram!
+Gõ /menu để bắt đầu.")
 
 async def menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyboard = [
@@ -99,6 +100,7 @@ async def kqxs(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("❌ Lỗi khi lấy kết quả.")
         return
     reply = "🎰 Kết quả miền Bắc hôm nay:\n"
+"
     for label, val in result.items():
         reply += f"{label}: {val}
 "
@@ -197,16 +199,13 @@ VD: /ghepcang 3D 1 2 | 23 45")
             return
 
         formatted = ', '.join(results)
-        await update.message.reply_text(f"🔢 Kết quả ghép {kieu}:\n{formatted}")
+        await update.message.reply_text(f"🔢 Kết quả ghép {kieu}:\n
+{formatted}")
 
     except Exception as e:
         await update.message.reply_text(f"❌ Lỗi xử lý: {e}")
 
-if not TELEGRAM_TOKEN:
-    raise ValueError("❌ Chưa cấu hình TELEGRAM_TOKEN.")
-
 def main():
-    app = ApplicationBuilder().token(TELEGRAM_TOKEN).build()
 
     # Menu dạng bàn phím ảo
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND & ~filters.REPLY, handle_menu_selection))
@@ -218,12 +217,12 @@ def main():
             XIEN_SO_LIST: [MessageHandler(filters.TEXT & ~filters.COMMAND, ghepxien_sonhap)],
             XIEN_KIEU: [MessageHandler(filters.TEXT & ~filters.COMMAND, ghepxien_kieu)],
         },
-        fallbacks=[CommandHandler('cancel', cancel)],
+        fallbacks=[],
     )
     app.add_handler(conv_xien)
 
 
-    
+    from telegram.ext import ConversationHandler
 
     conv_handler = ConversationHandler(
         entry_points=[CommandHandler("ghepcang_popup", ghepcang_popup)],
@@ -232,7 +231,7 @@ def main():
             GH_CANG_LIST: [MessageHandler(filters.TEXT & ~filters.COMMAND, ghepcang_cang)],
             GH_SO_LIST: [MessageHandler(filters.TEXT & ~filters.COMMAND, ghepcang_so)],
         },
-        fallbacks=[CommandHandler('cancel', cancel)],
+        fallbacks=[],
     )
     app.add_handler(conv_handler)
 
@@ -253,8 +252,8 @@ if __name__ == "__main__":
     main()
 
 
-
-
+from telegram import ChatAction
+from telegram import ReplyKeyboardRemove
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import CommandHandler, ConversationHandler, MessageHandler, filters
 
@@ -308,13 +307,13 @@ async def ghepcang_so(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not results:
         await update.message.reply_text("❌ Không có kết quả. Kiểm tra lại dữ liệu.")
     else:
-        await update.message.reply_text(f"🔢 Kết quả ghép {kieu}:
+        await update.message.reply_text(f"🔢 Kết quả ghép {kieu}:\n
 {', '.join(results)}")
     user_gh_cang.pop(user_id, None)
     return ConversationHandler.END
 
 
-, ReplyKeyboardRemove
+from telegram import ReplyKeyboardMarkup, ReplyKeyboardRemove
 
 async def menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     menu_keyboard = [
@@ -339,8 +338,8 @@ async def handle_menu_selection(update: Update, context: ContextTypes.DEFAULT_TY
 
 
 
-
-
+from telegram.ext import ConversationHandler
+from telegram import ReplyKeyboardMarkup
 
 XIEN_SO_LIST, XIEN_KIEU = range(2)
 user_xien_data = {}
@@ -377,11 +376,8 @@ async def ghepxien_kieu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     xiens = list(combinations(numbers, kieu))
     formatted = [ '&'.join(x) for x in xiens ]
     result = ', '.join(formatted)
-    await update.message.reply_text(f"🎯 Kết quả xiên {kieu}:\n{result}")
+    await update.message.reply_text(f"🎯 Kết quả xiên {kieu}:\n
+{result}")
     user_xien_data.pop(user_id, None)
     return ConversationHandler.END
 
-
-async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("⛔️ Đã hủy thao tác.")
-    return ConversationHandler.END
