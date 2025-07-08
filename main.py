@@ -86,8 +86,8 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyboard = [
-        [InlineKeyboardButton("📊 Gợi ý AI", callback_data=''),
-         InlineKeyboardButton("🎯 Dự đoán số", callback_data='')],
+        [InlineKeyboardButton("📊 Gợi ý AI", callback_data='goi_y_so_ai'),
+         InlineKeyboardButton("🎯 Dự đoán số", callback_data='du_doan')],
         [InlineKeyboardButton("🎰 Kết quả", callback_data='kqxs'),
          InlineKeyboardButton("➕ Ghép xiên", callback_data='ghepxien')]
     ]
@@ -97,15 +97,17 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
     cmd = query.data
-    if cmd == '':
-        await (update, context)
-    elif cmd == '':
-        await query.edit_message_text("✏️ Gõ / <số> để dự đoán")
+    if cmd == 'goi_y_so_ai':
+        await goi_y_so_ai(update, context)
+    elif cmd == 'du_doan':
+        await query.edit_message_text("✏️ Gõ /du_doan <số> để dự đoán")
     elif cmd == 'kqxs':
         await kqxs(update, context)
     elif cmd == 'ghepxien':
         await ghepxien(update, context)
 
+async def goi_y_so_ai(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    suggestions = predict_mb_advanced()
     await update.message.reply_text("📊 Gợi ý từ AI:\n" + ", ".join(suggestions))
 
 async def kqxs(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -156,10 +158,12 @@ async def xi_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     xiens = list(combinations(numbers, kieu))
     formatted = [' & '.join(x) for x in xiens]
-    await query.edit_message_text(f"🎯 Kết quả xiên:\n" + "\n".join(formatted))
+    await query.edit_message_text(f"🎯 Kết quả xiên {kieu}:\n" + "\n".join(formatted))
     del user_inputs[user_id]
 
-        await update.message.reply_text("⚠️ Gõ: / <số>")
+async def du_doan(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if len(context.args) < 1:
+        await update.message.reply_text("⚠️ Gõ: /du_doan <số>")
         return
     number = context.args[0]
     await update.message.reply_text(f"✅ Đã ghi nhận số bạn dự đoán: {number}")
@@ -177,16 +181,17 @@ async def bat_tudong(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("✅ Đã bật gửi ảnh kết quả xổ số lúc 18:40 hàng ngày.")
 
 def main():
+    app.add_handler(CommandHandler("ghepcang", ghepcang))
     app = ApplicationBuilder().token(TELEGRAM_TOKEN).build()
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("menu", menu))
-    app.add_handler(CommandHandler("help", help_command))
-    app.add_handler(CommandHandler("thongke", thongke))
-            app.add_handler(CommandHandler("kqxs", kqxs))
+    app.add_handler(CommandHandler("goi_y_so_ai", goi_y_so_ai))
+    app.add_handler(CommandHandler("du_doan", du_doan))
+    app.add_handler(CommandHandler("kqxs", kqxs))
     app.add_handler(CommandHandler("ghepxien", ghepxien))
     app.add_handler(CommandHandler("bat_tudong", bat_tudong))
     app.add_handler(MessageHandler(filters.REPLY & filters.TEXT, handle_reply))
-    app.add_handler(CallbackQueryHandler(button_handler, pattern="^(kqxs|ghepxien)$"))
+    app.add_handler(CallbackQueryHandler(button_handler, pattern="^(goi_y_so_ai|du_doan|kqxs|ghepxien)$"))
     app.add_handler(CallbackQueryHandler(xi_handler, pattern="^xi=\d+=\d+$"))
     print("🚀 Bot Telegram đang chạy...")
     app.run_polling()
@@ -194,38 +199,43 @@ def main():
 if __name__ == "__main__":
     main()
 
-async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    msg = (
-        "📋 Danh sách lệnh có thể dùng:\n"
-        "/menu - Mở menu chức năng\n"
-        "/kqxs - Lấy kết quả xổ số miền Bắc hôm nay\n"
-        "/ghepxien - Nhập số ghép xiên\n"
-        "/thongke - Thống kê số ra nhiều\n"
-        "/bat_tudong - Gửi ảnh KQXS mỗi ngày\n"
-    )
-    await update.message.reply_text(msg)
 
+def ghep_cang_tuy_chinh(numbers, cang_list, kieu="3D"):
+    result = []
+    for cang in cang_list:
+        for num in numbers:
+            if kieu == "3D" and len(cang) == 1:
+                result.append(f"{cang}{num}")
+            elif kieu == "4D" and len(cang) == 2:
+                result.append(f"{cang}{num}")
+    return result
 
-async def thongke(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def ghepcang(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    text = ' '.join(context.args)
+    if "|" not in text:
+        await update.message.reply_text("❌ Sai cú pháp.\nGõ: /ghepcang <3D|4D> <càng...> | <số...>\nVD: /ghepcang 3D 1 2 | 23 45")
+        return
+
     try:
-        from collections import Counter
-        url = "https://xsmn.mobi/xsmn-mien-bac"
-        headers = {"User-Agent": "Mozilla/5.0"}
-        response = requests.get(url, headers=headers, timeout=10)
-        soup = BeautifulSoup(response.text, "html.parser")
-        table = soup.find("table", class_="bkqmienbac")
-        results = []
-        rows = table.find_all("tr")
-        for row in rows:
-            cols = row.find_all("td")[1:]
-            for col in cols:
-                nums = col.get_text(strip=True).split()
-                results.extend(nums)
-        counter = Counter(results)
-        top = counter.most_common(10)
-        text = "🔢 Top 10 số ra nhiều nhất hôm nay:\n"
-        for num, count in top:
-            text += f"{num}: {count} lần\n"
-        await update.message.reply_text(text)
+        parts = text.split("|")
+        left = parts[0].strip().split()
+        right = parts[1].strip().split()
+
+        kieu = left[0].upper()
+        cang_list = [x for x in left[1:] if x.isdigit()]
+        numbers = [x.zfill(2) for x in right if x.isdigit()]
+
+        if not cang_list or not numbers:
+            await update.message.reply_text("⚠️ Thiếu số càng hoặc số lô.")
+            return
+
+        results = ghep_cang_tuy_chinh(numbers, cang_list, kieu)
+        if not results:
+            await update.message.reply_text("❌ Không có kết quả. Kiểm tra lại cú pháp.")
+            return
+
+        formatted = ', '.join(results)
+        await update.message.reply_text(f"🔢 Kết quả ghép {kieu}:\n{formatted}")
+
     except Exception as e:
-        await update.message.reply_text(f"❌ Lỗi thống kê: {e}")
+        await update.message.reply_text(f"❌ Lỗi xử lý: {e}")
