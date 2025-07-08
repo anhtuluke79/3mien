@@ -1,7 +1,6 @@
 import logging
 import os
 import requests
-from itertools import combinations
 from bs4 import BeautifulSoup
 from apscheduler.schedulers.background import BackgroundScheduler
 
@@ -74,31 +73,29 @@ async def send_lottery_image(context: CallbackContext):
     image_path = "latest_kqxs.jpg"
     if os.path.exists(image_path):
         with open(image_path, "rb") as img:
-            await context.bot.send_photo(chat_id=chat_id, photo=img, caption="📸 Kết quả xổ số hôm nay")
+            await context.bot.send_photo(chat_id=chat_id, photo=img, caption="📸 📊 Xem kết quả xổ số hôm nay")
     else:
-        await context.bot.send_message(chat_id=chat_id, text="❌ Không có ảnh kết quả hôm nay.")
+        await context.bot.send_message(chat_id=chat_id, text="❌ Không tìm thấy ảnh kết quả hôm nay.")
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("✨ Chào mừng bạn đến với XosoBot Telegram!\nGõ /menu để bắt đầu.")
-
+    await update.message.reply_text("""✨ Chào mừng bạn đến với bot Xổ Số Telegram!
+Sử dụng lệnh /menu để bắt đầu.""")
 
 async def menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyboard = [
         [
-            InlineKeyboardButton("📊 Kết quả", callback_data="kqxs"),
-            InlineKeyboardButton("🎯 Ghép càng", callback_data="ghepcang")
+            InlineKeyboardButton("📊 Xem kết quả", callback_data="kqxs"),
+            InlineKeyboardButton("🧠 Gợi ý số bằng AI", callback_data="goi_y_so_ai")
         ],
         [
-            InlineKeyboardButton("➕ Ghép xiên", callback_data="ghepxien"),
-            InlineKeyboardButton("🔢 Xiên nâng cao", callback_data="ghepxien_popup")
+            InlineKeyboardButton("🎯 Ghép số (Càng / Xiên)", callback_data="chon_ghep")
         ],
         [
-            InlineKeyboardButton("🧠 AI gợi ý số", callback_data="goi_y_so_ai"),
-            InlineKeyboardButton("🕒 Bật tự động", callback_data="bat_tudong")
+            InlineKeyboardButton("🕒 Tự động gửi kết quả", callback_data="bat_tudong")
         ]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
-    await update.message.reply_text("📋 Mời bạn chọn chức năng:", reply_markup=reply_markup)
+    await update.message.reply_text("📋 Vui lòng chọn chức năng bên dưới:", reply_markup=reply_markup)
 
 async def kqxs(update: Update, context: ContextTypes.DEFAULT_TYPE):
     result = get_kqxs_mienbac()
@@ -107,37 +104,36 @@ async def kqxs(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     reply = ""
     for label, val in result.items():
-        reply += f"{label}: {val}
-"
+        reply += f"{label}: {val}\n"
     await update.message.reply_text(reply)
-    keyboard = [[InlineKeyboardButton("⬅️ Quay lại menu", callback_data="back_to_menu")]]
-    await update.message.reply_text("Chọn thao tác tiếp theo:", reply_markup=InlineKeyboardMarkup(keyboard))
+    keyboard = [[InlineKeyboardButton("⬅️ ⬅️ Trở về menu chính", callback_data="back_to_menu")]]
+    await update.message.reply_text("👉 Bạn muốn làm gì tiếp?:", reply_markup=InlineKeyboardMarkup(keyboard))
 
-# Ghép càng flow
+# Luồng xử lý ghép càng
 async def ghepcang_popup(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     user_gh_cang[user_id] = {}
-    await update.message.reply_text("🔢 Nhập loại ghép (3D hoặc 4D):", reply_markup=ReplyKeyboardRemove())
+    await update.message.reply_text("🔢 Nhập loại ghép càng (3D hoặc 4D):", reply_markup=ReplyKeyboardRemove())
     return GH_CANG_TYPE
 
 async def ghepcang_type(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     kieu = update.message.text.strip().upper()
     if kieu not in ["3D", "4D"]:
-        await update.message.reply_text("⚠️ Chỉ chấp nhận 3D hoặc 4D. Nhập lại:")
+        await update.message.reply_text("⚠️ Chỉ chấp nhận 3D hoặc 4D. Vui lòng nhập lại:")
         return GH_CANG_TYPE
     user_gh_cang[user_id]["kieu"] = kieu
-    await update.message.reply_text("✏️ Nhập các số càng (VD: 3 4):")
+    await update.message.reply_text("✏️ Nhập danh sách số càng (VD: 3 4):")
     return GH_CANG_LIST
 
 async def ghepcang_cang(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     cangs = update.message.text.strip().split()
     if not cangs:
-        await update.message.reply_text("⚠️ Bạn chưa nhập càng. Nhập lại:")
+        await update.message.reply_text("⚠️ Bạn chưa nhập càng. Vui lòng nhập lại:")
         return GH_CANG_LIST
     user_gh_cang[user_id]["cangs"] = cangs
-    await update.message.reply_text("✏️ Nhập các số cần ghép (VD: 123 456):")
+    await update.message.reply_text("✏️ Nhập các số để ghép (VD: 123 456):")
     return GH_SO_LIST
 
 async def ghepcang_so(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -145,7 +141,7 @@ async def ghepcang_so(update: Update, context: ContextTypes.DEFAULT_TYPE):
     numbers = [x.zfill(3) for x in update.message.text.strip().split() if x.isdigit()]
     data = user_gh_cang.get(user_id, {})
     if not numbers or "kieu" not in data or "cangs" not in data:
-        await update.message.reply_text("❌ Thiếu dữ liệu. Gõ lại từ đầu.")
+        await update.message.reply_text("❌ Dữ liệu bị thiếu. Gõ lại từ đầu.")
         return ConversationHandler.END
 
     results = []
@@ -158,11 +154,11 @@ async def ghepcang_so(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 results.append(f"{cang}{num}")
 
     if not results:
-        await update.message.reply_text("❌ Không có kết quả.")
+        await update.message.reply_text("❌ Không có kết quả nào phù hợp.")
     else:
         await update.message.reply_text(', '.join(results))
-        keyboard = [[InlineKeyboardButton("⬅️ Quay lại menu", callback_data="back_to_menu")]]
-        await update.message.reply_text("Chọn thao tác tiếp theo:", reply_markup=InlineKeyboardMarkup(keyboard))
+        keyboard = [[InlineKeyboardButton("⬅️ ⬅️ Trở về menu chính", callback_data="back_to_menu")]]
+        await update.message.reply_text("👉 Bạn muốn làm gì tiếp?:", reply_markup=InlineKeyboardMarkup(keyboard))
     user_gh_cang.pop(user_id, None)
     return ConversationHandler.END
 
@@ -176,12 +172,12 @@ async def bat_tudong(update: Update, context: ContextTypes.DEFAULT_TYPE):
         id=f'xsmb_{chat_id}',
         replace_existing=True
     )
-    await update.message.reply_text("✅ Đã bật gửi ảnh kết quả xổ số lúc 18:40 hàng ngày.")
+    await update.message.reply_text("✅ Đã bật gửi ảnh kết quả lúc 18:40 mỗi ngày.")
 
 async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("⛔️ Đã hủy thao tác.")
-    keyboard = [[InlineKeyboardButton("⬅️ Quay lại menu", callback_data="back_to_menu")]]
-    await update.message.reply_text("Quay lại menu:", reply_markup=InlineKeyboardMarkup(keyboard))
+    await update.message.reply_text("⛔️ Đã hủy bỏ thao tác hiện tại.")
+    keyboard = [[InlineKeyboardButton("⬅️ ⬅️ Trở về menu chính", callback_data="back_to_menu")]]
+    await update.message.reply_text("⬅️ Trở về menu chính:", reply_markup=InlineKeyboardMarkup(keyboard))
     return ConversationHandler.END
 
 async def handle_menu_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -194,17 +190,66 @@ async def handle_menu_callback(update: Update, context: ContextTypes.DEFAULT_TYP
     elif cmd == "ghepcang":
         await ghepcang_popup(update, context)
     elif cmd == "ghepxien":
-        await query.edit_message_text("⏳ Đang phát triển...")
+        await ghepxien_start(update, context)
     elif cmd == "ghepxien_popup":
         await query.edit_message_text("⏳ Đang phát triển...")
     elif cmd == "bat_tudong":
         await bat_tudong(update, context)
+    elif cmd == "chon_ghep":
+        keyboard = [
+            [InlineKeyboardButton("🎯 Ghép càng", callback_data="ghepcang")],
+            [InlineKeyboardButton("➕ Ghép xiên", callback_data="ghepxien")],
+            [InlineKeyboardButton("⬅️ Trở về menu chính", callback_data="back_to_menu")]
+        ]
+        await query.edit_message_text("📌 Chọn kiểu ghép số:", reply_markup=InlineKeyboardMarkup(keyboard))
+
     elif cmd == "goi_y_so_ai":
-        await query.edit_message_text("🧠 Tính năng AI gợi ý số đang phát triển...")
+        await query.edit_message_text("🧠 Tính năng 🧠 Gợi ý số bằng AI đang phát triển...")
     elif cmd == "back_to_menu":
         await menu(update, context)
     else:
-        await query.edit_message_text("❌ Không nhận diện được lựa chọn.")
+        await query.edit_message_text("❌ Lựa chọn không hợp lệ, vui lòng thử lại.")
+
+
+from itertools import combinations
+
+async def ghepxien_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.effective_user.id
+    user_xien_data[user_id] = {}
+    await update.message.reply_text("🔢 Nhập các số muốn ghép (VD: 22 33 44):")
+    return XIEN_SO_LIST
+
+async def ghepxien_sos(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.effective_user.id
+    numbers = update.message.text.strip().split()
+    if len(numbers) < 2:
+        await update.message.reply_text("⚠️ Bạn cần nhập ít nhất 2 số. Nhập lại:")
+        return XIEN_SO_LIST
+    user_xien_data[user_id]["numbers"] = numbers
+    await update.message.reply_text("🔢 Nhập kiểu xiên (2, 3 hoặc 4):")
+    return XIEN_KIEU
+
+async def ghepxien_kieu(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.effective_user.id
+    data = user_xien_data.get(user_id, {})
+    numbers = data.get("numbers", [])
+    try:
+        kieu = int(update.message.text.strip())
+        if kieu < 2 or kieu > len(numbers):
+            raise ValueError
+    except ValueError:
+        await update.message.reply_text("⚠️ Kiểu xiên không hợp lệ. Nhập số 2, 3 hoặc 4:")
+        return XIEN_KIEU
+
+    result = [ '&'.join(combo) for combo in combinations(numbers, kieu) ]
+    result_text = ', '.join(result)
+    await update.message.reply_text(result_text)
+
+    keyboard = [[InlineKeyboardButton("⬅️ Trở về menu chính", callback_data="back_to_menu")]]
+    await update.message.reply_text("👉 Bạn muốn làm gì tiếp?", reply_markup=InlineKeyboardMarkup(keyboard))
+
+    user_xien_data.pop(user_id, None)
+    return ConversationHandler.END
 
 def main():
     app = ApplicationBuilder().token(TELEGRAM_TOKEN).build()
