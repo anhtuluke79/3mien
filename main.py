@@ -79,8 +79,7 @@ async def send_lottery_image(context: CallbackContext):
         await context.bot.send_message(chat_id=chat_id, text="❌ Không có ảnh kết quả hôm nay.")
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    msg = (
-        "✨ Chào mừng bạn đến với XosoBot Telegram!\n\n"
+    msg = ("✨ Chào mừng bạn đến với XosoBot Telegram!\n\n"
         "💡 Gõ /menu để bắt đầu sử dụng các chức năng như xem kết quả, ghép số, AI gợi ý số..."
     )
     await update.message.reply_text(msg)
