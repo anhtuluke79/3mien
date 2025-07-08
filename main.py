@@ -86,7 +86,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyboard = [
-        [InlineKeyboardButton("📊 Gợi ý AI", callback_data='goi_y_so_ai'),
+        [InlineKeyboardButton("📊 Gợi ý AI", callback_data='ai'),
          InlineKeyboardButton("🎯 Dự đoán số", callback_data='du_doan')],
         [InlineKeyboardButton("🎰 Kết quả", callback_data='kqxs'),
          InlineKeyboardButton("➕ Ghép xiên", callback_data='ghepxien')]
@@ -97,18 +97,15 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
     cmd = query.data
-    if cmd == 'goi_y_so_ai':
-        await goi_y_so_ai(update, context)
-    elif cmd == 'du_doan':
-        await query.edit_message_text("✏️ Gõ /du_doan <số> để dự đoán")
+    if cmd == 'ai':
+        suggestions = predict_mb_advanced()
+        await query.edit_message_text("📊 Gợi ý từ AI:\n" + ", ".join(suggestions))
     elif cmd == 'kqxs':
         await kqxs(update, context)
     elif cmd == 'ghepxien':
         await ghepxien(update, context)
-
-async def goi_y_so_ai(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    suggestions = predict_mb_advanced()
-    await update.message.reply_text("📊 Gợi ý từ AI:\n" + ", ".join(suggestions))
+    else:
+        await query.edit_message_text("⚠️ Tính năng đang cập nhật.")
 
 async def kqxs(update: Update, context: ContextTypes.DEFAULT_TYPE):
     result = get_kqxs_mienbac()
@@ -161,13 +158,6 @@ async def xi_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await query.edit_message_text(f"🎯 Kết quả xiên {kieu}:\n" + "\n".join(formatted))
     del user_inputs[user_id]
 
-async def du_doan(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if len(context.args) < 1:
-        await update.message.reply_text("⚠️ Gõ: /du_doan <số>")
-        return
-    number = context.args[0]
-    await update.message.reply_text(f"✅ Đã ghi nhận số bạn dự đoán: {number}")
-
 async def bat_tudong(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id
     scheduler.add_job(
@@ -179,26 +169,6 @@ async def bat_tudong(update: Update, context: ContextTypes.DEFAULT_TYPE):
         replace_existing=True
     )
     await update.message.reply_text("✅ Đã bật gửi ảnh kết quả xổ số lúc 18:40 hàng ngày.")
-
-def main():
-    app.add_handler(CommandHandler("ghepcang", ghepcang))
-    app = ApplicationBuilder().token(TELEGRAM_TOKEN).build()
-    app.add_handler(CommandHandler("start", start))
-    app.add_handler(CommandHandler("menu", menu))
-    app.add_handler(CommandHandler("goi_y_so_ai", goi_y_so_ai))
-    app.add_handler(CommandHandler("du_doan", du_doan))
-    app.add_handler(CommandHandler("kqxs", kqxs))
-    app.add_handler(CommandHandler("ghepxien", ghepxien))
-    app.add_handler(CommandHandler("bat_tudong", bat_tudong))
-    app.add_handler(MessageHandler(filters.REPLY & filters.TEXT, handle_reply))
-    app.add_handler(CallbackQueryHandler(button_handler, pattern="^(goi_y_so_ai|du_doan|kqxs|ghepxien)$"))
-    app.add_handler(CallbackQueryHandler(xi_handler, pattern="^xi=\d+=\d+$"))
-    print("🚀 Bot Telegram đang chạy...")
-    app.run_polling()
-
-if __name__ == "__main__":
-    main()
-
 
 def ghep_cang_tuy_chinh(numbers, cang_list, kieu="3D"):
     result = []
@@ -215,7 +185,6 @@ async def ghepcang(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if "|" not in text:
         await update.message.reply_text("❌ Sai cú pháp.\nGõ: /ghepcang <3D|4D> <càng...> | <số...>\nVD: /ghepcang 3D 1 2 | 23 45")
         return
-
     try:
         parts = text.split("|")
         left = parts[0].strip().split()
@@ -239,3 +208,21 @@ async def ghepcang(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     except Exception as e:
         await update.message.reply_text(f"❌ Lỗi xử lý: {e}")
+
+def main():
+    app = ApplicationBuilder().token(TELEGRAM_TOKEN).build()
+    app.add_handler(CommandHandler("start", start))
+    app.add_handler(CommandHandler("menu", menu))
+    app.add_handler(CommandHandler("kqxs", kqxs))
+    app.add_handler(CommandHandler("ghepxien", ghepxien))
+    app.add_handler(CommandHandler("ghepcang", ghepcang))
+    app.add_handler(CommandHandler("bat_tudong", bat_tudong))
+
+    app.add_handler(MessageHandler(filters.REPLY & filters.TEXT, handle_reply))
+    app.add_handler(CallbackQueryHandler(button_handler, pattern="^(ai|du_doan|kqxs|ghepxien)$"))
+    app.add_handler(CallbackQueryHandler(xi_handler, pattern="^xi=\\d+=\\d+$"))
+    print("🚀 Bot Telegram đang chạy...")
+    app.run_polling()
+
+if __name__ == "__main__":
+    main()
