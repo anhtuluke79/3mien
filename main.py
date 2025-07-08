@@ -157,8 +157,8 @@ async def xi_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.edit_message_text(f"⚠️ Cần ít nhất {kieu} số.")
         return
     xiens = list(combinations(numbers, kieu))
-    formatted = [' & '.join(x) for x in xiens]
-    await query.edit_message_text(f"🎯 Kết quả xiên {kieu}:\n" + "\n".join(formatted))
+    formatted = ['&'.join(x) for x in xiens]
+await query.edit_message_text(f"🎯 Kết quả xiên {kieu}: " + ", ".join(formatted))
     del user_inputs[user_id]
 
 async def du_doan(update: Update, context: ContextTypes.DEFAULT_TYPE):
