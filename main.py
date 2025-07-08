@@ -118,7 +118,6 @@ async def kqxs(update: Update, context: ContextTypes.DEFAULT_TYPE):
     reply = "🎰 Kết quả miền Bắc hôm nay:\n"
     for label, val in result.items():
         reply += f"{label}: {val}\n"
-    
     await update.message.reply_text(reply)
 
 async def ghepxien(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -159,8 +158,7 @@ async def xi_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     xiens = list(combinations(numbers, kieu))
     formatted = [' & '.join(x) for x in xiens]
-    await query.edit_message_text(f"🎯 Kết quả xiên {kieu}:
-" + "\n".join(formatted))
+    await query.edit_message_text(f"🎯 Kết quả xiên {kieu}:\n" + "\n".join(formatted))
     del user_inputs[user_id]
 
 async def du_doan(update: Update, context: ContextTypes.DEFAULT_TYPE):
