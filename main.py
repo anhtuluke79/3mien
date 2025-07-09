@@ -4,6 +4,8 @@ import requests
 from bs4 import BeautifulSoup
 from itertools import combinations
 import random
+import pandas as pd
+from apscheduler.schedulers.background import BackgroundScheduler
 
 from telegram import (
     Update, InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardRemove
@@ -24,6 +26,85 @@ user_gh_cang = {}
 user_xien_data = {}
 GH_CANG_TYPE, GH_CANG_LIST, GH_SO_LIST = range(3)
 XIEN_TYPE, XIEN_NUMBERS = range(2)
+
+# --- CRAWL DỮ LIỆU XSMB ---
+def crawl_xsmn_me():
+    url = "https://xsmn.me/lich-su-ket-qua-xsmb.html"
+    try:
+        r = requests.get(url, timeout=10)
+        soup = BeautifulSoup(r.text, "html.parser")
+        table = soup.find('table', class_='tblKQ')
+        rows = table.find_all('tr')[1:]
+        data = []
+        for row in rows:
+            cols = [col.get_text(strip=True) for col in row.find_all('td')]
+            if cols and len(cols) >= 9:
+                data.append(cols[:9])
+        df = pd.DataFrame(data, columns=['Ngày', 'ĐB', '1', '2', '3', '4', '5', '6', '7'])
+        print("✅ Crawl thành công từ xsmn.me")
+        return df
+    except Exception as e:
+        print(f"❌ Lỗi crawl xsmn.me:", e)
+        return None
+
+def crawl_minhngoc():
+    url = "https://www.minhngoc.net.vn/ket-qua-xo-so/mien-bac.html"
+    try:
+        r = requests.get(url, timeout=10)
+        soup = BeautifulSoup(r.text, "html.parser")
+        table = soup.find('table', class_='resultmb')
+        rows = table.find_all('tr')[1:]
+        data = []
+        for row in rows:
+            cols = [col.get_text(strip=True) for col in row.find_all('td')]
+            if cols and len(cols) >= 9:
+                data.append(cols[:9])
+        df = pd.DataFrame(data, columns=['Ngày', 'ĐB', '1', '2', '3', '4', '5', '6', '7'])
+        print("✅ Crawl thành công từ minhngoc.net.vn")
+        return df
+    except Exception as e:
+        print(f"❌ Lỗi crawl minhngoc.net.vn:", e)
+        return None
+
+def crawl_xosokt():
+    url = "https://xosokt.net/xsmb-xo-so-mien-bac.html"
+    try:
+        r = requests.get(url, timeout=10)
+        soup = BeautifulSoup(r.text, "html.parser")
+        table = soup.find('table', class_='bangketqua')
+        rows = table.find_all('tr')[1:]
+        data = []
+        for row in rows:
+            cols = [col.get_text(strip=True) for col in row.find_all('td')]
+            if cols and len(cols) >= 9:
+                data.append(cols[:9])
+        df = pd.DataFrame(data, columns=['Ngày', 'ĐB', '1', '2', '3', '4', '5', '6', '7'])
+        print("✅ Crawl thành công từ xosokt.net")
+        return df
+    except Exception as e:
+        print(f"❌ Lỗi crawl xosokt.net:", e)
+        return None
+
+def crawl_lich_su_xsmb(filename="lich_su_xsmb.csv"):
+    for func in [crawl_xsmn_me, crawl_minhngoc, crawl_xosokt]:
+        df = func()
+        if df is not None and not df.empty:
+            df.to_csv(filename, index=False)
+            print(f"Đã lưu dữ liệu lịch sử XSMB vào {filename}")
+            return True
+    print("❌ Không crawl được dữ liệu từ bất kỳ nguồn nào!")
+    return False
+
+def doc_lich_su_xsmb_csv(filename="lich_su_xsmb.csv", so_ngay=30):
+    try:
+        df = pd.read_csv(filename)
+        if len(df) > so_ngay:
+            df = df.head(so_ngay)
+        return df
+    except Exception as e:
+        return None
+
+# --- BOT HANDLER ---
 
 def get_kqxs_mienbac():
     url = "https://xsmn.mobi/xsmn-mien-bac"
@@ -55,7 +136,8 @@ async def menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         [InlineKeyboardButton("📊 Kết quả", callback_data="kqxs"),
          InlineKeyboardButton("🎯 Ghép càng", callback_data="ghepcang")],
         [InlineKeyboardButton("➕ Ghép xiên", callback_data="ghepxien"),
-         InlineKeyboardButton("🧠 Dự đoán AI", callback_data="du_doan_ai")]
+         InlineKeyboardButton("🧠 Dự đoán AI", callback_data="du_doan_ai")],
+        [InlineKeyboardButton("📈 Thống kê ĐB", callback_data="thongke")]
     ]
     await update.message.reply_text(
         "📋 Mời bạn chọn chức năng:",
@@ -91,7 +173,6 @@ async def ghepcang_type(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def ghepcang_cang(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
-    # Tách số càng theo dấu phẩy hoặc dấu cách, bỏ ký tự trống
     cangs = [s.strip() for s in update.message.text.replace(',', ' ').split() if s.strip()]
     if not cangs:
         await update.message.reply_text("⚠️ Bạn chưa nhập càng. Nhập lại (VD: 3 4 hoặc 3,4):")
@@ -104,20 +185,17 @@ async def ghepcang_so(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     data = user_gh_cang.get(user_id, {})
     kieu = data.get("kieu")
-    # Tách số ghép theo cả "," và dấu cách, bỏ ký tự trống
     numbers_raw = [s.strip() for s in update.message.text.replace(',', ' ').split() if s.strip()]
     if not numbers_raw or "kieu" not in data or "cangs" not in data:
         await update.message.reply_text("❌ Thiếu dữ liệu. Gõ lại từ đầu.")
         return ConversationHandler.END
 
     if kieu == "4D":
-        # Chỉ chấp nhận số có đúng 3 chữ số
         numbers = [x for x in numbers_raw if len(x) == 3 and x.isdigit()]
         if len(numbers) != len(numbers_raw):
             await update.message.reply_text("⚠️ Mỗi số ghép cho 4D phải gồm đúng 3 chữ số (VD: 123 045 999). Nhập lại:")
             return GH_SO_LIST
     else:
-        # Với 3D, cho phép nhập số bất kỳ, sẽ zfill(3) và lấy 2 số cuối
         numbers = [x.zfill(3) for x in numbers_raw if x.isdigit()]
 
     results = []
@@ -152,7 +230,6 @@ async def ghepxien_type(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def ghepxien_numbers(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
-    # Tách theo dấu "," hoặc dấu cách, loại bỏ ký tự trống
     numbers = [s.strip() for s in update.message.text.replace(',', ' ').split() if s.strip()]
     data = user_xien_data.get(user_id, {})
     kieu = data.get("kieu")
@@ -172,14 +249,24 @@ async def ghepxien_numbers(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 # DỰ ĐOÁN AI
 async def du_doan_ai(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    # Sinh 3 số ngẫu nhiên, mỗi số 2 chữ số
     so_du_doan = [f"{random.randint(0,99):02d}" for _ in range(3)]
     text = "🧠 Số dự đoán hôm nay: " + ', '.join(so_du_doan)
-    # Nếu gọi qua callback query
     if hasattr(update, "callback_query") and update.callback_query:
         await update.callback_query.edit_message_text(text)
     else:
         await update.message.reply_text(text)
+
+# THỐNG KÊ ĐB
+async def thong_ke_db(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    df = doc_lich_su_xsmb_csv()
+    if df is None or df.empty:
+        await update.message.reply_text("❌ Không đọc được dữ liệu lịch sử xổ số!")
+        return
+    db_counts = df['ĐB'].value_counts()
+    reply = "🔢 Top 10 số ĐB xuất hiện nhiều nhất 30 ngày:\n"
+    for so, count in db_counts.head(10).items():
+        reply += f"{so}: {count} lần\n"
+    await update.message.reply_text(reply)
 
 async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("⛔️ Đã hủy thao tác.")
@@ -199,6 +286,8 @@ async def handle_menu_callback(update: Update, context: ContextTypes.DEFAULT_TYP
         await ghepxien_popup(update, context)
     elif cmd == "du_doan_ai":
         await du_doan_ai(update, context)
+    elif cmd == "thongke":
+        await thong_ke_db(update, context)
     elif cmd == "back_to_menu":
         await menu(update, context)
     else:
@@ -209,7 +298,7 @@ def main():
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("menu", menu))
     app.add_handler(CommandHandler("cancel", cancel))
-    # ------ RẤT QUAN TRỌNG: ConversationHandler LUÔN ADD TRƯỚC CallbackQueryHandler ------
+    app.add_handler(CommandHandler("thongke", thong_ke_db))
     # Ghép càng Conversation
     app.add_handler(ConversationHandler(
         entry_points=[CallbackQueryHandler(ghepcang_popup, pattern="^ghepcang$")],
@@ -229,10 +318,23 @@ def main():
         },
         fallbacks=[CommandHandler("cancel", cancel)],
     ))
-    # CUỐI CÙNG mới add CallbackQueryHandler tổng!
     app.add_handler(CallbackQueryHandler(handle_menu_callback))
+
+    # --- TỰ ĐỘNG UPDATE FILE CSV HÀNG NGÀY VỚI APSCHEDULER ---
+    scheduler = BackgroundScheduler()
+    scheduler.add_job(
+        crawl_lich_su_xsmb,
+        'cron',
+        hour=18, minute=50,
+        id='update_xsmb_csv',
+        replace_existing=True
+    )
+    scheduler.start()
+
     logger.info("🚀 Bot Telegram đang chạy...")
     app.run_polling()
 
 if __name__ == "__main__":
+    # Crawl file CSV ngay khi khởi động lần đầu (đề phòng chưa có file)
+    crawl_lich_su_xsmb()
     main()
