@@ -7,6 +7,9 @@ import random
 import pandas as pd
 from apscheduler.schedulers.background import BackgroundScheduler
 
+# Thêm import AI
+import joblib
+
 from telegram import (
     Update, InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardRemove
 )
@@ -109,6 +112,23 @@ def doc_lich_su_xsmb_csv(filename="xsmb.csv", so_ngay=30):
         return df
     except Exception as e:
         return None
+
+# --- AI DỰ ĐOÁN ---
+def du_doan_ai_with_model(df, model_path='xsmb_rf_model.pkl'):
+    # Chuẩn hóa dữ liệu
+    df = df.dropna()
+    df['ĐB'] = df['ĐB'].astype(str).str[-2:]
+    df['ĐB'] = df['ĐB'].astype(int)
+    last7 = df['ĐB'][:7].tolist()
+    if len(last7) < 7:
+        return ["Không đủ dữ liệu 7 ngày!"]
+    if not os.path.exists(model_path):
+        return ["Chưa có mô hình AI, cần train trước!"]
+    model = joblib.load(model_path)
+    probs = model.predict_proba([last7])[0]
+    top_idx = probs.argsort()[-3:][::-1]
+    ketqua = [f"{model.classes_[i]:02d}" for i in top_idx]
+    return ketqua
 
 # --- BOT HANDLER ---
 
@@ -257,10 +277,17 @@ async def ghepxien_numbers(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_xien_data.pop(user_id, None)
     return ConversationHandler.END
 
-# DỰ ĐOÁN AI
+# DỰ ĐOÁN AI SỬ DỤNG MÔ HÌNH THẬT
 async def du_doan_ai(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    so_du_doan = [f"{random.randint(0,99):02d}" for _ in range(3)]
-    text = "🧠 Số dự đoán hôm nay: " + ', '.join(so_du_doan)
+    df = doc_lich_su_xsmb_csv()
+    if df is None or df.empty:
+        await update.message.reply_text("❌ Không đọc được dữ liệu lịch sử xổ số!")
+        return
+    so_du_doan = du_doan_ai_with_model(df)
+    if "Không đủ dữ liệu" in so_du_doan[0] or "Chưa có mô hình" in so_du_doan[0]:
+        text = f"⚠️ {so_du_doan[0]}"
+    else:
+        text = "🧠 AI dự đoán hôm nay: " + ', '.join(so_du_doan)
     if hasattr(update, "callback_query") and update.callback_query:
         await update.callback_query.edit_message_text(text)
     else:
