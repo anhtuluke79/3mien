@@ -3,6 +3,7 @@ import logging
 import pandas as pd
 import joblib
 import requests
+from bs4 import BeautifulSoup
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes, CallbackQueryHandler
 
@@ -104,6 +105,35 @@ def du_doan_ai_with_model(df, model_path='model_rf_loto.pkl'):
     ketqua = [f"{model.classes_[i]:02d}" for i in top_idx]
     return ketqua
 
+# --- Crawl dữ liệu XSMB từ web vào xsmb.csv ---
+def crawl_xsmn_me():
+    url = "https://xsmn.me/lich-su-ket-qua-xsmb.html"
+    r = requests.get(url, timeout=10)
+    soup = BeautifulSoup(r.text, "html.parser")
+    table = soup.find('table', class_='tblKQ')
+    rows = table.find_all('tr')[1:]
+    data = []
+    for row in rows:
+        cols = [col.get_text(strip=True) for col in row.find_all('td')]
+        if cols and len(cols) >= 9:
+            data.append(cols[:9])
+    df = pd.DataFrame(data, columns=['Ngày', 'ĐB', '1', '2', '3', '4', '5', '6', '7'])
+    return df
+
+def crawl_lich_su_xsmb(filename="xsmb.csv"):
+    df = crawl_xsmn_me()
+    if df is not None and not df.empty:
+        if not os.path.exists(filename):
+            df.to_csv(filename, index=False)
+        else:
+            df_old = pd.read_csv(filename)
+            df_concat = pd.concat([df, df_old]).drop_duplicates(subset=["Ngày"])
+            df_concat = df_concat.sort_values("Ngày", ascending=False)
+            df_concat.to_csv(filename, index=False)
+        return True
+    return False
+
+# --- Handler: Phong thủy ngày ---
 async def phongthuy_ngay_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         param = ' '.join(context.args)
@@ -145,6 +175,7 @@ async def phongthuy_ngay_handler(update: Update, context: ContextTypes.DEFAULT_T
             "Cách dùng: /phongthuy_ngay YYYY-MM-DD hoặc /phongthuy_ngay Giáp Tý"
         )
 
+# --- Handler: Hỏi Gemini ---
 async def hoi_gemini_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     question = ' '.join(context.args)
     if not question:
@@ -153,6 +184,7 @@ async def hoi_gemini_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
     answer = ask_gemini(question)
     await update.message.reply_text(answer)
 
+# --- Handler: Train lại AI ---
 async def train_model_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     if user_id not in ADMIN_IDS:
@@ -179,6 +211,22 @@ async def train_model_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
     except Exception as e:
         await update.message.reply_text(f"Lỗi khi train mô hình: {e}")
 
+# --- Handler: Cập nhật dữ liệu XSMB ---
+async def capnhat_xsmb_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.effective_user.id
+    if user_id not in ADMIN_IDS:
+        await update.message.reply_text("Bạn không có quyền cập nhật dữ liệu!")
+        return
+    try:
+        ok = crawl_lich_su_xsmb("xsmb.csv")
+        if ok:
+            await update.message.reply_text("✅ Đã cập nhật dữ liệu xsmb.csv thành công!")
+        else:
+            await update.message.reply_text("❌ Không lấy được dữ liệu mới, vui lòng thử lại sau.")
+    except Exception as e:
+        await update.message.reply_text(f"❌ Lỗi cập nhật: {e}")
+
+# --- MENU --- 
 async def menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     keyboard = [
@@ -194,9 +242,11 @@ async def menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
             InlineKeyboardButton("💬 Hỏi Thần tài", callback_data="hoi_gemini"),
         ]
     ]
-    # Chỉ admin mới thấy nút train AI
     if user_id in ADMIN_IDS:
-        keyboard.append([InlineKeyboardButton("⚙️ Train lại AI", callback_data="train_model")])
+        keyboard.append([
+            InlineKeyboardButton("⚙️ Train lại AI", callback_data="train_model"),
+            InlineKeyboardButton("🛠️ Cập nhật XSMB", callback_data="capnhat_xsmb"),
+        ])
     await update.message.reply_text(
         "🔹 Chọn chức năng:",
         reply_markup=InlineKeyboardMarkup(keyboard)
@@ -230,8 +280,19 @@ async def menu_callback_handler(update: Update, context: ContextTypes.DEFAULT_TY
             await query.edit_message_text("✅ Đã train lại và lưu mô hình thành công!")
         except Exception as e:
             await query.edit_message_text(f"Lỗi khi train mô hình: {e}")
+    elif query.data == "capnhat_xsmb":
+        if user_id not in ADMIN_IDS:
+            await query.edit_message_text("Bạn không có quyền cập nhật dữ liệu!")
+            return
+        try:
+            ok = crawl_lich_su_xsmb("xsmb.csv")
+            if ok:
+                await query.edit_message_text("✅ Đã cập nhật dữ liệu xsmb.csv thành công!")
+            else:
+                await query.edit_message_text("❌ Không lấy được dữ liệu mới, vui lòng thử lại sau.")
+        except Exception as e:
+            await query.edit_message_text(f"❌ Lỗi cập nhật: {e}")
     else:
-        # Các callback menu khác, có thể bổ sung theo nhu cầu
         await query.edit_message_text("Chức năng đang phát triển. Vui lòng sử dụng các lệnh chính.")
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -250,6 +311,7 @@ def main():
     app.add_handler(CommandHandler("phongthuy_ngay", phongthuy_ngay_handler))
     app.add_handler(CommandHandler("hoi_gemini", hoi_gemini_handler))
     app.add_handler(CommandHandler("train_model", train_model_handler))
+    app.add_handler(CommandHandler("capnhat_xsmb", capnhat_xsmb_handler))
     app.add_handler(CallbackQueryHandler(menu_callback_handler))
     app.run_polling()
 
