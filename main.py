@@ -3,23 +3,19 @@ import logging
 import pandas as pd
 import joblib
 import requests
-from telegram import Update
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
 
-# --- Import các module nội bộ ---
 from can_chi_dict import data as CAN_CHI_SO_HAP
 from thien_can import CAN_INFO
 
-# --- Thiết lập logging ---
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# --- Lấy biến môi trường ---
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
 if not TELEGRAM_TOKEN:
     raise ValueError("TELEGRAM_TOKEN chưa được thiết lập!")
 
-# --- Hàm gọi Gemini API hội thoại ---
 def ask_gemini(prompt, api_key=None):
     api_key = api_key or os.getenv("GEMINI_API_KEY")
     if not api_key:
@@ -43,7 +39,6 @@ def ask_gemini(prompt, api_key=None):
     except Exception as e:
         return f"Lỗi gọi Gemini API: {str(e)}"
 
-# --- Hàm chuyển ngày dương sang Can Chi ngày ---
 def get_can_chi_ngay(year, month, day):
     if month < 3:
         year -= 1
@@ -57,7 +52,6 @@ def get_can_chi_ngay(year, month, day):
     can = can_list[(jd + 9) % 10]
     return f"{can} {chi}"
 
-# --- Hàm lấy số hạp + số ghép từ can chi ---
 def sinh_so_hap_cho_ngay(can_chi_str):
     code = CAN_CHI_SO_HAP.get(can_chi_str)
     if not code:
@@ -82,7 +76,6 @@ def sinh_so_hap_cho_ngay(can_chi_str):
         "so_ghép": sorted(list(ket_qua))
     }
 
-# --- Hàm đọc lịch sử xsmb ---
 def doc_lich_su_xsmb_csv(filename="xsmb.csv", so_ngay=30):
     try:
         df = pd.read_csv(filename)
@@ -93,7 +86,6 @@ def doc_lich_su_xsmb_csv(filename="xsmb.csv", so_ngay=30):
         logger.warning(f"Lỗi đọc file xsmb.csv: {e}")
         return None
 
-# --- Hàm dự đoán AI với model RandomForest đã train ---
 def du_doan_ai_with_model(df, model_path='model_rf_loto.pkl'):
     df = df.dropna()
     df['ĐB'] = df['ĐB'].astype(str).str[-2:]
@@ -109,7 +101,6 @@ def du_doan_ai_with_model(df, model_path='model_rf_loto.pkl'):
     ketqua = [f"{model.classes_[i]:02d}" for i in top_idx]
     return ketqua
 
-# --- Handler: phongthuy_ngay ---
 async def phongthuy_ngay_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         param = ' '.join(context.args)
@@ -151,7 +142,6 @@ async def phongthuy_ngay_handler(update: Update, context: ContextTypes.DEFAULT_T
             "Cách dùng: /phongthuy_ngay YYYY-MM-DD hoặc /phongthuy_ngay Giáp Tý"
         )
 
-# --- Handler: hội thoại Gemini ---
 async def hoi_gemini_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     question = ' '.join(context.args)
     if not question:
@@ -160,15 +150,38 @@ async def hoi_gemini_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
     answer = ask_gemini(question)
     await update.message.reply_text(answer)
 
-# --- Handler: chào mừng ---
+async def menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    keyboard = [
+        [
+            InlineKeyboardButton("📊 Kết quả", callback_data="kqxs"),
+            InlineKeyboardButton("📈 Thống kê", callback_data="thongke"),
+            InlineKeyboardButton("🧠 Dự đoán AI", callback_data="du_doan_ai"),
+            InlineKeyboardButton("🔮 Phong thủy ngày", callback_data="phongthuy_ngay"),
+        ],
+        [
+            InlineKeyboardButton("➕ Ghép xiên", callback_data="ghepxien"),
+            InlineKeyboardButton("🎯 Ghép càng", callback_data="ghepcang"),
+            InlineKeyboardButton("💬 Hỏi Thần tài", callback_data="hoi_gemini"),
+        ]
+    ]
+    await update.message.reply_text(
+        "🔹 Chọn chức năng:",
+        reply_markup=InlineKeyboardMarkup(keyboard)
+    )
+
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("✨ Chào mừng bạn đến với XosoBot!\n"
-                                    "• /phongthuy_ngay YYYY-MM-DD hoặc /phongthuy_ngay <can chi>\n"
-                                    "• /hoi_gemini <câu hỏi phong thủy/xổ số>")
+    await update.message.reply_text(
+        "✨ Chào mừng bạn đến với XosoBot!\n"
+        "• /menu để chọn tính năng\n"
+        "• /phongthuy_ngay YYYY-MM-DD hoặc /phongthuy_ngay <can chi>\n"
+        "• /hoi_gemini <câu hỏi phong thủy/xổ số>\n"
+        "Chúc bạn may mắn và chơi vui!"
+    )
 
 def main():
     app = ApplicationBuilder().token(TELEGRAM_TOKEN).build()
     app.add_handler(CommandHandler("start", start))
+    app.add_handler(CommandHandler("menu", menu))
     app.add_handler(CommandHandler("phongthuy_ngay", phongthuy_ngay_handler))
     app.add_handler(CommandHandler("hoi_gemini", hoi_gemini_handler))
     app.run_polling()
