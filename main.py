@@ -106,9 +106,15 @@ async def kqxs(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if "error" in result:
         await update.message.reply_text(f"❌ Lỗi khi lấy kết quả: {result['error']}")
         return
+        
     reply = ""
     for label, val in result.items():
-        reply += f"{label}: {val}
+        # Sửa lỗi bằng cách thêm '\n' vào cuối chuỗi
+        reply += f"{label}: {val}\n"
+        
+    # Gửi tin nhắn chứa kết quả sau khi vòng lặp kết thúc
+    await update.message.reply_text(reply)
+
 "
     await update.message.reply_text(reply)
     keyboard = [[InlineKeyboardButton("⬅️ Trở về menu chính", callback_data="back_to_menu")]]
