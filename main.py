@@ -83,8 +83,7 @@ async def send_lottery_image(context: CallbackContext):
 
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("✨ Chào mừng bạn đến với bot Xổ Số Telegram!
-Sử dụng lệnh /menu để bắt đầu.")
+    await update.message.reply_text("✨ Chào mừng bạn đến với bot Xổ Số Telegram! Sử dụng lệnh /menu để bắt đầu.")
 
 
 async def menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
