@@ -139,14 +139,18 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyboard = [
-        [InlineKeyboardButton("📊 Kết quả", callback_data="kqxs"),
-         InlineKeyboardButton("🎯 Ghép càng", callback_data="ghepcang")],
-        [InlineKeyboardButton("➕ Ghép xiên", callback_data="ghepxien"),
-         InlineKeyboardButton("🧠 Dự đoán AI", callback_data="du_doan_ai")],
-        [InlineKeyboardButton("📈 Thống kê ĐB", callback_data="thongke")]
+        [
+            InlineKeyboardButton("📊 Kết quả", callback_data="kqxs"),
+            InlineKeyboardButton("📈 Thống kê", callback_data="thongke"),
+            InlineKeyboardButton("🧠 Dự đoán AI", callback_data="du_doan_ai"),
+        ],
+        [
+            InlineKeyboardButton("➕ Ghép xiên", callback_data="ghepxien"),
+            InlineKeyboardButton("🎯 Ghép càng", callback_data="ghepcang"),
+        ]
     ]
     await update.message.reply_text(
-        "📋 Mời bạn chọn chức năng:",
+        "🔹 Chọn chức năng:",
         reply_markup=InlineKeyboardMarkup(keyboard)
     )
 
@@ -341,6 +345,5 @@ def main():
     app.run_polling()
 
 if __name__ == "__main__":
-    # Crawl file CSV ngay khi khởi động lần đầu (đề phòng chưa có file)
     crawl_lich_su_xsmb()
     main()
