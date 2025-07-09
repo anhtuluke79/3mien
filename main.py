@@ -115,7 +115,6 @@ async def kqxs(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Gửi tin nhắn chứa kết quả sau khi vòng lặp kết thúc
     await update.message.reply_text(reply)
 
-"
     await update.message.reply_text(reply)
     keyboard = [[InlineKeyboardButton("⬅️ Trở về menu chính", callback_data="back_to_menu")]]
     await update.message.reply_text("👉 Bạn muốn làm gì tiếp?:", reply_markup=InlineKeyboardMarkup(keyboard))
