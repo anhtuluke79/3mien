@@ -85,17 +85,23 @@ def crawl_xosokt():
         print(f"❌ Lỗi crawl xosokt.net:", e)
         return None
 
-def crawl_lich_su_xsmb(filename="lich_su_xsmb.csv"):
+def crawl_lich_su_xsmb(filename="xsmb.csv"):
     for func in [crawl_xsmn_me, crawl_minhngoc, crawl_xosokt]:
         df = func()
         if df is not None and not df.empty:
-            df.to_csv(filename, index=False)
-            print(f"Đã lưu dữ liệu lịch sử XSMB vào {filename}")
+            if not os.path.exists(filename):
+                df.to_csv(filename, index=False)
+            else:
+                df_old = pd.read_csv(filename)
+                df_concat = pd.concat([df, df_old]).drop_duplicates(subset=["Ngày"])
+                df_concat = df_concat.sort_values("Ngày", ascending=False)
+                df_concat.to_csv(filename, index=False)
+            print(f"Đã backup lịch sử XSMB vào {filename}")
             return True
     print("❌ Không crawl được dữ liệu từ bất kỳ nguồn nào!")
     return False
 
-def doc_lich_su_xsmb_csv(filename="lich_su_xsmb.csv", so_ngay=30):
+def doc_lich_su_xsmb_csv(filename="xsmb.csv", so_ngay=30):
     try:
         df = pd.read_csv(filename)
         if len(df) > so_ngay:
