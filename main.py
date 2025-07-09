@@ -4,10 +4,13 @@ import pandas as pd
 import joblib
 import requests
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
+from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes, CallbackQueryHandler
 
 from can_chi_dict import data as CAN_CHI_SO_HAP
 from thien_can import CAN_INFO
+
+# ==== CẤU HÌNH ADMIN (điền user_id Telegram của bạn tại đây) ====
+ADMIN_IDS = [12345678]  # Đổi số này thành user_id của bạn
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -150,7 +153,34 @@ async def hoi_gemini_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
     answer = ask_gemini(question)
     await update.message.reply_text(answer)
 
+async def train_model_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.effective_user.id
+    if user_id not in ADMIN_IDS:
+        await update.message.reply_text("Bạn không có quyền train lại mô hình!")
+        return
+    try:
+        await update.message.reply_text("⏳ Đang train lại AI, vui lòng đợi...")
+        df = pd.read_csv('xsmb.csv')
+        df = df.dropna()
+        df['ĐB'] = df['ĐB'].astype(str).str[-2:]
+        df['ĐB'] = df['ĐB'].astype(int)
+        X, y = [], []
+        for i in range(len(df) - 7):
+            features = df['ĐB'][i:i+7].tolist()
+            label = df['ĐB'][i+7]
+            X.append(features)
+            y.append(label)
+        from sklearn.ensemble import RandomForestClassifier
+        import joblib
+        model = RandomForestClassifier(n_estimators=100, random_state=42)
+        model.fit(X, y)
+        joblib.dump(model, 'model_rf_loto.pkl')
+        await update.message.reply_text("✅ Đã train lại và lưu mô hình thành công!")
+    except Exception as e:
+        await update.message.reply_text(f"Lỗi khi train mô hình: {e}")
+
 async def menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.effective_user.id
     keyboard = [
         [
             InlineKeyboardButton("📊 Kết quả", callback_data="kqxs"),
@@ -164,10 +194,45 @@ async def menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
             InlineKeyboardButton("💬 Hỏi Thần tài", callback_data="hoi_gemini"),
         ]
     ]
+    # Chỉ admin mới thấy nút train AI
+    if user_id in ADMIN_IDS:
+        keyboard.append([InlineKeyboardButton("⚙️ Train lại AI", callback_data="train_model")])
     await update.message.reply_text(
         "🔹 Chọn chức năng:",
         reply_markup=InlineKeyboardMarkup(keyboard)
     )
+
+async def menu_callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    user_id = query.from_user.id
+    if query.data == "train_model":
+        if user_id not in ADMIN_IDS:
+            await query.edit_message_text("Bạn không có quyền train lại mô hình!")
+            return
+        await query.edit_message_text("⏳ Đang train lại AI, vui lòng đợi...")
+        try:
+            df = pd.read_csv('xsmb.csv')
+            df = df.dropna()
+            df['ĐB'] = df['ĐB'].astype(str).str[-2:]
+            df['ĐB'] = df['ĐB'].astype(int)
+            X, y = [], []
+            for i in range(len(df) - 7):
+                features = df['ĐB'][i:i+7].tolist()
+                label = df['ĐB'][i+7]
+                X.append(features)
+                y.append(label)
+            from sklearn.ensemble import RandomForestClassifier
+            import joblib
+            model = RandomForestClassifier(n_estimators=100, random_state=42)
+            model.fit(X, y)
+            joblib.dump(model, 'model_rf_loto.pkl')
+            await query.edit_message_text("✅ Đã train lại và lưu mô hình thành công!")
+        except Exception as e:
+            await query.edit_message_text(f"Lỗi khi train mô hình: {e}")
+    else:
+        # Các callback menu khác, có thể bổ sung theo nhu cầu
+        await query.edit_message_text("Chức năng đang phát triển. Vui lòng sử dụng các lệnh chính.")
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
@@ -184,6 +249,8 @@ def main():
     app.add_handler(CommandHandler("menu", menu))
     app.add_handler(CommandHandler("phongthuy_ngay", phongthuy_ngay_handler))
     app.add_handler(CommandHandler("hoi_gemini", hoi_gemini_handler))
+    app.add_handler(CommandHandler("train_model", train_model_handler))
+    app.add_handler(CallbackQueryHandler(menu_callback_handler))
     app.run_polling()
 
 if __name__ == "__main__":
