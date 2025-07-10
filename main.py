@@ -12,6 +12,7 @@ from itertools import product, combinations
 import datetime
 import re
 from collections import Counter
+import asyncio
 
 from can_chi_dict import data as CAN_CHI_SO_HAP
 from thien_can import CAN_INFO
@@ -99,7 +100,7 @@ def sinh_so_hap_cho_ngay(can_chi_str):
         "so_ghép": sorted(list(ket_qua))
     }
 
-# ==== CRAWL VÀ CẬP NHẬT XSMB 60 NGÀY ====
+# ==== CRAWL VÀ CẬP NHẬT XSMB 60 NGÀY (CÓ TIẾN TRÌNH) ====
 def crawl_xsmb_one_day(url):
     headers = {"User-Agent": "Mozilla/5.0"}
     resp = requests.get(url, headers=headers, timeout=10)
@@ -131,9 +132,9 @@ def get_latest_date_in_csv(filename):
     latest = df["Ngày_sort"].max()
     return latest
 
-def crawl_new_days_csv(filename=DATA_FILE, max_pages=60):
+async def crawl_new_days_csv_progress(query, filename=DATA_FILE, max_pages=60):
+    await query.edit_message_text("⏳ Bắt đầu cập nhật dữ liệu xsmb_full.csv (60 ngày)...")
     latest_date = get_latest_date_in_csv(filename)
-    print(f"Ngày mới nhất đã có trong file: {latest_date.strftime('%d/%m/%Y') if latest_date else 'Chưa có dữ liệu'}")
     base_url = "https://xoso.com.vn/xo-so-mien-bac/xsmb-p{}.html"
     new_results = []
     for i in range(1, max_pages + 1):
@@ -143,18 +144,28 @@ def crawl_new_days_csv(filename=DATA_FILE, max_pages=60):
             try:
                 date_obj = datetime.datetime.strptime(kq["Ngày"], "%d/%m/%Y")
             except:
-                print(f"Lỗi định dạng ngày: {kq['Ngày']} tại trang {url}")
-                continue
+                await query.edit_message_text(
+                    f"Lỗi định dạng ngày: {kq['Ngày']} tại trang {url}. Dừng cập nhật.")
+                return False
             if latest_date and date_obj <= latest_date:
-                print(f"Đã đến ngày cũ ({kq['Ngày']}), dừng crawl.")
+                await query.edit_message_text(
+                    f"✅ Đã crawl xong {len(new_results)} ngày mới. Hoàn thành cập nhật."
+                )
                 break
-            print(f"Lấy mới ngày: {kq['Ngày']}")
             new_results.append(kq)
+            # Báo tiến trình mỗi 3 trang
+            if i % 3 == 0 or i == 1:
+                await query.edit_message_text(
+                    f"⏳ Đang crawl trang {i}/{max_pages}...\n"
+                    f"Đã lấy được ngày: {', '.join([x['Ngày'] for x in new_results[-3:]])}"
+                )
+            await asyncio.sleep(0.5)
         except Exception as e:
-            print(f"Lỗi ở trang {url}: {e}")
+            await query.edit_message_text(f"❌ Lỗi ở trang {url}: {e}")
+            return False
     if not new_results:
-        print("Không có dữ liệu mới cần cập nhật.")
-        return
+        await query.edit_message_text("Không có dữ liệu mới cần cập nhật.")
+        return False
     df_new = pd.DataFrame(new_results)
     if os.path.exists(filename):
         df_old = pd.read_csv(filename, encoding="utf-8-sig")
@@ -165,12 +176,15 @@ def crawl_new_days_csv(filename=DATA_FILE, max_pages=60):
     df_full["Ngày_sort"] = pd.to_datetime(df_full["Ngày"], format="%d/%m/%Y", errors="coerce")
     df_full = df_full.sort_values("Ngày_sort", ascending=False).drop("Ngày_sort", axis=1)
     df_full.to_csv(filename, index=False, encoding="utf-8-sig")
-    print(f"Đã cập nhật {len(df_new)} ngày mới vào {filename}")
+    await query.edit_message_text(
+        f"✅ Đã cập nhật {len(new_results)} ngày mới vào xsmb_full.csv thành công!"
+    )
+    return True
 
 # ==== AI CẦU LÔ: THỐNG KÊ LÔ THEO CHU KỲ ====
 def thong_ke_lo(csv_file=DATA_FILE, days=7):
     if not os.path.exists(csv_file):
-        crawl_new_days_csv(csv_file, 60)
+        return [], []
     df = pd.read_csv(csv_file)
     df = df.head(days)
     all_lo = []
@@ -275,9 +289,7 @@ async def menu_callback_handler(update: Update, context: ContextTypes.DEFAULT_TY
         days = int(query.data.split("_")[-1])
         if not os.path.exists(DATA_FILE):
             await query.edit_message_text("Chưa có dữ liệu. Đang tự động tạo file xsmb_full.csv...")
-            import asyncio
-            loop = asyncio.get_running_loop()
-            await loop.run_in_executor(None, crawl_new_days_csv, DATA_FILE, 60)
+            await crawl_new_days_csv_progress(query, DATA_FILE, 60)
         xac_suat, lo_gan = thong_ke_lo(DATA_FILE, days)
         msg = f"🤖 Thống kê lô tô {days} ngày gần nhất:\n"
         msg += "- Top 10 lô ra nhiều nhất:\n"
@@ -286,25 +298,19 @@ async def menu_callback_handler(update: Update, context: ContextTypes.DEFAULT_TY
         await query.edit_message_text(msg)
         return
 
-    # ==== Cập nhật XSMB (admin) ====
+    # ==== Cập nhật XSMB (admin) với tiến trình ====
     if query.data == "capnhat_xsmb":
         if user_id not in ADMIN_IDS:
             await query.edit_message_text("Bạn không có quyền cập nhật dữ liệu!")
             return
-        await query.edit_message_text("⏳ Đang cập nhật dữ liệu xsmb_full.csv (60 ngày)...")
-        import asyncio
-        loop = asyncio.get_running_loop()
-        await loop.run_in_executor(None, crawl_new_days_csv, DATA_FILE, 60)
-        await query.edit_message_text("✅ Đã cập nhật dữ liệu xsmb_full.csv thành công (60 ngày mới nhất)!")
+        await crawl_new_days_csv_progress(query, DATA_FILE, 60)
         return
 
     # ==== Thống kê ====
     if query.data == "thongke":
         if not os.path.exists(DATA_FILE):
             await query.edit_message_text("Chưa có dữ liệu. Đang tự động tạo file xsmb_full.csv...")
-            import asyncio
-            loop = asyncio.get_running_loop()
-            await loop.run_in_executor(None, crawl_new_days_csv, DATA_FILE, 60)
+            await crawl_new_days_csv_progress(query, DATA_FILE, 60)
         try:
             df = pd.read_csv(DATA_FILE)
             if 'Đặc biệt' not in df.columns or df['Đặc biệt'].isnull().all():
@@ -327,9 +333,7 @@ async def menu_callback_handler(update: Update, context: ContextTypes.DEFAULT_TY
     if query.data == "du_doan_ai":
         if not os.path.exists(DATA_FILE):
             await query.edit_message_text("Chưa có dữ liệu. Đang tự động tạo file xsmb_full.csv...")
-            import asyncio
-            loop = asyncio.get_running_loop()
-            await loop.run_in_executor(None, crawl_new_days_csv, DATA_FILE, 60)
+            await crawl_new_days_csv_progress(query, DATA_FILE, 60)
         try:
             df = pd.read_csv(DATA_FILE)
             df = df.dropna()
