@@ -30,7 +30,6 @@ logger = logging.getLogger(__name__)
 
 # ============= TIỆN ÍCH ============
 def split_numbers(s):
-    # Chỉ lấy chuỗi là số, VD: "12,13, 15 16" -> ['12','13','15','16']
     return [n for n in s.replace(',', ' ').split() if n.isdigit()]
 
 def ghep_xien(numbers, do_dai=2):
@@ -191,8 +190,6 @@ def crawl_xsketqua_mien_multi(region: str, days: int = 30, progress_callback=Non
             continue
     return count
 
-# ========== HANDLER TỪNG LỆNH, CALLBACK, COMMAND ==========
-
 # ========== UPDATE DATA MIỀN (chỉ admin, báo tiến trình) ==========
 async def capnhat_xsm_kq_handler_query(query, region: str, region_label: str):
     try:
@@ -219,24 +216,14 @@ async def capnhat_xsm_kq_handler_query(query, region: str, region_label: str):
 async def menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     keyboard = [
-        [
-            InlineKeyboardButton("➕ Xiên 2", callback_data="ghepxien_2"),
-            InlineKeyboardButton("➕ Xiên 3", callback_data="ghepxien_3"),
-            InlineKeyboardButton("➕ Xiên 4", callback_data="ghepxien_4"),
-        ],
-        [
-            InlineKeyboardButton("🎯 Càng 3D", callback_data="ghepcang_3d"),
-            InlineKeyboardButton("🎯 Càng 4D", callback_data="ghepcang_4d"),
-            InlineKeyboardButton("🔄 Đảo số", callback_data="daoso"),
-        ],
+        [InlineKeyboardButton("➕ Ghép xiên", callback_data="menu_ghepxien")],
+        [InlineKeyboardButton("🎯 Ghép càng/Đảo số", callback_data="menu_ghepcang")],
         [
             InlineKeyboardButton("📈 Thống kê", callback_data="thongke"),
             InlineKeyboardButton("🤖 Dự đoán AI", callback_data="ai_predict"),
             InlineKeyboardButton("🔮 Phong thủy", callback_data="phongthuy_ngay"),
         ],
-        [
-            InlineKeyboardButton("💬 Hỏi Gemini", callback_data="hoi_gemini"),
-        ]
+        [InlineKeyboardButton("✨ Thần tài", callback_data="than_tai")],
     ]
     if user_id in ADMIN_IDS:
         keyboard.append([
@@ -245,20 +232,42 @@ async def menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
             InlineKeyboardButton("🛠️ Update MN", callback_data="capnhat_xsmn_kq"),
             InlineKeyboardButton("⚙️ Train AI", callback_data="train_model"),
         ])
-    # Có thể gọi cả khi update/callback hoặc gửi mới
-    await update.message.reply_text(
-        "🔹 Chọn chức năng:",
-        reply_markup=InlineKeyboardMarkup(keyboard)
-    ) if hasattr(update, "message") and update.message \
-      else await update.callback_query.message.reply_text(
-        "🔹 Chọn chức năng:",
-        reply_markup=InlineKeyboardMarkup(keyboard)
-    )
+    if hasattr(update, "message") and update.message:
+        await update.message.reply_text("🔹 Chọn chức năng:", reply_markup=InlineKeyboardMarkup(keyboard))
+    else:
+        await update.callback_query.message.reply_text("🔹 Chọn chức năng:", reply_markup=InlineKeyboardMarkup(keyboard))
 
 async def menu_callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
     user_id = query.from_user.id
+
+    # ===== Menu phụ Ghép xiên
+    if query.data == "menu_ghepxien":
+        keyboard = [
+            [InlineKeyboardButton("Xiên 2", callback_data="ghepxien_2"),
+             InlineKeyboardButton("Xiên 3", callback_data="ghepxien_3"),
+             InlineKeyboardButton("Xiên 4", callback_data="ghepxien_4")],
+            [InlineKeyboardButton("⬅️ Quay lại menu", callback_data="main_menu")]
+        ]
+        await query.edit_message_text("Chọn loại xiên:", reply_markup=InlineKeyboardMarkup(keyboard))
+        return
+
+    # ===== Menu phụ Ghép càng/đảo số
+    if query.data == "menu_ghepcang":
+        keyboard = [
+            [InlineKeyboardButton("Càng 3D", callback_data="ghepcang_3d"),
+             InlineKeyboardButton("Càng 4D", callback_data="ghepcang_4d"),
+             InlineKeyboardButton("Đảo số", callback_data="daoso")],
+            [InlineKeyboardButton("⬅️ Quay lại menu", callback_data="main_menu")]
+        ]
+        await query.edit_message_text("Chọn loại càng hoặc đảo số:", reply_markup=InlineKeyboardMarkup(keyboard))
+        return
+
+    # ===== Quay lại menu chính
+    if query.data == "main_menu":
+        await menu(update, context)
+        return
 
     # ====== Ghép xiên/càng/đảo số
     if query.data == "ghepxien_2":
@@ -279,7 +288,17 @@ async def menu_callback_handler(update: Update, context: ContextTypes.DEFAULT_TY
     elif query.data == "daoso":
         context.user_data['wait_for_daoso'] = True
         await query.edit_message_text("Nhập một số hoặc dãy số (VD: 123 hoặc 1234):")
-    # ===== Admin update data
+
+    # ===== Thần tài (Gemini)
+    elif query.data == "than_tai":
+        context.user_data['wait_hoi_gemini'] = True
+        await query.edit_message_text("Nhập câu hỏi cho Thần tài (AI Gemini):")
+
+    # ===== Thống kê, AI, Phong thủy, update, train...
+    elif query.data == "thongke":
+        await thongke_handler_query(query)
+    elif query.data == "ai_predict":
+        await ai_predict_handler_query(query)
     elif query.data == "capnhat_xsmb_kq":
         if user_id not in ADMIN_IDS:
             await query.edit_message_text("Bạn không có quyền cập nhật dữ liệu!")
@@ -295,19 +314,11 @@ async def menu_callback_handler(update: Update, context: ContextTypes.DEFAULT_TY
             await query.edit_message_text("Bạn không có quyền cập nhật dữ liệu!")
             return
         await capnhat_xsm_kq_handler_query(query, "nam", "Miền Nam")
-    # ====== Train model (admin)
     elif query.data == "train_model":
         if user_id not in ADMIN_IDS:
             await query.edit_message_text("Bạn không có quyền train AI!")
             return
         await train_model_handler_query(query)
-    # ====== Thống kê (user)
-    elif query.data == "thongke":
-        await thongke_handler_query(query)
-    # ====== Dự đoán AI (user)
-    elif query.data == "ai_predict":
-        await ai_predict_handler_query(query)
-    # ====== Phong thủy ngày: hỏi cách tra
     elif query.data == "phongthuy_ngay":
         keyboard = [
             [InlineKeyboardButton("Theo ngày dương (YYYY-MM-DD)", callback_data="phongthuy_ngay_duong")],
@@ -320,12 +331,6 @@ async def menu_callback_handler(update: Update, context: ContextTypes.DEFAULT_TY
     elif query.data == "phongthuy_ngay_canchi":
         await query.edit_message_text("📜 Nhập can chi (ví dụ: Giáp Tý):")
         context.user_data['wait_phongthuy_ngay_canchi'] = True
-    # ====== Hỏi Gemini
-    elif query.data == "hoi_gemini":
-        context.user_data['wait_hoi_gemini'] = True
-        await query.edit_message_text("Nhập câu hỏi cho Gemini:")
-    else:
-        await query.edit_message_text("Chức năng này đang phát triển.")
 
 # ========== ALL TEXT HANDLER ==========
 async def all_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -338,11 +343,11 @@ async def all_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if not bo_xien:
             await update.message.reply_text("Không ghép được xiên.")
         else:
-            if len(','.join(bo_xien)) > 3500:
-                await update.message.reply_text(f"{len(bo_xien)} bộ xiên. Quá nhiều để gửi, hãy nhập ít số hơn!")
+            if len(bo_xien) > 20:
+                result = '\n'.join([', '.join(bo_xien[i:i+10]) for i in range(0, len(bo_xien), 10)])
             else:
-                result = ','.join(bo_xien)
-                await update.message.reply_text(f"{len(bo_xien)} bộ xiên:\n{result}")
+                result = ', '.join(bo_xien)
+            await update.message.reply_text(f"{len(bo_xien)} bộ xiên:\n{result}")
         context.user_data['wait_for_xien_input'] = False
         await menu(update, context)
         return
@@ -356,11 +361,11 @@ async def all_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if not bo_so:
             await update.message.reply_text("Không ghép được càng.")
         else:
-            if len(','.join(bo_so)) > 3500:
-                await update.message.reply_text(f"{len(bo_so)} số càng. Quá nhiều để gửi, hãy nhập ít số hơn!")
+            if len(bo_so) > 20:
+                result = '\n'.join([', '.join(bo_so[i:i+10]) for i in range(0, len(bo_so), 10)])
             else:
-                result = ','.join(bo_so)
-                await update.message.reply_text(f"{len(bo_so)} số càng:\n{result}")
+                result = ', '.join(bo_so)
+            await update.message.reply_text(f"{len(bo_so)} số càng:\n{result}")
         context.user_data['wait_for_cang_input'] = False
         await menu(update, context)
         return
@@ -374,12 +379,16 @@ async def all_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text("Nhập 1 số có từ 2 đến 6 chữ số (ví dụ 1234, 56789).")
         else:
             result = dao_so(s_concat)
-            await update.message.reply_text(f"Tổng {len(result)} hoán vị:\n{', '.join(result)}")
+            if len(result) > 20:
+                text = '\n'.join([', '.join(result[i:i+10]) for i in range(0, len(result), 10)])
+            else:
+                text = ', '.join(result)
+            await update.message.reply_text(f"Tổng {len(result)} hoán vị:\n{text}")
         context.user_data['wait_for_daoso'] = False
         await menu(update, context)
         return
 
-    # Hỏi Gemini
+    # Thần tài (Gemini)
     if context.user_data.get('wait_hoi_gemini'):
         question = update.message.text.strip()
         answer = ask_gemini(question)
@@ -433,7 +442,7 @@ async def all_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await menu(update, context)
         return
 
-    # Mặc định
+    # ... Các lệnh khác, ví dụ gửi tin nhắn mặc định và quay lại menu
     await update.message.reply_text("Bot đã nhận tin nhắn của bạn!")
     await menu(update, context)
 
