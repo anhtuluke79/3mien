@@ -158,7 +158,6 @@ async def crawl_new_days_csv_progress(query, filename=DATA_FILE, max_pages=60):
             )
             break
         new_results.append(kq)
-        # Báo tiến trình mỗi 3 trang
         if i % 3 == 0 or i == 1:
             await query.edit_message_text(
                 f"⏳ Đang crawl trang {i}/{max_pages}...\n"
@@ -306,6 +305,32 @@ async def menu_callback_handler(update: Update, context: ContextTypes.DEFAULT_TY
             await query.edit_message_text("Bạn không có quyền cập nhật dữ liệu!")
             return
         await crawl_new_days_csv_progress(query, DATA_FILE, 60)
+        return
+
+    # ==== Train lại AI (admin) ====
+    if query.data == "train_model":
+        if user_id not in ADMIN_IDS:
+            await query.edit_message_text("Bạn không có quyền train lại mô hình!")
+            return
+        await query.edit_message_text("⏳ Đang train lại AI, vui lòng đợi...")
+        try:
+            df = pd.read_csv(DATA_FILE)
+            df = df.dropna()
+            df['Đặc biệt'] = df['Đặc biệt'].astype(str).str[-2:]
+            df['Đặc biệt'] = df['Đặc biệt'].astype(int)
+            X, y = [], []
+            for i in range(len(df) - 7):
+                features = df['Đặc biệt'][i:i+7].tolist()
+                label = df['Đặc biệt'][i+7]
+                X.append(features)
+                y.append(label)
+            from sklearn.ensemble import RandomForestClassifier
+            model = RandomForestClassifier(n_estimators=100, random_state=42)
+            model.fit(X, y)
+            joblib.dump(model, 'model_rf_loto.pkl')
+            await query.edit_message_text("✅ Đã train lại và lưu mô hình thành công!")
+        except Exception as e:
+            await query.edit_message_text(f"Lỗi khi train mô hình: {e}")
         return
 
     # ==== Thống kê ====
