@@ -8,7 +8,7 @@ from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, InputFi
 from telegram.ext import (
     ApplicationBuilder, CommandHandler, ContextTypes, CallbackQueryHandler, MessageHandler, filters
 )
-from itertools import product, combinations
+from itertools import product, combinations, permutations
 import datetime
 import re
 from collections import Counter
@@ -45,7 +45,6 @@ if not os.path.exists(DATA_FILE):
         print("Không tìm thấy file trên Drive, sẽ tạo mới sau.", e)
 
 def split_numbers(s):
-    # Chuẩn hóa về số dạng 2-4 ký tự (càng, xiên)
     return [num.lstrip('0') if num != '00' else '00' for num in re.findall(r'\d+', str(s)) if len(num) <= 4]
 
 def ghep_xien(numbers, do_dai=2):
@@ -60,6 +59,12 @@ def ghep_cang(cang_list, so_list):
         for so in so_list:
             result.append(f"{c}{so}")
     return result
+
+def sinh_lat_so(s):
+    s = ''.join(re.findall(r'\d', s))
+    if len(s) < 3 or len(s) > 4:
+        return []
+    return sorted({''.join(p) for p in permutations(s)})
 
 def ask_gemini(prompt, api_key=None):
     api_key = api_key or os.getenv("GEMINI_API_KEY")
@@ -261,7 +266,7 @@ async def menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         ],
         [
             InlineKeyboardButton("➕ Ghép xiên", callback_data="ghepxien"),
-            InlineKeyboardButton("🎯 Ghép càng", callback_data="ghepcang"),
+            InlineKeyboardButton("3D/4D/Đảo số", callback_data="ghepcang"),
             InlineKeyboardButton("💬 Hỏi Thần tài", callback_data="hoi_gemini"),
         ],
         [
@@ -288,16 +293,17 @@ async def menu_callback_handler(update: Update, context: ContextTypes.DEFAULT_TY
         await send_csv_callback(query, user_id)
         return
 
-    # GHÉP CÀNG: Nút chọn 3D/4D
+    # GHÉP CÀNG/3D/4D/ĐẢO SỐ
     if query.data == "ghepcang":
         keyboard = [
             [
                 InlineKeyboardButton("3D (ghép càng vào số 2 chữ số)", callback_data="ghepcang3"),
                 InlineKeyboardButton("4D (ghép càng vào số 3 chữ số)", callback_data="ghepcang4"),
+                InlineKeyboardButton("Đảo/Lật số", callback_data="latso")
             ]
         ]
         await query.edit_message_text(
-            "Chọn loại ghép càng (3D hoặc 4D):",
+            "Chọn loại 3D, 4D hoặc đảo số:",
             reply_markup=InlineKeyboardMarkup(keyboard)
         )
         return
@@ -307,6 +313,11 @@ async def menu_callback_handler(update: Update, context: ContextTypes.DEFAULT_TY
         context.user_data["wait_cang_step"] = "cang"
         context.user_data["socang"] = socang
         await query.edit_message_text(f"Nhập dãy càng (ví dụ: 1 2 3):")
+        return
+
+    if query.data == "latso":
+        context.user_data["wait_latso"] = True
+        await query.edit_message_text("Nhập số 3 hoặc 4 chữ số để đảo/lật (ví dụ: 123 hoặc 1234):")
         return
 
     # GHÉP XIÊN
@@ -478,7 +489,18 @@ async def all_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     text = update.message.text.strip()
 
-    # === LUỒNG GHÉP CÀNG 2 BƯỚC ===
+    # LUỒNG ĐẢO/LẬT SỐ
+    if context.user_data.get("wait_latso", False):
+        s = ''.join(re.findall(r'\d', text))
+        if len(s) not in (3, 4):
+            await update.message.reply_text("Chỉ nhập số có 3 hoặc 4 chữ số!")
+        else:
+            ketqua = sinh_lat_so(s)
+            await update.message.reply_text(','.join(ketqua))
+        context.user_data["wait_latso"] = False
+        return
+
+    # LUỒNG GHÉP CÀNG 2 BƯỚC
     if context.user_data.get("wait_cang_step") == "cang":
         socang = context.user_data.get("socang", 3)
         cang_list = re.findall(r'\d+', text)
@@ -515,7 +537,7 @@ async def all_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         context.user_data["socang"] = None
         return
 
-    # === LUỒNG GHÉP XIÊN ===
+    # LUỒNG GHÉP XIÊN
     if context.user_data.get("wait_xien", False):
         if context.user_data.get("who_xien", None) == user_id:
             xiend = context.user_data.get("xiend", 2)
@@ -533,7 +555,7 @@ async def all_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             context.user_data["xiend"] = None
         return
 
-    # === HỎI GEMINI ===
+    # HỎI GEMINI
     if context.user_data.get("wait_gemini", False):
         if context.user_data.get("who_gemini", None) == user_id:
             res = ask_gemini(text)
