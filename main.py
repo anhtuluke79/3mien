@@ -16,7 +16,7 @@ from itertools import product, combinations
 from can_chi_dict import data as CAN_CHI_SO_HAP
 from thien_can import CAN_INFO
 
-ADMIN_IDS = [12345678]  # Đổi số này thành user_id của bạn
+ADMIN_IDS = [892780229]  # Đổi số này thành user_id của bạn
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
