@@ -330,23 +330,22 @@ async def menu_callback_handler(update: Update, context: ContextTypes.DEFAULT_TY
 
 # ========== ALL TEXT HANDLER ==========
 async def all_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    # Ghép xiên N
-    if isinstance(context.user_data.get('wait_for_xien_input'), int):
-        text = update.message.text.strip()
-        numbers = split_numbers(text)
-        do_dai = context.user_data.get('wait_for_xien_input')
-        bo_xien = ghep_xien(numbers, do_dai)
-        if not bo_xien:
-            await update.message.reply_text("Không ghép được xiên.")
-        else:
-            if len(bo_xien) > 20:
-                result = '\n'.join([', '.join(bo_xien[i:i+10]) for i in range(0, len(bo_xien), 10)])
-            else:
-                result = ', '.join(bo_xien)
-            await update.message.reply_text(f"{len(bo_xien)} bộ xiên:\n{result}")
-        context.user_data['wait_for_xien_input'] = False
+async def all_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    text = update.message.text.strip().lower()
+    bot_username = (await context.bot.get_me()).username.lower()
+    mention = f"@{bot_username}"
+
+    if (
+        mention in text 
+        or '/menu' in text 
+        or '/start' in text
+        or 'phong thủy' in text
+        or 'phong thuy' in text
+    ):
         await menu(update, context)
+    else:
         return
+
 
     # Ghép càng N
     if isinstance(context.user_data.get('wait_for_cang_input'), int):
