@@ -214,6 +214,9 @@ async def send_csv_callback(query, user_id):
 
 # ============ HANDLER CALLBACK/COMMAND ============
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    context.user_data["wait_gemini"] = False
+    context.user_data["who_gemini"] = None
+    context.user_data["gemini_count"] = 0
     await update.message.reply_text(
         "✨ Chào mừng bạn đến với XosoBot!\n"
         "• /menu để chọn tính năng\n"
@@ -221,6 +224,9 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
 async def menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    context.user_data["wait_gemini"] = False
+    context.user_data["who_gemini"] = None
+    context.user_data["gemini_count"] = 0
     user_id = update.effective_user.id
     keyboard = [
         [
@@ -246,6 +252,11 @@ async def menu_callback_handler(update: Update, context: ContextTypes.DEFAULT_TY
     query = update.callback_query
     await query.answer()
     user_id = query.from_user.id
+
+    # Reset trạng thái Gemini khi đổi menu
+    context.user_data["wait_gemini"] = False
+    context.user_data["who_gemini"] = None
+    context.user_data["gemini_count"] = 0
 
     if query.data == "download_csv":
         await send_csv_callback(query, user_id)
@@ -323,9 +334,10 @@ async def menu_callback_handler(update: Update, context: ContextTypes.DEFAULT_TY
         return
 
     if query.data == "hoi_gemini":
-        await query.edit_message_text("Nhập nội dung bạn muốn hỏi Thần tài (Gemini AI):")
         context.user_data["wait_gemini"] = True
         context.user_data["who_gemini"] = user_id
+        context.user_data["gemini_count"] = 0
+        await query.edit_message_text("Nhập nội dung bạn muốn hỏi Thần tài (Gemini AI). Bạn có 10 lượt hỏi trong phiên này:")
         return
 
     await query.edit_message_text("Chức năng này đang phát triển hoặc chưa được cấu hình!")
@@ -402,10 +414,16 @@ async def all_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     if context.user_data.get("wait_gemini", False):
         if context.user_data.get("who_gemini", None) == user_id:
+            count = context.user_data.get("gemini_count", 0)
+            if count >= 10:
+                await update.message.reply_text("Bạn đã hết lượt hỏi Thần tài trong phiên này (10/10)!\nVui lòng bấm /menu hoặc chọn lại chức năng để bắt đầu lại.")
+                context.user_data["wait_gemini"] = False
+                context.user_data["who_gemini"] = None
+                context.user_data["gemini_count"] = 0
+                return
             res = ask_gemini(text)
-            await update.message.reply_text(f"💬 Thần tài trả lời:\n{res}")
-            context.user_data["wait_gemini"] = False
-            context.user_data["who_gemini"] = None
+            await update.message.reply_text(f"💬 Thần tài trả lời ({count+1}/10):\n{res}")
+            context.user_data["gemini_count"] = count + 1
         return
 
 def main():
