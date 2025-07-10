@@ -11,7 +11,7 @@ from telegram.ext import (
     ApplicationBuilder, CommandHandler, ContextTypes, CallbackQueryHandler,
     MessageHandler, filters
 )
-from itertools import product, combinations
+from itertools import product, combinations, permutations
 import csv
 from datetime import datetime, timedelta
 import re
@@ -30,7 +30,14 @@ logger = logging.getLogger(__name__)
 
 # ============= TIỆN ÍCH ============
 def split_numbers(s):
+    # Chỉ lấy chuỗi là số, VD: "12,13, 15 16" -> ['12','13','15','16']
     return [n for n in s.replace(',', ' ').split() if n.isdigit()]
+
+def ghep_xien(numbers, do_dai=2):
+    if len(numbers) < do_dai:
+        return []
+    result = [tuple(map(str, comb)) for comb in combinations(numbers, do_dai)]
+    return ['&'.join(comb) for comb in result]
 
 def ghep_cang(numbers, so_cang=3):
     if not numbers or len(numbers) == 0:
@@ -39,11 +46,10 @@ def ghep_cang(numbers, so_cang=3):
     result = [''.join(map(str, tup)) for tup in comb]
     return sorted(set(result))
 
-def ghep_xien(numbers, do_dai=2):
-    if len(numbers) < do_dai:
-        return []
-    result = [tuple(map(str, comb)) for comb in combinations(numbers, do_dai)]
-    return ['&'.join(comb) for comb in result]
+def dao_so(s):
+    arr = list(s)
+    perm = set([''.join(p) for p in permutations(arr)])
+    return sorted(list(perm))
 
 def chuan_hoa_can_chi(s):
     return ' '.join(word.capitalize() for word in s.strip().split())
@@ -214,13 +220,21 @@ async def menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     keyboard = [
         [
+            InlineKeyboardButton("➕ Xiên 2", callback_data="ghepxien_2"),
+            InlineKeyboardButton("➕ Xiên 3", callback_data="ghepxien_3"),
+            InlineKeyboardButton("➕ Xiên 4", callback_data="ghepxien_4"),
+        ],
+        [
+            InlineKeyboardButton("🎯 Càng 3D", callback_data="ghepcang_3d"),
+            InlineKeyboardButton("🎯 Càng 4D", callback_data="ghepcang_4d"),
+            InlineKeyboardButton("🔄 Đảo số", callback_data="daoso"),
+        ],
+        [
             InlineKeyboardButton("📈 Thống kê", callback_data="thongke"),
             InlineKeyboardButton("🤖 Dự đoán AI", callback_data="ai_predict"),
             InlineKeyboardButton("🔮 Phong thủy", callback_data="phongthuy_ngay"),
         ],
         [
-            InlineKeyboardButton("➕ Ghép xiên", callback_data="ghepxien"),
-            InlineKeyboardButton("🎯 Ghép càng", callback_data="ghepcang"),
             InlineKeyboardButton("💬 Hỏi Gemini", callback_data="hoi_gemini"),
         ]
     ]
@@ -241,8 +255,27 @@ async def menu_callback_handler(update: Update, context: ContextTypes.DEFAULT_TY
     await query.answer()
     user_id = query.from_user.id
 
+    # ====== Ghép xiên/càng/đảo số
+    if query.data == "ghepxien_2":
+        context.user_data['wait_for_xien_input'] = 2
+        await query.edit_message_text("Nhập dãy số để ghép xiên 2 (cách nhau dấu cách hoặc phẩy):")
+    elif query.data == "ghepxien_3":
+        context.user_data['wait_for_xien_input'] = 3
+        await query.edit_message_text("Nhập dãy số để ghép xiên 3 (cách nhau dấu cách hoặc phẩy):")
+    elif query.data == "ghepxien_4":
+        context.user_data['wait_for_xien_input'] = 4
+        await query.edit_message_text("Nhập dãy số để ghép xiên 4 (cách nhau dấu cách hoặc phẩy):")
+    elif query.data == "ghepcang_3d":
+        context.user_data['wait_for_cang_input'] = 3
+        await query.edit_message_text("Nhập dãy số để ghép càng 3D (cách nhau dấu cách hoặc phẩy):")
+    elif query.data == "ghepcang_4d":
+        context.user_data['wait_for_cang_input'] = 4
+        await query.edit_message_text("Nhập dãy số để ghép càng 4D (cách nhau dấu cách hoặc phẩy):")
+    elif query.data == "daoso":
+        context.user_data['wait_for_daoso'] = True
+        await query.edit_message_text("Nhập một số hoặc dãy số (VD: 123 hoặc 1234):")
     # ===== Admin update data
-    if query.data == "capnhat_xsmb_kq":
+    elif query.data == "capnhat_xsmb_kq":
         if user_id not in ADMIN_IDS:
             await query.edit_message_text("Bạn không có quyền cập nhật dữ liệu!")
             return
@@ -257,58 +290,85 @@ async def menu_callback_handler(update: Update, context: ContextTypes.DEFAULT_TY
             await query.edit_message_text("Bạn không có quyền cập nhật dữ liệu!")
             return
         await capnhat_xsm_kq_handler_query(query, "nam", "Miền Nam")
-
     # ====== Train model (admin)
     elif query.data == "train_model":
         if user_id not in ADMIN_IDS:
             await query.edit_message_text("Bạn không có quyền train AI!")
             return
         await train_model_handler_query(query)
-
     # ====== Thống kê (user)
     elif query.data == "thongke":
         await thongke_handler_query(query)
     # ====== Dự đoán AI (user)
     elif query.data == "ai_predict":
         await ai_predict_handler_query(query)
-    # ====== Phong thủy ngày
+    # ====== Phong thủy ngày: hỏi cách tra
     elif query.data == "phongthuy_ngay":
-        await query.edit_message_text("Nhập ngày dương lịch (YYYY-MM-DD):")
-        context.user_data['wait_phongthuy_ngay'] = True
-    # ====== Ghép xiên
-    elif query.data == "ghepxien":
-        context.user_data['wait_for_xien_input'] = True
-        await query.edit_message_text("Nhập dãy số (cách nhau dấu cách, phẩy) để ghép xiên:")
-    # ====== Ghép càng
-    elif query.data == "ghepcang":
-        context.user_data['wait_for_cang_input'] = True
-        await query.edit_message_text("Nhập dãy số để ghép càng:")
+        keyboard = [
+            [InlineKeyboardButton("Theo ngày dương (YYYY-MM-DD)", callback_data="phongthuy_ngay_duong")],
+            [InlineKeyboardButton("Theo can chi (VD: Giáp Tý)", callback_data="phongthuy_ngay_canchi")],
+        ]
+        await query.edit_message_text("🔮 Bạn muốn tra phong thủy theo kiểu nào?", reply_markup=InlineKeyboardMarkup(keyboard))
+    elif query.data == "phongthuy_ngay_duong":
+        await query.edit_message_text("📅 Nhập ngày dương lịch (YYYY-MM-DD):")
+        context.user_data['wait_phongthuy_ngay_duong'] = True
+    elif query.data == "phongthuy_ngay_canchi":
+        await query.edit_message_text("📜 Nhập can chi (ví dụ: Giáp Tý):")
+        context.user_data['wait_phongthuy_ngay_canchi'] = True
     # ====== Hỏi Gemini
     elif query.data == "hoi_gemini":
         context.user_data['wait_hoi_gemini'] = True
         await query.edit_message_text("Nhập câu hỏi cho Gemini:")
-
     else:
         await query.edit_message_text("Chức năng này đang phát triển.")
 
 # ========== ALL TEXT HANDLER ==========
 async def all_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    # Ghép xiên
-    if context.user_data.get('wait_for_xien_input'):
+    # Ghép xiên N
+    if isinstance(context.user_data.get('wait_for_xien_input'), int):
         text = update.message.text.strip()
         numbers = split_numbers(text)
-        bo_xien = ghep_xien(numbers, 2)
-        await update.message.reply_text(','.join(bo_xien) if bo_xien else "Không ghép được xiên.")
+        do_dai = context.user_data.get('wait_for_xien_input')
+        bo_xien = ghep_xien(numbers, do_dai)
+        if not bo_xien:
+            await update.message.reply_text("Không ghép được xiên.")
+        else:
+            if len(','.join(bo_xien)) > 3500:
+                await update.message.reply_text(f"{len(bo_xien)} bộ xiên. Quá nhiều để gửi, hãy nhập ít số hơn!")
+            else:
+                result = ','.join(bo_xien)
+                await update.message.reply_text(f"{len(bo_xien)} bộ xiên:\n{result}")
         context.user_data['wait_for_xien_input'] = False
         return
 
-    # Ghép càng
-    if context.user_data.get('wait_for_cang_input'):
+    # Ghép càng N
+    if isinstance(context.user_data.get('wait_for_cang_input'), int):
         text = update.message.text.strip()
         numbers = split_numbers(text)
-        bo_so = ghep_cang(numbers, 3)
-        await update.message.reply_text(','.join(bo_so) if bo_so else "Không ghép được càng.")
+        so_cang = context.user_data.get('wait_for_cang_input')
+        bo_so = ghep_cang(numbers, so_cang)
+        if not bo_so:
+            await update.message.reply_text("Không ghép được càng.")
+        else:
+            if len(','.join(bo_so)) > 3500:
+                await update.message.reply_text(f"{len(bo_so)} số càng. Quá nhiều để gửi, hãy nhập ít số hơn!")
+            else:
+                result = ','.join(bo_so)
+                await update.message.reply_text(f"{len(bo_so)} số càng:\n{result}")
         context.user_data['wait_for_cang_input'] = False
+        return
+
+    # Đảo số
+    if context.user_data.get('wait_for_daoso'):
+        s = update.message.text.strip()
+        arr = split_numbers(s)
+        s_concat = ''.join(arr) if arr else s.replace(' ', '')
+        if not s_concat.isdigit() or len(s_concat) < 2 or len(s_concat) > 6:
+            await update.message.reply_text("Nhập 1 số có từ 2 đến 6 chữ số (ví dụ 1234, 56789).")
+        else:
+            result = dao_so(s_concat)
+            await update.message.reply_text(f"Tổng {len(result)} hoán vị:\n{', '.join(result)}")
+        context.user_data['wait_for_daoso'] = False
         return
 
     # Hỏi Gemini
@@ -319,8 +379,8 @@ async def all_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         context.user_data['wait_hoi_gemini'] = False
         return
 
-    # Phong thủy ngày
-    if context.user_data.get('wait_phongthuy_ngay'):
+    # Phong thủy theo ngày dương
+    if context.user_data.get('wait_phongthuy_ngay_duong'):
         ngay = update.message.text.strip()
         try:
             y, m, d = map(int, ngay.split('-'))
@@ -328,19 +388,38 @@ async def all_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             sohap_info = sinh_so_hap_cho_ngay(can_chi)
             if not sohap_info:
                 await update.message.reply_text(f"Không tra được số hạp cho ngày {can_chi}.")
-                return
+            else:
+                so_ghep = set(sohap_info['so_ghép'])
+                text = (
+                    f"🔮 Phong thủy ngày {can_chi} ({d:02d}/{m:02d}/{y}):\n"
+                    f"- Can: {sohap_info['can']}, {sohap_info['am_duong']}, {sohap_info['ngu_hanh']}\n"
+                    f"- Số mệnh: {sohap_info['so_menh']}\n"
+                    f"- Số hạp: {', '.join(sohap_info['so_hap_list'])}\n"
+                    f"- Bộ số ghép đặc biệt: {', '.join(so_ghep)}"
+                )
+                await update.message.reply_text(text)
+        except Exception:
+            await update.message.reply_text("❗️ Nhập ngày không hợp lệ! Đúng định dạng YYYY-MM-DD.")
+        context.user_data['wait_phongthuy_ngay_duong'] = False
+        return
+
+    # Phong thủy theo can chi
+    if context.user_data.get('wait_phongthuy_ngay_canchi'):
+        can_chi = chuan_hoa_can_chi(update.message.text.strip())
+        sohap_info = sinh_so_hap_cho_ngay(can_chi)
+        if not sohap_info:
+            await update.message.reply_text(f"Không tra được số hạp cho ngày {can_chi}.")
+        else:
             so_ghep = set(sohap_info['so_ghép'])
             text = (
-                f"🔮 Phong thủy ngày {can_chi} ({d:02d}/{m:02d}/{y}):\n"
+                f"🔮 Phong thủy ngày {can_chi}:\n"
                 f"- Can: {sohap_info['can']}, {sohap_info['am_duong']}, {sohap_info['ngu_hanh']}\n"
                 f"- Số mệnh: {sohap_info['so_menh']}\n"
                 f"- Số hạp: {', '.join(sohap_info['so_hap_list'])}\n"
                 f"- Bộ số ghép đặc biệt: {', '.join(so_ghep)}"
             )
             await update.message.reply_text(text)
-        except Exception:
-            await update.message.reply_text("Nhập ngày không hợp lệ! Đúng định dạng YYYY-MM-DD.")
-        context.user_data['wait_phongthuy_ngay'] = False
+        context.user_data['wait_phongthuy_ngay_canchi'] = False
         return
 
     # Mặc định
@@ -400,7 +479,6 @@ async def train_model_handler_query(query):
             X.append(features)
             y.append(label)
         from sklearn.ensemble import RandomForestClassifier
-        import joblib
         model = RandomForestClassifier(n_estimators=100, random_state=42)
         model.fit(X, y)
         joblib.dump(model, 'model_rf_loto.pkl')
