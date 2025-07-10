@@ -11,11 +11,11 @@ from telegram.ext import (
 from itertools import product, combinations
 import datetime
 import re
+from collections import Counter
 
 from can_chi_dict import data as CAN_CHI_SO_HAP
 from thien_can import CAN_INFO
 
-# LẤY ADMIN TỪ BIẾN MÔI TRƯỜNG
 ADMIN_IDS = list(map(int, os.getenv("ADMIN_IDS", "12345678").split(',')))
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN") or "YOUR_TELEGRAM_BOT_TOKEN"
 
@@ -96,7 +96,7 @@ def sinh_so_hap_cho_ngay(can_chi_str):
         "so_ghép": sorted(list(ket_qua))
     }
 
-# ==== CRAWL VÀ CẬP NHẬT XSMB 60 NGÀY (KHÔNG TRÙNG LẶP) ====
+# ==== CRAWL VÀ CẬP NHẬT XSMB 60 NGÀY ====
 def crawl_xsmb_one_day(url):
     headers = {"User-Agent": "Mozilla/5.0"}
     resp = requests.get(url, headers=headers, timeout=10)
@@ -164,6 +164,25 @@ def crawl_new_days_csv(filename="xsmb_full.csv", max_pages=60):
     df_full.to_csv(filename, index=False, encoding="utf-8-sig")
     print(f"Đã cập nhật {len(df_new)} ngày mới vào {filename}")
 
+# ==== AI CẦU LÔ: THỐNG KÊ LÔ THEO CHU KỲ ====
+def thong_ke_lo(csv_file, days=7):
+    df = pd.read_csv(csv_file)
+    df = df.head(days)
+    all_lo = []
+    for _, row in df.iterrows():
+        for col in df.columns:
+            if col != 'Ngày' and pd.notnull(row[col]):
+                nums = [n.strip() for n in str(row[col]).split(',')]
+                all_lo.extend([n[-2:] for n in nums if n[-2:].isdigit()])
+    lo_counter = Counter(all_lo)
+    top_lo = lo_counter.most_common(10)
+    total_lo = sum(lo_counter.values()) if lo_counter else 1
+    xac_suat = [(l, c, round(c/total_lo*100,1)) for l,c in top_lo]
+    tat_ca_lo = {f"{i:02d}" for i in range(100)}
+    da_ve = set(lo_counter.keys())
+    lo_gan = list(tat_ca_lo - da_ve)
+    return xac_suat, lo_gan
+
 # ==== BOT TELEGRAM HANDLER ==== 
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -185,6 +204,9 @@ async def menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
             InlineKeyboardButton("➕ Ghép xiên", callback_data="ghepxien"),
             InlineKeyboardButton("🎯 Ghép càng", callback_data="ghepcang"),
             InlineKeyboardButton("💬 Hỏi Thần tài", callback_data="hoi_gemini"),
+        ],
+        [
+            InlineKeyboardButton("🤖 AI cầu lô", callback_data="ai_lo_menu"),
         ]
     ]
     if user_id in ADMIN_IDS:
@@ -201,6 +223,31 @@ async def menu_callback_handler(update: Update, context: ContextTypes.DEFAULT_TY
     query = update.callback_query
     await query.answer()
     user_id = query.from_user.id
+
+    # ==== AI CẦU LÔ ====
+    if query.data == "ai_lo_menu":
+        keyboard = [
+            [
+                InlineKeyboardButton("7 ngày", callback_data="ai_lo_7"),
+                InlineKeyboardButton("14 ngày", callback_data="ai_lo_14"),
+                InlineKeyboardButton("30 ngày", callback_data="ai_lo_30"),
+                InlineKeyboardButton("60 ngày", callback_data="ai_lo_60"),
+            ]
+        ]
+        await query.edit_message_text(
+            "🤖 AI cầu lô - Chọn chu kỳ thống kê:",
+            reply_markup=InlineKeyboardMarkup(keyboard)
+        )
+        return
+    if query.data.startswith("ai_lo_"):
+        days = int(query.data.split("_")[-1])
+        xac_suat, lo_gan = thong_ke_lo('xsmb_full.csv', days)
+        msg = f"🤖 Thống kê lô tô {days} ngày gần nhất:\n"
+        msg += "- Top 10 lô ra nhiều nhất:\n"
+        msg += "\n".join([f"  • {l}: {c} lần ({p}%)" for l,c,p in xac_suat])
+        msg += f"\n- Các lô gan nhất (lâu chưa về): {', '.join(sorted(lo_gan)[:10])}..."
+        await query.edit_message_text(msg)
+        return
 
     # ==== Cập nhật XSMB (admin) ====
     if query.data == "capnhat_xsmb":
