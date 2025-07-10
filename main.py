@@ -231,11 +231,11 @@ async def menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyboard = [
         [
             InlineKeyboardButton("🔮 Phong thủy ngày", callback_data="phongthuy_ngay"),
+            InlineKeyboardButton("💬 Thần tài tư vấn", callback_data="hoi_gemini"),
         ],
         [
             InlineKeyboardButton("➕ Ghép xiên", callback_data="ghepxien"),
             InlineKeyboardButton("🎯 3D/4D/Đảo số", callback_data="ghepcang"),
-            InlineKeyboardButton("💬 Hỏi Thần tài", callback_data="hoi_gemini"),
         ]
     ]
     if user_id in ADMIN_IDS:
@@ -337,7 +337,7 @@ async def menu_callback_handler(update: Update, context: ContextTypes.DEFAULT_TY
         context.user_data["wait_gemini"] = True
         context.user_data["who_gemini"] = user_id
         context.user_data["gemini_count"] = 0
-        await query.edit_message_text("Nhập nội dung bạn muốn hỏi Thần tài (Gemini AI). Bạn có 10 lượt hỏi trong phiên này:")
+        await query.edit_message_text("Nhập nội dung bạn muốn hỏi Thần tài tư vấn. Bạn có 10 lượt hỏi trong phiên này:")
         return
 
     await query.edit_message_text("Chức năng này đang phát triển hoặc chưa được cấu hình!")
