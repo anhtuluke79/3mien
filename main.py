@@ -245,7 +245,12 @@ async def menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
             InlineKeyboardButton("🛠️ Update MN", callback_data="capnhat_xsmn_kq"),
             InlineKeyboardButton("⚙️ Train AI", callback_data="train_model"),
         ])
+    # Có thể gọi cả khi update/callback hoặc gửi mới
     await update.message.reply_text(
+        "🔹 Chọn chức năng:",
+        reply_markup=InlineKeyboardMarkup(keyboard)
+    ) if hasattr(update, "message") and update.message \
+      else await update.callback_query.message.reply_text(
         "🔹 Chọn chức năng:",
         reply_markup=InlineKeyboardMarkup(keyboard)
     )
@@ -339,6 +344,7 @@ async def all_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 result = ','.join(bo_xien)
                 await update.message.reply_text(f"{len(bo_xien)} bộ xiên:\n{result}")
         context.user_data['wait_for_xien_input'] = False
+        await menu(update, context)
         return
 
     # Ghép càng N
@@ -356,6 +362,7 @@ async def all_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 result = ','.join(bo_so)
                 await update.message.reply_text(f"{len(bo_so)} số càng:\n{result}")
         context.user_data['wait_for_cang_input'] = False
+        await menu(update, context)
         return
 
     # Đảo số
@@ -369,6 +376,7 @@ async def all_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             result = dao_so(s_concat)
             await update.message.reply_text(f"Tổng {len(result)} hoán vị:\n{', '.join(result)}")
         context.user_data['wait_for_daoso'] = False
+        await menu(update, context)
         return
 
     # Hỏi Gemini
@@ -377,6 +385,7 @@ async def all_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         answer = ask_gemini(question)
         await update.message.reply_text(answer)
         context.user_data['wait_hoi_gemini'] = False
+        await menu(update, context)
         return
 
     # Phong thủy theo ngày dương
@@ -401,6 +410,7 @@ async def all_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         except Exception:
             await update.message.reply_text("❗️ Nhập ngày không hợp lệ! Đúng định dạng YYYY-MM-DD.")
         context.user_data['wait_phongthuy_ngay_duong'] = False
+        await menu(update, context)
         return
 
     # Phong thủy theo can chi
@@ -420,10 +430,12 @@ async def all_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             )
             await update.message.reply_text(text)
         context.user_data['wait_phongthuy_ngay_canchi'] = False
+        await menu(update, context)
         return
 
     # Mặc định
     await update.message.reply_text("Bot đã nhận tin nhắn của bạn!")
+    await menu(update, context)
 
 # ========== HANDLER: THỐNG KÊ, AI, TRAIN MODEL ==========
 async def thongke_handler_query(query):
