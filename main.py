@@ -90,8 +90,6 @@ def sinh_so_hap_cho_ngay(can_chi_str):
         "so_ghép": sorted(list(ket_qua))
     }
 
-# ======= ĐÃ LOẠI BỎ HÀM ask_gemini và các mã gọi Gemini =======
-
 # ========== CRAWL XỔ SỐ KẾT QUẢ NHIỀU NGÀY ==========
 XSKQ_CONFIG = {
     "bac": {
@@ -209,7 +207,6 @@ async def menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
             InlineKeyboardButton("🤖 Dự đoán AI", callback_data="ai_predict"),
             InlineKeyboardButton("🔮 Phong thủy", callback_data="phongthuy_ngay"),
         ],
-        # ĐÃ LOẠI BỎ: [InlineKeyboardButton("✨ Thần tài", callback_data="than_tai")],
     ]
     if user_id in ADMIN_IDS:
         keyboard.append([
@@ -275,8 +272,6 @@ async def menu_callback_handler(update: Update, context: ContextTypes.DEFAULT_TY
         context.user_data['wait_for_daoso'] = True
         await query.edit_message_text("Nhập một số hoặc dãy số (VD: 123 hoặc 1234):")
 
-    # ===== ĐÃ LOẠI BỎ TOÀN BỘ callback 'than_tai'
-
     # ===== Thống kê, AI, Phong thủy, update, train...
     elif query.data == "thongke":
         await thongke_handler_query(query)
@@ -306,6 +301,7 @@ async def menu_callback_handler(update: Update, context: ContextTypes.DEFAULT_TY
         keyboard = [
             [InlineKeyboardButton("Theo ngày dương (YYYY-MM-DD)", callback_data="phongthuy_ngay_duong")],
             [InlineKeyboardButton("Theo can chi (VD: Giáp Tý)", callback_data="phongthuy_ngay_canchi")],
+            [InlineKeyboardButton("Ngày hiện tại", callback_data="phongthuy_ngay_today")],
         ]
         await query.edit_message_text("🔮 Bạn muốn tra phong thủy theo kiểu nào?", reply_markup=InlineKeyboardMarkup(keyboard))
     elif query.data == "phongthuy_ngay_duong":
@@ -314,6 +310,23 @@ async def menu_callback_handler(update: Update, context: ContextTypes.DEFAULT_TY
     elif query.data == "phongthuy_ngay_canchi":
         await query.edit_message_text("📜 Nhập can chi (ví dụ: Giáp Tý):")
         context.user_data['wait_phongthuy_ngay_canchi'] = True
+    elif query.data == "phongthuy_ngay_today":
+        now = datetime.now()
+        y, m, d = now.year, now.month, now.day
+        can_chi = get_can_chi_ngay(y, m, d)
+        sohap_info = sinh_so_hap_cho_ngay(can_chi)
+        if not sohap_info:
+            text = f"Không tra được số hạp cho ngày {can_chi} ({d:02d}/{m:02d}/{y})."
+        else:
+            so_ghep = set(sohap_info['so_ghép'])
+            text = (
+                f"🔮 Phong thủy NGÀY HIỆN TẠI {can_chi} ({d:02d}/{m:02d}/{y}):\n"
+                f"- Can: {sohap_info['can']}, {sohap_info['am_duong']}, {sohap_info['ngu_hanh']}\n"
+                f"- Số mệnh: {sohap_info['so_menh']}\n"
+                f"- Số hạp: {', '.join(sohap_info['so_hap_list'])}\n"
+                f"- Bộ số ghép đặc biệt: {', '.join(so_ghep)}"
+            )
+        await query.edit_message_text(text)
 
 # ========== ALL TEXT HANDLER ==========
 async def all_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -370,8 +383,6 @@ async def all_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         context.user_data['wait_for_daoso'] = False
         await menu(update, context)
         return
-
-    # ====== ĐÃ LOẠI BỎ TOÀN BỘ BLOCK liên quan 'wait_hoi_gemini'
 
     # Phong thủy theo ngày dương
     if context.user_data.get('wait_phongthuy_ngay_duong'):
