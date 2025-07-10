@@ -45,6 +45,7 @@ if not os.path.exists(DATA_FILE):
         print("Không tìm thấy file trên Drive, sẽ tạo mới sau.", e)
 
 def split_numbers(s):
+    # Chuẩn hóa về số dạng 2-4 ký tự (càng, xiên)
     return [num.lstrip('0') if num != '00' else '00' for num in re.findall(r'\d+', str(s)) if len(num) <= 4]
 
 def ghep_xien(numbers, do_dai=2):
@@ -287,11 +288,28 @@ async def menu_callback_handler(update: Update, context: ContextTypes.DEFAULT_TY
         await send_csv_callback(query, user_id)
         return
 
+    # GHÉP CÀNG: Nút chọn 3D/4D
     if query.data == "ghepcang":
-        context.user_data["wait_cang_step"] = "cang"
-        await query.edit_message_text("Nhập dãy càng muốn ghép (ví dụ: 1 2 3):")
+        keyboard = [
+            [
+                InlineKeyboardButton("3D (ghép càng vào số 2 chữ số)", callback_data="ghepcang3"),
+                InlineKeyboardButton("4D (ghép càng vào số 3 chữ số)", callback_data="ghepcang4"),
+            ]
+        ]
+        await query.edit_message_text(
+            "Chọn loại ghép càng (3D hoặc 4D):",
+            reply_markup=InlineKeyboardMarkup(keyboard)
+        )
         return
 
+    if query.data in ["ghepcang3", "ghepcang4"]:
+        socang = int(query.data[-1])
+        context.user_data["wait_cang_step"] = "cang"
+        context.user_data["socang"] = socang
+        await query.edit_message_text(f"Nhập dãy càng (ví dụ: 1 2 3):")
+        return
+
+    # GHÉP XIÊN
     if query.data == "ghepxien":
         keyboard = [
             [
@@ -314,9 +332,147 @@ async def menu_callback_handler(update: Update, context: ContextTypes.DEFAULT_TY
         context.user_data["xiend"] = xiend
         return
 
-    # ... các phần callback khác như cũ, không đổi (AI, train_model, thống kê, v.v.)
+    # AI CẦU LÔ
+    if query.data == "ai_lo_menu":
+        keyboard = [
+            [
+                InlineKeyboardButton("7 ngày", callback_data="ai_lo_7"),
+                InlineKeyboardButton("14 ngày", callback_data="ai_lo_14"),
+                InlineKeyboardButton("30 ngày", callback_data="ai_lo_30"),
+                InlineKeyboardButton("60 ngày", callback_data="ai_lo_60"),
+            ]
+        ]
+        await query.edit_message_text(
+            "🤖 AI cầu lô - Chọn chu kỳ thống kê:",
+            reply_markup=InlineKeyboardMarkup(keyboard)
+        )
+        return
 
-    # (Không đưa lại full vì quá dài, nếu cần mình gửi lại toàn bộ các lệnh admin/stat/ai...)
+    if query.data.startswith("ai_lo_"):
+        days = int(query.data.split("_")[-1])
+        if not os.path.exists(DATA_FILE):
+            await query.edit_message_text("Chưa có dữ liệu. Đang tự động tạo file xsmb_full.csv...")
+            await crawl_new_days_csv_progress(query, DATA_FILE, 60)
+        xac_suat, lo_gan = thong_ke_lo(DATA_FILE, days)
+        msg = f"🤖 Thống kê lô tô {days} ngày gần nhất:\n"
+        msg += "- Top 10 lô ra nhiều nhất:\n"
+        msg += "\n".join([f"  • {l}: {c} lần ({p}%)" for l,c,p in xac_suat])
+        msg += f"\n- Các lô gan nhất (lâu chưa về): {', '.join(sorted(lo_gan)[:10])}..."
+        await query.edit_message_text(msg)
+        return
+
+    # ADMIN cập nhật dữ liệu
+    if query.data == "capnhat_xsmb":
+        if user_id not in ADMIN_IDS:
+            await query.edit_message_text("Bạn không có quyền cập nhật dữ liệu!")
+            return
+        await crawl_new_days_csv_progress(query, DATA_FILE, 60)
+        return
+
+    # ADMIN train AI
+    if query.data == "train_model":
+        if user_id not in ADMIN_IDS:
+            await query.edit_message_text("Bạn không có quyền train lại mô hình!")
+            return
+        await query.edit_message_text("⏳ Đang train lại AI, vui lòng đợi...")
+        try:
+            if not os.path.exists(DATA_FILE):
+                await crawl_new_days_csv_progress(query, DATA_FILE, 60)
+            df = pd.read_csv(DATA_FILE)
+            df = df.dropna()
+            dbs = df['Đặc biệt'].astype(str).str[-2:]
+            if len(dbs) < 30:
+                await query.edit_message_text("Không đủ dữ liệu train AI!")
+                return
+            X, y = [], []
+            for i in range(len(dbs) - 7):
+                X.append([int(x) for x in dbs[i:i+7]])
+                y.append(int(dbs[i+7]))
+            from sklearn.ensemble import RandomForestClassifier
+            model = RandomForestClassifier(n_estimators=100, random_state=42)
+            model.fit(X, y)
+            joblib.dump(model, 'model_rf_loto.pkl')
+            await query.edit_message_text("✅ Đã train lại và lưu mô hình thành công!")
+        except Exception as e:
+            await query.edit_message_text(f"Lỗi khi train mô hình: {e}")
+        return
+
+    # Thống kê ĐB
+    if query.data == "thongke":
+        if not os.path.exists(DATA_FILE):
+            await query.edit_message_text("Chưa có dữ liệu. Đang tự động tạo file xsmb_full.csv...")
+            await crawl_new_days_csv_progress(query, DATA_FILE, 60)
+        try:
+            df = pd.read_csv(DATA_FILE)
+            if 'Đặc biệt' not in df.columns or df['Đặc biệt'].isnull().all():
+                await query.edit_message_text("Không có dữ liệu ĐB trong xsmb_full.csv.")
+                return
+            dbs = df['Đặc biệt'].astype(str).str[-2:]
+            counts = dbs.value_counts().head(10)
+            top_list = "\n".join([f"Số {i}: {v} lần" for i, v in counts.items()])
+            today_db = dbs.iloc[0] if len(dbs) > 0 else "?"
+            text = (
+                f"📈 Top 10 số ĐB xuất hiện nhiều nhất 60 ngày gần nhất:\n{top_list}\n"
+                f"\n🎯 Số ĐB hôm nay: {today_db}"
+            )
+            await query.edit_message_text(text)
+        except Exception as e:
+            await query.edit_message_text(f"Lỗi thống kê: {e}")
+        return
+
+    # Dự đoán AI
+    if query.data == "du_doan_ai":
+        if not os.path.exists(DATA_FILE):
+            await query.edit_message_text("Chưa có dữ liệu. Đang tự động tạo file xsmb_full.csv...")
+            await crawl_new_days_csv_progress(query, DATA_FILE, 60)
+        try:
+            df = pd.read_csv(DATA_FILE)
+            df = df.dropna()
+            dbs = df['Đặc biệt'].astype(str).str[-2:]
+            if not os.path.exists('model_rf_loto.pkl'):
+                await query.edit_message_text("Chưa có mô hình AI, cần train trước bằng lệnh /train_model.")
+                return
+            model = joblib.load('model_rf_loto.pkl')
+            last7 = [int(x) for x in dbs[:7]]
+            if len(last7) < 7:
+                await query.edit_message_text("Không đủ dữ liệu 7 ngày để dự đoán!")
+                return
+            probs = model.predict_proba([last7])[0]
+            top_idx = probs.argsort()[-3:][::-1]
+            ketqua = [f"{model.classes_[i]:02d}" for i in top_idx]
+            await query.edit_message_text(
+                f"{', '.join(ketqua)}"
+            )
+        except Exception as e:
+            await query.edit_message_text(f"Lỗi dự đoán AI: {e}")
+        return
+
+    # Phong thủy ngày
+    if query.data == "phongthuy_ngay":
+        now = datetime.datetime.now()
+        can_chi = get_can_chi_ngay(now.year, now.month, now.day)
+        so_hap = sinh_so_hap_cho_ngay(can_chi)
+        if so_hap:
+            msg = (
+                f"🔮 Phong thủy ngày {now.strftime('%d/%m/%Y')}\n"
+                f"Can Chi: {can_chi}\n"
+                f"Số mệnh: {so_hap['so_menh']}\n"
+                f"Số hợp: {', '.join(so_hap['so_hap_list'])}\n"
+                f"Đề xuất các cặp số hợp: {', '.join(so_hap['so_ghép'])}"
+            )
+        else:
+            msg = f"Không tra được phong thủy cho ngày {now.strftime('%d/%m/%Y')}"
+        await query.edit_message_text(msg)
+        return
+
+    # Hỏi thần tài
+    if query.data == "hoi_gemini":
+        await query.edit_message_text("Nhập nội dung bạn muốn hỏi Thần tài (Gemini AI):")
+        context.user_data["wait_gemini"] = True
+        context.user_data["who_gemini"] = user_id
+        return
+
+    await query.edit_message_text("Chức năng này đang phát triển hoặc chưa được cấu hình!")
 
 async def all_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
@@ -324,28 +480,39 @@ async def all_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # === LUỒNG GHÉP CÀNG 2 BƯỚC ===
     if context.user_data.get("wait_cang_step") == "cang":
+        socang = context.user_data.get("socang", 3)
         cang_list = re.findall(r'\d+', text)
         if not cang_list:
             await update.message.reply_text("Hãy nhập dãy càng (cách nhau bằng dấu phẩy hoặc dấu cách, ví dụ: 1 2 3)")
             return
         context.user_data["cang_list"] = cang_list
         context.user_data["wait_cang_step"] = "so"
-        await update.message.reply_text("Nhập dãy số cần ghép (ví dụ: 23 75 46 96):")
+        if socang == 3:
+            await update.message.reply_text("Nhập dãy số 2 chữ số để ghép càng (ví dụ: 23 75 46 96):")
+        else:
+            await update.message.reply_text("Nhập dãy số 3 chữ số để ghép càng (ví dụ: 123 456 789):")
         return
 
     if context.user_data.get("wait_cang_step") == "so":
+        socang = context.user_data.get("socang", 3)
         so_list = re.findall(r'\d+', text)
         cang_list = context.user_data.get("cang_list", [])
         if not so_list or not cang_list:
             await update.message.reply_text("Thiếu càng hoặc số. Vui lòng nhập lại.")
         else:
+            # Lọc đúng độ dài số đuôi
+            if socang == 3:
+                so_list = [s.zfill(2)[-2:] for s in so_list if 1 <= len(s) <= 2]
+            else:
+                so_list = [s.zfill(3)[-3:] for s in so_list if 2 <= len(s) <= 3]
             result = ghep_cang(cang_list, so_list)
             MAX_SHOW = 50
             preview = ','.join(result[:MAX_SHOW])
             tail = " ..." if len(result) > MAX_SHOW else ""
-            await update.message.reply_text(f"Kết quả ghép càng: {preview}{tail}")
+            await update.message.reply_text(f"{preview}{tail}")
         context.user_data["wait_cang_step"] = None
         context.user_data["cang_list"] = None
+        context.user_data["socang"] = None
         return
 
     # === LUỒNG GHÉP XIÊN ===
@@ -360,7 +527,7 @@ async def all_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 MAX_SHOW = 50
                 preview = ', '.join(xiens[:MAX_SHOW])
                 tail = " ..." if len(xiens) > MAX_SHOW else ""
-                await update.message.reply_text(f"Các bộ xiên {xiend}: {preview}{tail}")
+                await update.message.reply_text(f"{preview}{tail}")
             context.user_data["wait_xien"] = False
             context.user_data["who_xien"] = None
             context.user_data["xiend"] = None
