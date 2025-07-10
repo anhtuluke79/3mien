@@ -4,7 +4,7 @@ import pandas as pd
 import joblib
 import requests
 from bs4 import BeautifulSoup
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, InputFile
 from telegram.ext import (
     ApplicationBuilder, CommandHandler, ContextTypes, CallbackQueryHandler, MessageHandler, filters
 )
@@ -188,6 +188,27 @@ def thong_ke_lo(csv_file=DATA_FILE, days=7):
     lo_gan = list(tat_ca_lo - da_ve)
     return xac_suat, lo_gan
 
+# ==== GỬI FILE CSV CHO ADMIN (/download_csv HOẶC NÚT MENU) ====
+async def send_csv(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.effective_user.id
+    if user_id not in ADMIN_IDS:
+        await update.message.reply_text("Bạn không có quyền sử dụng lệnh này!")
+        return
+    if not os.path.exists(DATA_FILE):
+        await update.message.reply_text("Chưa có file dữ liệu. Hãy cập nhật XSMB trước.")
+        return
+    await update.message.reply_document(InputFile(DATA_FILE), filename="xsmb_full.csv")
+
+async def send_csv_callback(query, user_id):
+    if user_id not in ADMIN_IDS:
+        await query.edit_message_text("Bạn không có quyền sử dụng chức năng này!")
+        return
+    if not os.path.exists(DATA_FILE):
+        await query.edit_message_text("Chưa có file dữ liệu. Hãy cập nhật XSMB trước.")
+        return
+    await query.message.reply_document(InputFile(DATA_FILE), filename="xsmb_full.csv")
+    await query.edit_message_text("⬇️ File xsmb_full.csv đã được gửi.")
+
 # ==== BOT TELEGRAM HANDLER ==== 
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -217,6 +238,7 @@ async def menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if user_id in ADMIN_IDS:
         keyboard.append([
             InlineKeyboardButton("⚙️ Cập nhật XSMB", callback_data="capnhat_xsmb"),
+            InlineKeyboardButton("⬇️ Download CSV", callback_data="download_csv"),
             InlineKeyboardButton("⚙️ Train lại AI", callback_data="train_model"),
         ])
     await update.message.reply_text(
@@ -228,6 +250,11 @@ async def menu_callback_handler(update: Update, context: ContextTypes.DEFAULT_TY
     query = update.callback_query
     await query.answer()
     user_id = query.from_user.id
+
+    # ==== Download CSV (ADMIN) ====
+    if query.data == "download_csv":
+        await send_csv_callback(query, user_id)
+        return
 
     # ==== AI CẦU LÔ ====
     if query.data == "ai_lo_menu":
@@ -333,14 +360,14 @@ async def menu_callback_handler(update: Update, context: ContextTypes.DEFAULT_TY
     await query.edit_message_text("Chức năng này đang phát triển hoặc chưa được cấu hình!")
 
 async def all_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    # Ghép xiên, ghép càng, phong thủy, hỏi Gemini giữ nguyên như mẫu trước.
-    # Không thay đổi đường dẫn file.
+    # Giữ nguyên các xử lý cũ (ghép xiên/càng, phong thủy, hỏi Gemini,...)
     pass
 
 def main():
     app = ApplicationBuilder().token(TELEGRAM_TOKEN).build()
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("menu", menu))
+    app.add_handler(CommandHandler("download_csv", send_csv))   # <-- Lệnh admin tải CSV
     app.add_handler(CallbackQueryHandler(menu_callback_handler))
     app.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), all_text_handler))
     print("Bot đang chạy...")
