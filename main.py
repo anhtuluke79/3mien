@@ -17,7 +17,6 @@ import asyncio
 from can_chi_dict import data as CAN_CHI_SO_HAP
 from thien_can import CAN_INFO
 
-# ==== ĐƯỜNG DẪN DỮ LIỆU AN TOÀN CHO RAILWAY ====
 DATA_FILE = '/tmp/xsmb_full.csv'
 
 ADMIN_IDS = list(map(int, os.getenv("ADMIN_IDS", "12345678").split(',')))
@@ -100,15 +99,17 @@ def sinh_so_hap_cho_ngay(can_chi_str):
         "so_ghép": sorted(list(ket_qua))
     }
 
-# ==== CRAWL VÀ CẬP NHẬT XSMB 60 NGÀY (CÓ TIẾN TRÌNH) ====
+# ==== CRAWL VÀ CẬP NHẬT XSMB (CÓ TIẾN TRÌNH, DỪNG KHI HẾT TRANG) ====
 def crawl_xsmb_one_day(url):
     headers = {"User-Agent": "Mozilla/5.0"}
     resp = requests.get(url, headers=headers, timeout=10)
+    if resp.status_code == 404:
+        return None
     resp.raise_for_status()
     soup = BeautifulSoup(resp.text, "html.parser")
     table = soup.find("table", class_="table-kq-xsmb")
     if not table:
-        raise Exception("Không tìm thấy bảng kết quả!")
+        return None
     caption = table.find("caption")
     date_text = caption.get_text(strip=True) if caption else "Không rõ ngày"
     match = re.search(r'(\d{2}/\d{2}/\d{4})', date_text)
@@ -139,30 +140,31 @@ async def crawl_new_days_csv_progress(query, filename=DATA_FILE, max_pages=60):
     new_results = []
     for i in range(1, max_pages + 1):
         url = base_url.format(i)
+        kq = crawl_xsmb_one_day(url)
+        if kq is None:
+            await query.edit_message_text(
+                f"✅ Đã crawl xong {len(new_results)} ngày mới. Hoàn thành cập nhật (không còn trang dữ liệu)."
+            )
+            break
         try:
-            kq = crawl_xsmb_one_day(url)
-            try:
-                date_obj = datetime.datetime.strptime(kq["Ngày"], "%d/%m/%Y")
-            except:
-                await query.edit_message_text(
-                    f"Lỗi định dạng ngày: {kq['Ngày']} tại trang {url}. Dừng cập nhật.")
-                return False
-            if latest_date and date_obj <= latest_date:
-                await query.edit_message_text(
-                    f"✅ Đã crawl xong {len(new_results)} ngày mới. Hoàn thành cập nhật."
-                )
-                break
-            new_results.append(kq)
-            # Báo tiến trình mỗi 3 trang
-            if i % 3 == 0 or i == 1:
-                await query.edit_message_text(
-                    f"⏳ Đang crawl trang {i}/{max_pages}...\n"
-                    f"Đã lấy được ngày: {', '.join([x['Ngày'] for x in new_results[-3:]])}"
-                )
-            await asyncio.sleep(0.5)
-        except Exception as e:
-            await query.edit_message_text(f"❌ Lỗi ở trang {url}: {e}")
+            date_obj = datetime.datetime.strptime(kq["Ngày"], "%d/%m/%Y")
+        except:
+            await query.edit_message_text(
+                f"Lỗi định dạng ngày: {kq['Ngày']} tại trang {url}. Dừng cập nhật.")
             return False
+        if latest_date and date_obj <= latest_date:
+            await query.edit_message_text(
+                f"✅ Đã crawl xong {len(new_results)} ngày mới. Hoàn thành cập nhật."
+            )
+            break
+        new_results.append(kq)
+        # Báo tiến trình mỗi 3 trang
+        if i % 3 == 0 or i == 1:
+            await query.edit_message_text(
+                f"⏳ Đang crawl trang {i}/{max_pages}...\n"
+                f"Đã lấy được ngày: {', '.join([x['Ngày'] for x in new_results[-3:]])}"
+            )
+        await asyncio.sleep(0.5)
     if not new_results:
         await query.edit_message_text("Không có dữ liệu mới cần cập nhật.")
         return False
@@ -359,8 +361,6 @@ async def menu_callback_handler(update: Update, context: ContextTypes.DEFAULT_TY
         return
 
     # ==== Các callback khác giữ nguyên như mẫu trước ====
-    # ... (Không thay đổi các phần ghép xiên/càng, phong thủy, hỏi Gemini, train_model, ...)
-
     await query.edit_message_text("Chức năng này đang phát triển hoặc chưa được cấu hình!")
 
 async def all_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -371,7 +371,7 @@ def main():
     app = ApplicationBuilder().token(TELEGRAM_TOKEN).build()
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("menu", menu))
-    app.add_handler(CommandHandler("download_csv", send_csv))   # <-- Lệnh admin tải CSV
+    app.add_handler(CommandHandler("download_csv", send_csv))
     app.add_handler(CallbackQueryHandler(menu_callback_handler))
     app.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), all_text_handler))
     print("Bot đang chạy...")
