@@ -2,13 +2,14 @@ from pydrive2.auth import GoogleAuth
 from pydrive2.drive import GoogleDrive
 import os
 
-GDRIVE_FOLDER_ID = os.getenv("GDRIVE_FOLDER_ID", "YOUR_FOLDER_ID")  # Thay YOUR_FOLDER_ID nếu muốn cứng
+GDRIVE_FOLDER_ID = os.getenv("GDRIVE_FOLDER_ID", "YOUR_FOLDER_ID")
 
 def get_gdrive():
     gauth = GoogleAuth()
-    gauth.LoadServiceConfigFile('service_account.json')
-    gauth.ServiceAuth()
-    return GoogleDrive(gauth)
+    # Sử dụng Service Account JSON để xác thực
+    gauth.LoadServiceAccountCredentials('service_account.json')
+    drive = GoogleDrive(gauth)
+    return drive
 
 def upload_file_to_gdrive(local_path, remote_name=None):
     drive = get_gdrive()
