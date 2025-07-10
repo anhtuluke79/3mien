@@ -9,14 +9,14 @@ from telegram import (
 )
 from telegram.ext import (
     ApplicationBuilder, CommandHandler, ContextTypes, CallbackQueryHandler,
-    ConversationHandler, MessageHandler, filters
+    MessageHandler, filters
 )
 from itertools import product, combinations
 
 from can_chi_dict import data as CAN_CHI_SO_HAP
 from thien_can import CAN_INFO
 
-ADMIN_IDS = [12345678]  # Đổi số này thành user_id Telegram của bạn
+ADMIN_IDS = [12345678]  # Đổi số này thành user_id của bạn
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -57,122 +57,9 @@ def ghep_xien(numbers, do_dai=2):
     result = [tuple(map(str, comb)) for comb in combinations(numbers, do_dai)]
     return ['&'.join(comb) for comb in result]
 
-# === Handler cho ghép càng (ConversationHandler) ===
-GHEP_CANG_TYPE, GHEP_CANG_INPUT = range(2)
-async def ghepcang_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    keyboard = [[InlineKeyboardButton("3 càng", callback_data="3"), InlineKeyboardButton("4 càng", callback_data="4")]]
-    await update.message.reply_text("Bạn muốn ghép càng dạng nào?", reply_markup=InlineKeyboardMarkup(keyboard))
-    return GHEP_CANG_TYPE
+def chuan_hoa_can_chi(s):
+    return ' '.join(word.capitalize() for word in s.strip().split())
 
-async def ghepcang_type(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    await query.answer()
-    so_cang = int(query.data)
-    context.user_data['so_cang'] = so_cang
-    if so_cang == 3:
-        await query.edit_message_text("Nhập dãy số để ghép 3 càng (dấu cách hoặc phẩy):")
-    else:
-        await query.edit_message_text("Nhập số càng (cách nhau bởi dấu cách hoặc phẩy), sau đó ghi 'ghép' và 3 số để ghép.\nVí dụ: 1 2 3 4 ghép 234")
-    return GHEP_CANG_INPUT
-
-async def ghepcang_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    so_cang = context.user_data['so_cang']
-    text = update.message.text.strip()
-    if so_cang == 3:
-        numbers = split_numbers(text)
-        if not numbers:
-            await update.message.reply_text("Bạn cần nhập các số để ghép!")
-            return GHEP_CANG_INPUT
-        bo_so = ghep_cang(numbers, 3)
-        if len(bo_so) > 100:
-            bo_so = bo_so[:100]
-        await update.message.reply_text(','.join(bo_so))
-    else:
-        if 'ghép' not in text:
-            await update.message.reply_text("Nhập đúng cú pháp: <càng> ghép <3 số>")
-            return GHEP_CANG_INPUT
-        parts = text.split('ghép')
-        cangs = split_numbers(parts[0])
-        so_3d = ''.join(split_numbers(parts[1]))
-        if not cangs or len(so_3d) != 3:
-            await update.message.reply_text("Nhập đúng cú pháp: <càng> ghép <3 số>")
-            return GHEP_CANG_INPUT
-        bo_so = [c + so_3d for c in cangs]
-        await update.message.reply_text(','.join(bo_so))
-    return ConversationHandler.END
-
-ghepcang_conv = ConversationHandler(
-    entry_points=[CommandHandler("ghepcang", ghepcang_start)],
-    states={
-        GHEP_CANG_TYPE: [CallbackQueryHandler(ghepcang_type)],
-        GHEP_CANG_INPUT: [MessageHandler(filters.TEXT & ~filters.COMMAND, ghepcang_input)],
-    },
-    fallbacks=[],
-)
-
-# === Handler cho ghép xiên (ConversationHandler) ===
-GHEP_XIEN_TYPE, GHEP_XIEN_INPUT = range(2)
-async def ghepxien_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    keyboard = [
-        [
-            InlineKeyboardButton("Xiên 2", callback_data="2"),
-            InlineKeyboardButton("Xiên 3", callback_data="3"),
-            InlineKeyboardButton("Xiên 4", callback_data="4"),
-        ]
-    ]
-    await update.message.reply_text("Bạn muốn ghép xiên mấy số?", reply_markup=InlineKeyboardMarkup(keyboard))
-    return GHEP_XIEN_TYPE
-
-async def ghepxien_type(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    await query.answer()
-    do_dai = int(query.data)
-    context.user_data['do_dai'] = do_dai
-    await query.edit_message_text(f"Nhập dãy số (cách nhau bởi dấu cách hoặc phẩy) để ghép xiên {do_dai}:")
-    return GHEP_XIEN_INPUT
-
-async def ghepxien_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    do_dai = context.user_data['do_dai']
-    text = update.message.text.strip()
-    numbers = split_numbers(text)
-    if len(numbers) < do_dai:
-        await update.message.reply_text(f"Bạn cần nhập ít nhất {do_dai} số!")
-        return GHEP_XIEN_INPUT
-    bo_xien = ghep_xien(numbers, do_dai)
-    if len(bo_xien) > 100:
-        bo_xien = bo_xien[:100]
-    await update.message.reply_text(','.join(bo_xien))
-    return ConversationHandler.END
-
-ghepxien_conv = ConversationHandler(
-    entry_points=[CommandHandler("ghepxien", ghepxien_start)],
-    states={
-        GHEP_XIEN_TYPE: [CallbackQueryHandler(ghepxien_type)],
-        GHEP_XIEN_INPUT: [MessageHandler(filters.TEXT & ~filters.COMMAND, ghepxien_input)],
-    },
-    fallbacks=[],
-)
-
-# --- Handler thống kê ---
-async def thongke_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    try:
-        df = pd.read_csv('xsmb.csv')
-        if 'ĐB' not in df.columns or df['ĐB'].isnull().all():
-            await update.message.reply_text("Không có dữ liệu ĐB trong xsmb.csv.")
-            return
-        dbs = df['ĐB'].astype(str).str[-2:]
-        counts = dbs.value_counts().head(10)
-        top_list = "\n".join([f"Số {i}: {v} lần" for i, v in counts.items()])
-        today_db = dbs.iloc[0] if len(dbs) > 0 else "?"
-        text = (
-            f"📈 Top 10 số ĐB xuất hiện nhiều nhất 30 ngày gần nhất:\n{top_list}\n"
-            f"\n🎯 Số ĐB hôm nay: {today_db}"
-        )
-        await update.message.reply_text(text)
-    except Exception as e:
-        await update.message.reply_text(f"Lỗi thống kê: {e}")
-
-# --- Handler phong thủy ngày ---
 def get_can_chi_ngay(year, month, day):
     if month < 3:
         year -= 1
@@ -210,89 +97,153 @@ def sinh_so_hap_cho_ngay(can_chi_str):
         "so_ghép": sorted(list(ket_qua))
     }
 
-def doc_lich_su_xsmb_csv(filename="xsmb.csv", so_ngay=30):
-    try:
-        df = pd.read_csv(filename)
-        if len(df) > so_ngay:
-            df = df.head(so_ngay)
-        return df
-    except Exception as e:
-        logger.warning(f"Lỗi đọc file xsmb.csv: {e}")
-        return None
+# ===== MENU CALLBACK NÚT BẤM =====
+async def menu_callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    user_id = query.from_user.id
 
-def du_doan_ai_with_model(df, model_path='model_rf_loto.pkl'):
-    df = df.dropna()
-    df['ĐB'] = df['ĐB'].astype(str).str[-2:]
-    df['ĐB'] = df['ĐB'].astype(int)
-    last7 = df['ĐB'][:7].tolist()
-    if len(last7) < 7:
-        return ["Không đủ dữ liệu 7 ngày!"]
-    if not os.path.exists(model_path):
-        return ["Chưa có mô hình AI, cần train trước!"]
-    model = joblib.load(model_path)
-    probs = model.predict_proba([last7])[0]
-    top_idx = probs.argsort()[-3:][::-1]
-    ketqua = [f"{model.classes_[i]:02d}" for i in top_idx]
-    return ketqua
-
-async def phongthuy_ngay_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    try:
-        param = ' '.join(context.args)
-        if '-' in param and len(param.split('-')) == 3:
-            y, m, d = map(int, param.split('-'))
-            can_chi = get_can_chi_ngay(y, m, d)
-            ngay_str = f"{d:02d}/{m:02d}/{y}"
+    if query.data == "ghepxien":
+        keyboard = [
+            [
+                InlineKeyboardButton("Xiên 2", callback_data="ghepxien_2"),
+                InlineKeyboardButton("Xiên 3", callback_data="ghepxien_3"),
+                InlineKeyboardButton("Xiên 4", callback_data="ghepxien_4"),
+            ]
+        ]
+        await query.edit_message_text("Chọn dạng ghép xiên:", reply_markup=InlineKeyboardMarkup(keyboard))
+    elif query.data.startswith("ghepxien_"):
+        do_dai = int(query.data.split("_")[1])
+        context.user_data['do_dai'] = do_dai
+        context.user_data['wait_for_xien_input'] = True
+        await query.edit_message_text(
+            f"Nhập dãy số (cách nhau bởi dấu cách hoặc phẩy) để ghép xiên {do_dai}:"
+        )
+    elif query.data == "ghepcang":
+        keyboard = [
+            [
+                InlineKeyboardButton("3 càng", callback_data="ghepcang_3"),
+                InlineKeyboardButton("4 càng", callback_data="ghepcang_4"),
+            ]
+        ]
+        await query.edit_message_text("Chọn dạng ghép càng:", reply_markup=InlineKeyboardMarkup(keyboard))
+    elif query.data.startswith("ghepcang_"):
+        so_cang = int(query.data.split("_")[1])
+        context.user_data['so_cang'] = so_cang
+        context.user_data['wait_for_cang_input'] = True
+        if so_cang == 3:
+            await query.edit_message_text("Nhập dãy số để ghép 3 càng (dấu cách hoặc phẩy):")
         else:
-            can_chi = param.title().replace('_', ' ').replace('-', ' ')
-            ngay_str = f"(Tên Can Chi nhập: {can_chi})"
-
-        sohap_info = sinh_so_hap_cho_ngay(can_chi)
-        if not sohap_info:
-            await update.message.reply_text("Không tra được số hạp cho ngày này!")
+            await query.edit_message_text("Nhập số càng (cách nhau bởi dấu cách hoặc phẩy), sau đó ghi 'ghép' và 3 số để ghép. VD: 1 2 3 4 ghép 234")
+    elif query.data == "thongke":
+        await thongke_handler_query(query)
+    elif query.data == "phongthuy_ngay":
+        await query.edit_message_text("Nhập lệnh /phongthuy_ngay <yyyy-mm-dd> hoặc /phongthuy_ngay <can chi> để tra phong thủy.")
+    elif query.data == "hoi_gemini":
+        await query.edit_message_text("Nhập lệnh /hoi_gemini <câu hỏi> để hỏi Thần tài.")
+    elif query.data == "du_doan_ai":
+        await du_doan_ai_handler_query(query)
+    elif query.data == "train_model":
+        if user_id not in ADMIN_IDS:
+            await query.edit_message_text("Bạn không có quyền train lại mô hình!")
             return
+        await train_model_handler_query(query)
+    elif query.data == "capnhat_xsmb":
+        if user_id not in ADMIN_IDS:
+            await query.edit_message_text("Bạn không có quyền cập nhật dữ liệu!")
+            return
+        await capnhat_xsmb_handler_query(query)
+    else:
+        await query.edit_message_text("Chức năng đang phát triển.")
 
-        df = doc_lich_su_xsmb_csv("xsmb.csv", 60)
-        so_du_doan = du_doan_ai_with_model(df)
-        so_ghep = set(sohap_info['so_ghép'])
-        so_du_doan_set = set(so_du_doan)
-        so_trung = so_ghep.intersection(so_du_doan_set)
-
-        text = (
-            f"🔮 Phong thủy ngày {can_chi} {ngay_str}:\n"
-            f"- Can: {sohap_info['can']}, {sohap_info['am_duong']}, {sohap_info['ngu_hanh']}\n"
-            f"- Số mệnh (ngũ hành): {sohap_info['so_menh']}\n"
-            f"- Số hạp của ngày: {', '.join(sohap_info['so_hap_list'])}\n"
-            f"- Bộ số ghép đặc biệt: {', '.join(so_ghep)}\n"
-            f"- Bộ số AI dự đoán: {', '.join(so_du_doan)}\n"
-        )
-        if so_trung:
-            text += f"\n🌟 **Số vừa là số ghép, vừa AI dự đoán:** {', '.join(so_trung)}"
+# --- Handler nhận số cho ghép càng và xiên qua nút ---
+async def all_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if context.user_data.get('wait_for_xien_input'):
+        do_dai = context.user_data.get('do_dai')
+        text = update.message.text.strip()
+        numbers = split_numbers(text)
+        if len(numbers) < do_dai:
+            await update.message.reply_text(f"Bạn cần nhập ít nhất {do_dai} số!")
+            return
+        bo_xien = ghep_xien(numbers, do_dai)
+        if len(bo_xien) > 100:
+            bo_xien = bo_xien[:100]
+        await update.message.reply_text(','.join(bo_xien))
+        context.user_data['wait_for_xien_input'] = False
+    elif context.user_data.get('wait_for_cang_input'):
+        so_cang = context.user_data.get('so_cang')
+        text = update.message.text.strip()
+        if so_cang == 3:
+            numbers = split_numbers(text)
+            if not numbers:
+                await update.message.reply_text("Bạn cần nhập các số để ghép!")
+                return
+            bo_so = ghep_cang(numbers, 3)
+            if len(bo_so) > 100:
+                bo_so = bo_so[:100]
+            await update.message.reply_text(','.join(bo_so))
         else:
-            text += "\nKhông có số trùng giữa AI và bộ số ghép."
+            if 'ghép' not in text:
+                await update.message.reply_text("Nhập đúng cú pháp: <càng> ghép <3 số>")
+                return
+            parts = text.split('ghép')
+            cangs = split_numbers(parts[0])
+            so_3d = ''.join(split_numbers(parts[1]))
+            if not cangs or len(so_3d) != 3:
+                await update.message.reply_text("Nhập đúng cú pháp: <càng> ghép <3 số>")
+                return
+            bo_so = [c + so_3d for c in cangs]
+            await update.message.reply_text(','.join(bo_so))
+        context.user_data['wait_for_cang_input'] = False
 
-        await update.message.reply_text(text)
-    except Exception:
-        await update.message.reply_text(
-            "Cách dùng: /phongthuy_ngay YYYY-MM-DD hoặc /phongthuy_ngay Giáp Tý"
-        )
-
-# --- Handler hỏi Gemini ---
-async def hoi_gemini_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    question = ' '.join(context.args)
-    if not question:
-        await update.message.reply_text("Bạn hãy nhập câu hỏi sau lệnh /hoi_gemini nhé!")
-        return
-    answer = ask_gemini(question)
-    await update.message.reply_text(answer)
-
-# --- Handler train lại AI (admin) ---
-async def train_model_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_id = update.effective_user.id
-    if user_id not in ADMIN_IDS:
-        await update.message.reply_text("Bạn không có quyền train lại mô hình!")
-        return
+# --- Handler Thống kê cho callback menu ---
+async def thongke_handler_query(query):
     try:
-        await update.message.reply_text("⏳ Đang train lại AI, vui lòng đợi...")
+        df = pd.read_csv('xsmb.csv')
+        if 'ĐB' not in df.columns or df['ĐB'].isnull().all():
+            await query.edit_message_text("Không có dữ liệu ĐB trong xsmb.csv.")
+            return
+        dbs = df['ĐB'].astype(str).str[-2:]
+        counts = dbs.value_counts().head(10)
+        top_list = "\n".join([f"Số {i}: {v} lần" for i, v in counts.items()])
+        today_db = dbs.iloc[0] if len(dbs) > 0 else "?"
+        text = (
+            f"📈 Top 10 số ĐB xuất hiện nhiều nhất 30 ngày gần nhất:\n{top_list}\n"
+            f"\n🎯 Số ĐB hôm nay: {today_db}"
+        )
+        await query.edit_message_text(text)
+    except Exception as e:
+        await query.edit_message_text(f"Lỗi thống kê: {e}")
+
+# --- Handler Dự đoán AI cho callback menu ---
+async def du_doan_ai_handler_query(query):
+    try:
+        df = pd.read_csv('xsmb.csv')
+        df = df.dropna()
+        df['ĐB'] = df['ĐB'].astype(str).str[-2:]
+        df['ĐB'] = df['ĐB'].astype(int)
+        if not os.path.exists('model_rf_loto.pkl'):
+            await query.edit_message_text("Chưa có mô hình AI, cần train trước bằng lệnh /train_model.")
+            return
+        model = joblib.load('model_rf_loto.pkl')
+        last7 = df['ĐB'][:7].tolist()
+        if len(last7) < 7:
+            await query.edit_message_text("Không đủ dữ liệu 7 ngày để dự đoán!")
+            return
+        probs = model.predict_proba([last7])[0]
+        top_idx = probs.argsort()[-3:][::-1]
+        ketqua = [f"{model.classes_[i]:02d}" for i in top_idx]
+        await query.edit_message_text(
+            "🤖 Dự đoán AI (RandomForest) cho lần quay tiếp theo:\n"
+            f"Top 3 số: {', '.join(ketqua)}"
+        )
+    except Exception as e:
+        await query.edit_message_text(f"Lỗi dự đoán AI: {e}")
+
+# --- Handler train_model/capnhat_xsmb cho callback menu ---
+async def train_model_handler_query(query):
+    try:
+        await query.edit_message_text("⏳ Đang train lại AI, vui lòng đợi...")
         df = pd.read_csv('xsmb.csv')
         df = df.dropna()
         df['ĐB'] = df['ĐB'].astype(str).str[-2:]
@@ -308,11 +259,10 @@ async def train_model_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
         model = RandomForestClassifier(n_estimators=100, random_state=42)
         model.fit(X, y)
         joblib.dump(model, 'model_rf_loto.pkl')
-        await update.message.reply_text("✅ Đã train lại và lưu mô hình thành công!")
+        await query.edit_message_text("✅ Đã train lại và lưu mô hình thành công!")
     except Exception as e:
-        await update.message.reply_text(f"Lỗi khi train mô hình: {e}")
+        await query.edit_message_text(f"Lỗi khi train mô hình: {e}")
 
-# --- Handler cập nhật dữ liệu XSMB (admin) ---
 def crawl_xsmn_me():
     url = "https://xsmn.me/lich-su-ket-qua-xsmb.html"
     r = requests.get(url, timeout=10)
@@ -340,6 +290,87 @@ def crawl_lich_su_xsmb(filename="xsmb.csv"):
         return True
     return False
 
+async def capnhat_xsmb_handler_query(query):
+    try:
+        ok = crawl_lich_su_xsmb("xsmb.csv")
+        if ok:
+            await query.edit_message_text("✅ Đã cập nhật dữ liệu xsmb.csv thành công!")
+        else:
+            await query.edit_message_text("❌ Không lấy được dữ liệu mới, vui lòng thử lại sau.")
+    except Exception as e:
+        await query.edit_message_text(f"❌ Lỗi cập nhật: {e}")
+
+# --- Các lệnh /phongthuy_ngay, /hoi_gemini, /train_model, /capnhat_xsmb, /du_doan_ai, /thongke ---
+async def phongthuy_ngay_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    try:
+        param = ' '.join(context.args)
+        if '-' in param and len(param.split('-')) == 3:
+            y, m, d = map(int, param.split('-'))
+            can_chi = get_can_chi_ngay(y, m, d)
+            ngay_str = f"{d:02d}/{m:02d}/{y}"
+        else:
+            can_chi = chuan_hoa_can_chi(param)
+            ngay_str = f"(Tên Can Chi nhập: {can_chi})"
+
+        sohap_info = sinh_so_hap_cho_ngay(can_chi)
+        if not sohap_info:
+            await update.message.reply_text(
+                f"Không tra được số hạp cho ngày **{can_chi}**!\n"
+                "Bạn hãy nhập đúng dạng: /phongthuy_ngay YYYY-MM-DD hoặc /phongthuy_ngay Giáp Tý\n"
+                "Danh sách can chi hợp lệ:\n"
+                + ', '.join(list(CAN_CHI_SO_HAP.keys())[:15]) + "..."
+            )
+            return
+
+        so_ghep = set(sohap_info['so_ghép'])
+
+        text = (
+            f"🔮 Phong thủy ngày {can_chi} {ngay_str}:\n"
+            f"- Can: {sohap_info['can']}, {sohap_info['am_duong']}, {sohap_info['ngu_hanh']}\n"
+            f"- Số mệnh (ngũ hành): {sohap_info['so_menh']}\n"
+            f"- Số hạp của ngày: {', '.join(sohap_info['so_hap_list'])}\n"
+            f"- Bộ số ghép đặc biệt: {', '.join(so_ghep)}\n"
+        )
+        await update.message.reply_text(text)
+    except Exception as e:
+        await update.message.reply_text(
+            f"Lỗi tra phong thủy: {e}\nCách dùng: /phongthuy_ngay YYYY-MM-DD hoặc /phongthuy_ngay Giáp Tý"
+        )
+
+async def hoi_gemini_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    question = ' '.join(context.args)
+    if not question:
+        await update.message.reply_text("Bạn hãy nhập câu hỏi sau lệnh /hoi_gemini nhé!")
+        return
+    answer = ask_gemini(question)
+    await update.message.reply_text(answer)
+
+async def train_model_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.effective_user.id
+    if user_id not in ADMIN_IDS:
+        await update.message.reply_text("Bạn không có quyền train lại mô hình!")
+        return
+    try:
+        await update.message.reply_text("⏳ Đang train lại AI, vui lòng đợi...")
+        df = pd.read_csv('xsmb.csv')
+        df = df.dropna()
+        df['ĐB'] = df['ĐB'].astype(str).str[-2:]
+        df['ĐB'] = df['ĐB'].astype(int)
+        X, y = [], []
+        for i in range(len(df) - 7):
+            features = df['ĐB'][i:i+7].tolist()
+            label = df['ĐB'][i+7]
+            X.append(features)
+            y.append(label)
+        from sklearn.ensemble import RandomForestClassifier
+        import joblib
+        model = RandomForestClassifier(n_estimators=100, random_state=42)
+        model.fit(X, y)
+        joblib.dump(model, 'model_rf_loto.pkl')
+        await update.message.reply_text("✅ Đã train lại và lưu mô hình thành công!")
+    except Exception as e:
+        await update.message.reply_text(f"Lỗi khi train mô hình: {e}")
+
 async def capnhat_xsmb_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     if user_id not in ADMIN_IDS:
@@ -354,37 +385,49 @@ async def capnhat_xsmb_handler(update: Update, context: ContextTypes.DEFAULT_TYP
     except Exception as e:
         await update.message.reply_text(f"❌ Lỗi cập nhật: {e}")
 
-# --- Callback menu (chỉ thống kê, ghép càng, ghép xiên dùng ConversationHandler, các mục khác là placeholder) ---
-async def menu_callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    await query.answer()
-    user_id = query.from_user.id
-    if query.data == "train_model":
-        if user_id not in ADMIN_IDS:
-            await query.edit_message_text("Bạn không có quyền train lại mô hình!")
+async def du_doan_ai_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    try:
+        df = pd.read_csv('xsmb.csv')
+        df = df.dropna()
+        df['ĐB'] = df['ĐB'].astype(str).str[-2:]
+        df['ĐB'] = df['ĐB'].astype(int)
+        if not os.path.exists('model_rf_loto.pkl'):
+            await update.message.reply_text("Chưa có mô hình AI, cần train trước bằng lệnh /train_model.")
             return
-        await query.edit_message_text("Gõ /train_model để train lại AI.")
-    elif query.data == "capnhat_xsmb":
-        if user_id not in ADMIN_IDS:
-            await query.edit_message_text("Bạn không có quyền cập nhật dữ liệu!")
+        model = joblib.load('model_rf_loto.pkl')
+        last7 = df['ĐB'][:7].tolist()
+        if len(last7) < 7:
+            await update.message.reply_text("Không đủ dữ liệu 7 ngày để dự đoán!")
             return
-        await query.edit_message_text("Gõ /capnhat_xsmb để cập nhật dữ liệu xsmb.")
-    elif query.data == "thongke":
-        await query.edit_message_text("Gõ /thongke để xem thống kê.")
-    elif query.data == "phongthuy_ngay":
-        await query.edit_message_text("Gõ /phongthuy_ngay <yyyy-mm-dd> hoặc /phongthuy_ngay <can chi> để xem phong thủy.")
-    elif query.data == "hoi_gemini":
-        await query.edit_message_text("Gõ /hoi_gemini <câu hỏi> để hỏi Thần tài.")
-    elif query.data == "du_doan_ai":
-        await query.edit_message_text("Tính năng dự đoán AI tích hợp vào các lệnh khác như /phongthuy_ngay.")
-    elif query.data == "ghepcang":
-        await query.edit_message_text("Gõ /ghepcang để bắt đầu ghép càng.")
-    elif query.data == "ghepxien":
-        await query.edit_message_text("Gõ /ghepxien để bắt đầu ghép xiên.")
-    else:
-        await query.edit_message_text("Chức năng đang phát triển.")
+        probs = model.predict_proba([last7])[0]
+        top_idx = probs.argsort()[-3:][::-1]
+        ketqua = [f"{model.classes_[i]:02d}" for i in top_idx]
+        await update.message.reply_text(
+            "🤖 Dự đoán AI (RandomForest) cho lần quay tiếp theo:\n"
+            f"Top 3 số: {', '.join(ketqua)}"
+        )
+    except Exception as e:
+        await update.message.reply_text(f"Lỗi dự đoán AI: {e}")
 
-# --- Menu ---
+async def thongke_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    try:
+        df = pd.read_csv('xsmb.csv')
+        if 'ĐB' not in df.columns or df['ĐB'].isnull().all():
+            await update.message.reply_text("Không có dữ liệu ĐB trong xsmb.csv.")
+            return
+        dbs = df['ĐB'].astype(str).str[-2:]
+        counts = dbs.value_counts().head(10)
+        top_list = "\n".join([f"Số {i}: {v} lần" for i, v in counts.items()])
+        today_db = dbs.iloc[0] if len(dbs) > 0 else "?"
+        text = (
+            f"📈 Top 10 số ĐB xuất hiện nhiều nhất 30 ngày gần nhất:\n{top_list}\n"
+            f"\n🎯 Số ĐB hôm nay: {today_db}"
+        )
+        await update.message.reply_text(text)
+    except Exception as e:
+        await update.message.reply_text(f"Lỗi thống kê: {e}")
+
+# --- MENU ---
 async def menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     keyboard = [
@@ -409,15 +452,12 @@ async def menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         reply_markup=InlineKeyboardMarkup(keyboard)
     )
 
-# --- Start ---
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
         "✨ Chào mừng bạn đến với XosoBot!\n"
         "• /menu để chọn tính năng\n"
         "• /phongthuy_ngay YYYY-MM-DD hoặc /phongthuy_ngay <can chi>\n"
         "• /hoi_gemini <câu hỏi phong thủy/xổ số>\n"
-        "• /ghepcang để ghép càng\n"
-        "• /ghepxien để ghép xiên\n"
         "Chúc bạn may mắn và chơi vui!"
     )
 
@@ -430,9 +470,9 @@ def main():
     app.add_handler(CommandHandler("train_model", train_model_handler))
     app.add_handler(CommandHandler("capnhat_xsmb", capnhat_xsmb_handler))
     app.add_handler(CommandHandler("thongke", thongke_handler))
-    app.add_handler(ghepcang_conv)
-    app.add_handler(ghepxien_conv)
+    app.add_handler(CommandHandler("du_doan_ai", du_doan_ai_handler))
     app.add_handler(CallbackQueryHandler(menu_callback_handler))
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, all_text_handler))
     app.run_polling()
 
 if __name__ == "__main__":
