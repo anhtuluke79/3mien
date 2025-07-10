@@ -16,7 +16,8 @@ from itertools import product, combinations
 from can_chi_dict import data as CAN_CHI_SO_HAP
 from thien_can import CAN_INFO
 
-ADMIN_IDS = [892780229]  # Đổi số này thành user_id của bạn
+# Lấy admin từ biến môi trường
+ADMIN_IDS = list(map(int, os.getenv("ADMIN_IDS", "12345678").split(',')))
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -97,7 +98,43 @@ def sinh_so_hap_cho_ngay(can_chi_str):
         "so_ghép": sorted(list(ket_qua))
     }
 
-# ===== MENU CALLBACK NÚT BẤM =====
+# ==== CRAWL XSMB từ xsmn.mobi ====
+def crawl_xsmn_mobi():
+    url = "https://xsmn.mobi/ket-qua-xo-so-mien-bac/lich-su"
+    r = requests.get(url, timeout=10, headers={
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
+    })
+    soup = BeautifulSoup(r.text, "html.parser")
+    table = soup.find('table', class_='table-xs')
+    if table is None:
+        raise Exception("Không tìm thấy bảng kết quả trên xsmn.mobi.")
+    rows = table.find_all('tr')[1:]  # Bỏ tiêu đề
+    data = []
+    for row in rows:
+        cols = [col.get_text(strip=True) for col in row.find_all('td')]
+        if cols and len(cols) >= 9:
+            data.append(cols[:9])
+    df = pd.DataFrame(data, columns=['Ngày', 'ĐB', '1', '2', '3', '4', '5', '6', '7'])
+    return df
+
+def crawl_lich_su_xsmb(filename="xsmb.csv"):
+    try:
+        df = crawl_xsmn_mobi()
+        if df is not None and not df.empty:
+            if not os.path.exists(filename):
+                df.to_csv(filename, index=False)
+            else:
+                df_old = pd.read_csv(filename)
+                df_concat = pd.concat([df, df_old]).drop_duplicates(subset=["Ngày"])
+                df_concat = df_concat.sort_values("Ngày", ascending=False)
+                df_concat.to_csv(filename, index=False)
+            return True
+        return False
+    except Exception as e:
+        print(f"Lỗi crawl xsmn.mobi: {e}")
+        return False
+
+# ==== MENU NÚT BẤM VÀ HANDLER NHẬP LIỆU TRỰC TIẾP ====
 async def menu_callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
@@ -137,10 +174,21 @@ async def menu_callback_handler(update: Update, context: ContextTypes.DEFAULT_TY
             await query.edit_message_text("Nhập số càng (cách nhau bởi dấu cách hoặc phẩy), sau đó ghi 'ghép' và 3 số để ghép. VD: 1 2 3 4 ghép 234")
     elif query.data == "thongke":
         await thongke_handler_query(query)
-    elif query.data == "phongthuy_ngay":
-        await query.edit_message_text("Nhập lệnh /phongthuy_ngay <yyyy-mm-dd> hoặc /phongthuy_ngay <can chi> để tra phong thủy.")
     elif query.data == "hoi_gemini":
-        await query.edit_message_text("Nhập lệnh /hoi_gemini <câu hỏi> để hỏi Thần tài.")
+        await query.edit_message_text("Mời bạn nhập câu hỏi muốn hỏi Thần tài:")
+        context.user_data['wait_hoi_gemini'] = True
+    elif query.data == "phongthuy_ngay":
+        keyboard = [
+            [InlineKeyboardButton("Nhập ngày dương (YYYY-MM-DD)", callback_data="ptn_ngay_duong")],
+            [InlineKeyboardButton("Nhập can chi (ví dụ: Giáp Tý)", callback_data="ptn_can_chi")]
+        ]
+        await query.edit_message_text("Bạn muốn tra phong thủy theo kiểu nào?", reply_markup=InlineKeyboardMarkup(keyboard))
+    elif query.data == "ptn_ngay_duong":
+        await query.edit_message_text("Nhập ngày dương lịch (YYYY-MM-DD):")
+        context.user_data['wait_phongthuy_ngay'] = 'duong'
+    elif query.data == "ptn_can_chi":
+        await query.edit_message_text("Nhập can chi (ví dụ: Giáp Tý):")
+        context.user_data['wait_phongthuy_ngay'] = 'canchi'
     elif query.data == "du_doan_ai":
         await du_doan_ai_handler_query(query)
     elif query.data == "train_model":
@@ -156,8 +204,9 @@ async def menu_callback_handler(update: Update, context: ContextTypes.DEFAULT_TY
     else:
         await query.edit_message_text("Chức năng đang phát triển.")
 
-# --- Handler nhận số cho ghép càng và xiên qua nút ---
+# --- Handler nhận số cho ghép càng, ghép xiên và các lệnh nhập liệu trực tiếp ---
 async def all_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    # Ghép xiên
     if context.user_data.get('wait_for_xien_input'):
         do_dai = context.user_data.get('do_dai')
         text = update.message.text.strip()
@@ -170,7 +219,9 @@ async def all_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             bo_xien = bo_xien[:100]
         await update.message.reply_text(','.join(bo_xien))
         context.user_data['wait_for_xien_input'] = False
-    elif context.user_data.get('wait_for_cang_input'):
+        return
+    # Ghép càng
+    if context.user_data.get('wait_for_cang_input'):
         so_cang = context.user_data.get('so_cang')
         text = update.message.text.strip()
         if so_cang == 3:
@@ -195,6 +246,57 @@ async def all_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             bo_so = [c + so_3d for c in cangs]
             await update.message.reply_text(','.join(bo_so))
         context.user_data['wait_for_cang_input'] = False
+        return
+    # Hỏi Gemini
+    if context.user_data.get('wait_hoi_gemini'):
+        question = update.message.text.strip()
+        answer = ask_gemini(question)
+        await update.message.reply_text(answer)
+        context.user_data['wait_hoi_gemini'] = False
+        return
+    # Phong thủy ngày (nhập ngày dương)
+    if context.user_data.get('wait_phongthuy_ngay') == 'duong':
+        ngay = update.message.text.strip()
+        if "-" in ngay and len(ngay.split('-')) == 3:
+            y, m, d = map(int, ngay.split('-'))
+            can_chi = get_can_chi_ngay(y, m, d)
+            ngay_str = f"{d:02d}/{m:02d}/{y}"
+        else:
+            await update.message.reply_text("Vui lòng nhập ngày đúng định dạng YYYY-MM-DD.")
+            return
+        sohap_info = sinh_so_hap_cho_ngay(can_chi)
+        if not sohap_info:
+            await update.message.reply_text(f"Không tra được số hạp cho ngày {can_chi}.")
+            return
+        so_ghep = set(sohap_info['so_ghép'])
+        text = (
+            f"🔮 Phong thủy ngày {can_chi} {ngay_str}:\n"
+            f"- Can: {sohap_info['can']}, {sohap_info['am_duong']}, {sohap_info['ngu_hanh']}\n"
+            f"- Số mệnh (ngũ hành): {sohap_info['so_menh']}\n"
+            f"- Số hạp của ngày: {', '.join(sohap_info['so_hap_list'])}\n"
+            f"- Bộ số ghép đặc biệt: {', '.join(so_ghep)}\n"
+        )
+        await update.message.reply_text(text)
+        context.user_data['wait_phongthuy_ngay'] = False
+        return
+    # Phong thủy ngày (nhập can chi)
+    if context.user_data.get('wait_phongthuy_ngay') == 'canchi':
+        can_chi = chuan_hoa_can_chi(update.message.text.strip())
+        sohap_info = sinh_so_hap_cho_ngay(can_chi)
+        if not sohap_info:
+            await update.message.reply_text(f"Không tra được số hạp cho ngày {can_chi}.")
+            return
+        so_ghep = set(sohap_info['so_ghép'])
+        text = (
+            f"🔮 Phong thủy ngày {can_chi}:\n"
+            f"- Can: {sohap_info['can']}, {sohap_info['am_duong']}, {sohap_info['ngu_hanh']}\n"
+            f"- Số mệnh (ngũ hành): {sohap_info['so_menh']}\n"
+            f"- Số hạp của ngày: {', '.join(sohap_info['so_hap_list'])}\n"
+            f"- Bộ số ghép đặc biệt: {', '.join(so_ghep)}\n"
+        )
+        await update.message.reply_text(text)
+        context.user_data['wait_phongthuy_ngay'] = False
+        return
 
 # --- Handler Thống kê cho callback menu ---
 async def thongke_handler_query(query):
@@ -263,169 +365,15 @@ async def train_model_handler_query(query):
     except Exception as e:
         await query.edit_message_text(f"Lỗi khi train mô hình: {e}")
 
-def crawl_xsmn_me():
-    url = "https://xsmn.me/lich-su-ket-qua-xsmb.html"
-    r = requests.get(url, timeout=10)
-    soup = BeautifulSoup(r.text, "html.parser")
-    table = soup.find('table', class_='tblKQ')
-    rows = table.find_all('tr')[1:]
-    data = []
-    for row in rows:
-        cols = [col.get_text(strip=True) for col in row.find_all('td')]
-        if cols and len(cols) >= 9:
-            data.append(cols[:9])
-    df = pd.DataFrame(data, columns=['Ngày', 'ĐB', '1', '2', '3', '4', '5', '6', '7'])
-    return df
-
-def crawl_lich_su_xsmb(filename="xsmb.csv"):
-    df = crawl_xsmn_me()
-    if df is not None and not df.empty:
-        if not os.path.exists(filename):
-            df.to_csv(filename, index=False)
-        else:
-            df_old = pd.read_csv(filename)
-            df_concat = pd.concat([df, df_old]).drop_duplicates(subset=["Ngày"])
-            df_concat = df_concat.sort_values("Ngày", ascending=False)
-            df_concat.to_csv(filename, index=False)
-        return True
-    return False
-
 async def capnhat_xsmb_handler_query(query):
     try:
         ok = crawl_lich_su_xsmb("xsmb.csv")
         if ok:
-            await query.edit_message_text("✅ Đã cập nhật dữ liệu xsmb.csv thành công!")
+            await query.edit_message_text("✅ Đã cập nhật dữ liệu xsmb.csv thành công (từ xsmn.mobi)!")
         else:
             await query.edit_message_text("❌ Không lấy được dữ liệu mới, vui lòng thử lại sau.")
     except Exception as e:
         await query.edit_message_text(f"❌ Lỗi cập nhật: {e}")
-
-# --- Các lệnh /phongthuy_ngay, /hoi_gemini, /train_model, /capnhat_xsmb, /du_doan_ai, /thongke ---
-async def phongthuy_ngay_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    try:
-        param = ' '.join(context.args)
-        if '-' in param and len(param.split('-')) == 3:
-            y, m, d = map(int, param.split('-'))
-            can_chi = get_can_chi_ngay(y, m, d)
-            ngay_str = f"{d:02d}/{m:02d}/{y}"
-        else:
-            can_chi = chuan_hoa_can_chi(param)
-            ngay_str = f"(Tên Can Chi nhập: {can_chi})"
-
-        sohap_info = sinh_so_hap_cho_ngay(can_chi)
-        if not sohap_info:
-            await update.message.reply_text(
-                f"Không tra được số hạp cho ngày **{can_chi}**!\n"
-                "Bạn hãy nhập đúng dạng: /phongthuy_ngay YYYY-MM-DD hoặc /phongthuy_ngay Giáp Tý\n"
-                "Danh sách can chi hợp lệ:\n"
-                + ', '.join(list(CAN_CHI_SO_HAP.keys())[:15]) + "..."
-            )
-            return
-
-        so_ghep = set(sohap_info['so_ghép'])
-
-        text = (
-            f"🔮 Phong thủy ngày {can_chi} {ngay_str}:\n"
-            f"- Can: {sohap_info['can']}, {sohap_info['am_duong']}, {sohap_info['ngu_hanh']}\n"
-            f"- Số mệnh (ngũ hành): {sohap_info['so_menh']}\n"
-            f"- Số hạp của ngày: {', '.join(sohap_info['so_hap_list'])}\n"
-            f"- Bộ số ghép đặc biệt: {', '.join(so_ghep)}\n"
-        )
-        await update.message.reply_text(text)
-    except Exception as e:
-        await update.message.reply_text(
-            f"Lỗi tra phong thủy: {e}\nCách dùng: /phongthuy_ngay YYYY-MM-DD hoặc /phongthuy_ngay Giáp Tý"
-        )
-
-async def hoi_gemini_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    question = ' '.join(context.args)
-    if not question:
-        await update.message.reply_text("Bạn hãy nhập câu hỏi sau lệnh /hoi_gemini nhé!")
-        return
-    answer = ask_gemini(question)
-    await update.message.reply_text(answer)
-
-async def train_model_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_id = update.effective_user.id
-    if user_id not in ADMIN_IDS:
-        await update.message.reply_text("Bạn không có quyền train lại mô hình!")
-        return
-    try:
-        await update.message.reply_text("⏳ Đang train lại AI, vui lòng đợi...")
-        df = pd.read_csv('xsmb.csv')
-        df = df.dropna()
-        df['ĐB'] = df['ĐB'].astype(str).str[-2:]
-        df['ĐB'] = df['ĐB'].astype(int)
-        X, y = [], []
-        for i in range(len(df) - 7):
-            features = df['ĐB'][i:i+7].tolist()
-            label = df['ĐB'][i+7]
-            X.append(features)
-            y.append(label)
-        from sklearn.ensemble import RandomForestClassifier
-        import joblib
-        model = RandomForestClassifier(n_estimators=100, random_state=42)
-        model.fit(X, y)
-        joblib.dump(model, 'model_rf_loto.pkl')
-        await update.message.reply_text("✅ Đã train lại và lưu mô hình thành công!")
-    except Exception as e:
-        await update.message.reply_text(f"Lỗi khi train mô hình: {e}")
-
-async def capnhat_xsmb_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_id = update.effective_user.id
-    if user_id not in ADMIN_IDS:
-        await update.message.reply_text("Bạn không có quyền cập nhật dữ liệu!")
-        return
-    try:
-        ok = crawl_lich_su_xsmb("xsmb.csv")
-        if ok:
-            await update.message.reply_text("✅ Đã cập nhật dữ liệu xsmb.csv thành công!")
-        else:
-            await update.message.reply_text("❌ Không lấy được dữ liệu mới, vui lòng thử lại sau.")
-    except Exception as e:
-        await update.message.reply_text(f"❌ Lỗi cập nhật: {e}")
-
-async def du_doan_ai_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    try:
-        df = pd.read_csv('xsmb.csv')
-        df = df.dropna()
-        df['ĐB'] = df['ĐB'].astype(str).str[-2:]
-        df['ĐB'] = df['ĐB'].astype(int)
-        if not os.path.exists('model_rf_loto.pkl'):
-            await update.message.reply_text("Chưa có mô hình AI, cần train trước bằng lệnh /train_model.")
-            return
-        model = joblib.load('model_rf_loto.pkl')
-        last7 = df['ĐB'][:7].tolist()
-        if len(last7) < 7:
-            await update.message.reply_text("Không đủ dữ liệu 7 ngày để dự đoán!")
-            return
-        probs = model.predict_proba([last7])[0]
-        top_idx = probs.argsort()[-3:][::-1]
-        ketqua = [f"{model.classes_[i]:02d}" for i in top_idx]
-        await update.message.reply_text(
-            "🤖 Dự đoán AI (RandomForest) cho lần quay tiếp theo:\n"
-            f"Top 3 số: {', '.join(ketqua)}"
-        )
-    except Exception as e:
-        await update.message.reply_text(f"Lỗi dự đoán AI: {e}")
-
-async def thongke_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    try:
-        df = pd.read_csv('xsmb.csv')
-        if 'ĐB' not in df.columns or df['ĐB'].isnull().all():
-            await update.message.reply_text("Không có dữ liệu ĐB trong xsmb.csv.")
-            return
-        dbs = df['ĐB'].astype(str).str[-2:]
-        counts = dbs.value_counts().head(10)
-        top_list = "\n".join([f"Số {i}: {v} lần" for i, v in counts.items()])
-        today_db = dbs.iloc[0] if len(dbs) > 0 else "?"
-        text = (
-            f"📈 Top 10 số ĐB xuất hiện nhiều nhất 30 ngày gần nhất:\n{top_list}\n"
-            f"\n🎯 Số ĐB hôm nay: {today_db}"
-        )
-        await update.message.reply_text(text)
-    except Exception as e:
-        await update.message.reply_text(f"Lỗi thống kê: {e}")
 
 # --- MENU ---
 async def menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -456,21 +404,13 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
         "✨ Chào mừng bạn đến với XosoBot!\n"
         "• /menu để chọn tính năng\n"
-        "• /phongthuy_ngay YYYY-MM-DD hoặc /phongthuy_ngay <can chi>\n"
-        "• /hoi_gemini <câu hỏi phong thủy/xổ số>\n"
-        "Chúc bạn may mắn và chơi vui!"
+        "• Hoặc chọn chức năng bằng nút phía dưới."
     )
 
 def main():
     app = ApplicationBuilder().token(TELEGRAM_TOKEN).build()
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("menu", menu))
-    app.add_handler(CommandHandler("phongthuy_ngay", phongthuy_ngay_handler))
-    app.add_handler(CommandHandler("hoi_gemini", hoi_gemini_handler))
-    app.add_handler(CommandHandler("train_model", train_model_handler))
-    app.add_handler(CommandHandler("capnhat_xsmb", capnhat_xsmb_handler))
-    app.add_handler(CommandHandler("thongke", thongke_handler))
-    app.add_handler(CommandHandler("du_doan_ai", du_doan_ai_handler))
     app.add_handler(CallbackQueryHandler(menu_callback_handler))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, all_text_handler))
     app.run_polling()
