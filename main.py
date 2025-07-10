@@ -18,6 +18,14 @@ from can_chi_dict import data as CAN_CHI_SO_HAP
 from thien_can import CAN_INFO
 from gdrive_helper import upload_file_to_gdrive, download_file_from_gdrive
 
+DATA_FILE = '/tmp/xsmb_full.csv'
+ADMIN_IDS = list(map(int, os.getenv("ADMIN_IDS", "12345678").split(',')))
+TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN") or "YOUR_TELEGRAM_BOT_TOKEN"
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+# --- GHI FILE service_account.json từ biến môi trường (nếu dùng GDrive) ---
 if not os.path.exists('service_account.json'):
     json_content = os.getenv("GDRIVE_JSON")
     if json_content:
@@ -30,41 +38,13 @@ if not os.path.exists('service_account.json'):
             with open('service_account.json', 'w') as f:
                 f.write(json_content)
 
-DATA_FILE = '/tmp/xsmb_full.csv'
-ADMIN_IDS = list(map(int, os.getenv("ADMIN_IDS", "12345678").split(',')))
-TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN") or "YOUR_TELEGRAM_BOT_TOKEN"
-
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
-
+# --- TẢI CSV TỪ GOOGLE DRIVE KHI KHỞI ĐỘNG ---
 if not os.path.exists(DATA_FILE):
     try:
         download_file_from_gdrive("xsmb_full.csv", DATA_FILE)
         print("Đã tải dữ liệu từ Google Drive.")
     except Exception as e:
         print("Không tìm thấy file trên Drive, sẽ tạo mới sau.", e)
-
-def split_numbers(s):
-    return [num.lstrip('0') if num != '00' else '00' for num in re.findall(r'\d+', str(s)) if len(num) <= 4]
-
-def ghep_xien(numbers, do_dai=2):
-    numbers = [str(n).zfill(2) for n in numbers]
-    if len(numbers) < do_dai:
-        return []
-    return [('&'.join(comb)) for comb in combinations(numbers, do_dai)]
-
-def ghep_cang(cang_list, so_list):
-    result = []
-    for c in cang_list:
-        for so in so_list:
-            result.append(f"{c}{so}")
-    return result
-
-def sinh_lat_so(s):
-    s = ''.join(re.findall(r'\d', s))
-    if len(s) < 3 or len(s) > 4:
-        return []
-    return sorted({''.join(p) for p in permutations(s)})
 
 def ask_gemini(prompt, api_key=None):
     api_key = api_key or os.getenv("GEMINI_API_KEY")
@@ -82,8 +62,25 @@ def ask_gemini(prompt, api_key=None):
     except Exception as e:
         return f"Lỗi gọi Gemini API: {str(e)}"
 
-def chuan_hoa_can_chi(s):
-    return ' '.join(word.capitalize() for word in s.strip().split())
+def split_numbers(s):
+    return re.findall(r'\d+', s)
+
+def ghep_xien(numbers, do_dai=2):
+    if len(numbers) < do_dai:
+        return []
+    result = [tuple(map(str, comb)) for comb in combinations(numbers, do_dai)]
+    return ['&'.join(comb) for comb in result]
+
+def ghep_cang(cang_list, so_list):
+    res = []
+    for cang in cang_list:
+        for so in so_list:
+            res.append(str(cang) + str(so))
+    return sorted(set(res))
+
+def sinh_lat_so(s):
+    # s là chuỗi số, ví dụ "123" hoặc "1234"
+    return [ ''.join(p) for p in sorted(set(permutations(s)))]
 
 def get_can_chi_ngay(year, month, day):
     if month < 3:
@@ -122,34 +119,37 @@ def sinh_so_hap_cho_ngay(can_chi_str):
         "so_ghép": sorted(list(ket_qua))
     }
 
-def crawl_xsmb_one_day(url):
-    try:
-        headers = {"User-Agent": "Mozilla/5.0"}
-        resp = requests.get(url, headers=headers, timeout=10)
-        if resp.status_code == 404:
-            return None
-        resp.raise_for_status()
-        soup = BeautifulSoup(resp.text, "html.parser")
-        table = soup.find("table", class_="table-kq-xsmb")
-        if not table:
-            return None
-        caption = table.find("caption")
-        date_text = caption.get_text(strip=True) if caption else "Không rõ ngày"
-        match = re.search(r'(\d{2}/\d{2}/\d{4})', date_text)
-        date = match.group(1) if match else date_text
-        result = {"Ngày": date}
-        for row in table.find_all("tr"):
-            th = row.find("th")
-            if th:
-                ten_giai = th.get_text(strip=True)
-                numbers = [td.get_text(strip=True) for td in row.find_all("td")]
-                result[ten_giai] = ", ".join(numbers)
-        if all(k in result for k in ['Đặc biệt', 'Giải nhất', 'Giải nhì']):
-            return result
+def crawl_xsmb_one_day_ketqua04(day_obj):
+    """
+    Crawl XSMB result from ketqua04.net using link xo-so-truyen-thong.php?ngay=DD-MM-YYYY
+    """
+    url = f"https://ketqua04.net/xo-so-truyen-thong.php?ngay={day_obj.strftime('%d-%m-%Y')}"
+    headers = {"User-Agent": "Mozilla/5.0"}
+    resp = requests.get(url, headers=headers, timeout=10)
+    if resp.status_code != 200:
         return None
-    except Exception as ex:
-        logger.warning(f"Lỗi crawl {url}: {ex}")
+    soup = BeautifulSoup(resp.text, "html.parser")
+    table = soup.find("table", class_="kqmienbac")
+    if not table:
         return None
+    result = {"Ngày": day_obj.strftime("%d/%m/%Y")}
+    rows = table.find_all("tr")
+    for row in rows:
+        th = row.find("th")
+        if th:
+            ten_giai = th.text.strip()
+            numbers = [td.get_text(strip=True) for td in row.find_all("td")]
+            if numbers:
+                result[ten_giai] = ', '.join(numbers)
+    # Đổi tên giải giống chuẩn code cũ:
+    name_map = {
+        "ĐB": "Đặc biệt", "G1": "Giải nhất", "G2": "Giải nhì", "G3": "Giải ba",
+        "G4": "Giải tư", "G5": "Giải năm", "G6": "Giải sáu", "G7": "Giải bảy"
+    }
+    for src, dst in name_map.items():
+        if src in result:
+            result[dst] = result.pop(src)
+    return result if "Đặc biệt" in result and "Giải nhất" in result else None
 
 def get_latest_date_in_csv(filename):
     if not os.path.exists(filename):
@@ -160,35 +160,27 @@ def get_latest_date_in_csv(filename):
     latest = df["Ngày_sort"].max()
     return latest
 
-async def crawl_new_days_csv_progress(query, filename=DATA_FILE, max_pages=60):
-    await query.edit_message_text("⏳ Đang cập nhật dữ liệu xsmb_full.csv...")
+async def crawl_new_days_csv_progress(query, filename=DATA_FILE, max_days=60):
+    await query.edit_message_text("⏳ Đang cập nhật dữ liệu xsmb_full.csv (nguồn ketqua04.net)...")
     latest_date = get_latest_date_in_csv(filename)
-    base_url = "https://xoso.com.vn/xo-so-mien-bac/xsmb-p{}.html"
+    today = datetime.date.today()
     new_results = []
-    for i in range(1, max_pages + 1):
-        url = base_url.format(i)
-        kq = crawl_xsmb_one_day(url)
+    for i in range(max_days):
+        day = today - datetime.timedelta(days=i)
+        if latest_date and day <= latest_date.date():
+            break
+        kq = crawl_xsmb_one_day_ketqua04(day)
         if kq is None:
-            if i == 1:
-                await query.edit_message_text("❌ Không lấy được dữ liệu từ nguồn. Có thể web bị chặn hoặc thay đổi giao diện.")
-                return False
-            break
-        try:
-            date_obj = datetime.datetime.strptime(kq["Ngày"], "%d/%m/%Y")
-        except Exception as ex:
-            await query.edit_message_text(f"Lỗi định dạng ngày {kq['Ngày']} tại trang {url}: {ex}")
-            return False
-        if latest_date and date_obj <= latest_date:
-            break
+            continue
         new_results.append(kq)
-        if i % 3 == 0 or i == 1:
+        if (i+1) % 3 == 0 or i == 0:
             await query.edit_message_text(
-                f"⏳ Đang crawl trang {i}/{max_pages}...\n"
-                f"Đã lấy được ngày: {', '.join([x['Ngày'] for x in new_results[-3:]])}"
+                f"⏳ Đang crawl ngày {day.strftime('%d/%m/%Y')} ({i+1}/{max_days})...\n"
+                f"Đã lấy: {', '.join([x['Ngày'] for x in new_results[-3:]])}"
             )
         await asyncio.sleep(0.5)
     if not new_results:
-        await query.edit_message_text("Không có dữ liệu mới cần cập nhật.")
+        await query.edit_message_text("Không có dữ liệu mới cần cập nhật (nguồn ketqua04.net).")
         return False
     df_new = pd.DataFrame(new_results)
     if os.path.exists(filename):
@@ -205,7 +197,7 @@ async def crawl_new_days_csv_progress(query, filename=DATA_FILE, max_pages=60):
     except Exception as e:
         logger.warning(f"Upload Google Drive lỗi: {e}")
     await query.edit_message_text(
-        f"✅ Đã cập nhật {len(new_results)} ngày mới vào xsmb_full.csv thành công!"
+        f"✅ Đã cập nhật {len(new_results)} ngày mới vào xsmb_full.csv thành công! (nguồn ketqua04.net)"
     )
     return True
 
@@ -235,7 +227,7 @@ async def send_csv(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("Bạn không có quyền sử dụng lệnh này!")
         return
     if not os.path.exists(DATA_FILE):
-        await update.message.reply_text("Chưa có file dữ liệu.")
+        await update.message.reply_text("Chưa có file dữ liệu. Hãy cập nhật XSMB trước.")
         return
     await update.message.reply_document(InputFile(DATA_FILE), filename="xsmb_full.csv")
 
@@ -244,11 +236,12 @@ async def send_csv_callback(query, user_id):
         await query.edit_message_text("Bạn không có quyền sử dụng chức năng này!")
         return
     if not os.path.exists(DATA_FILE):
-        await query.edit_message_text("Chưa có file dữ liệu.")
+        await query.edit_message_text("Chưa có file dữ liệu. Hãy cập nhật XSMB trước.")
         return
     await query.message.reply_document(InputFile(DATA_FILE), filename="xsmb_full.csv")
     await query.edit_message_text("⬇️ File xsmb_full.csv đã được gửi.")
 
+# ============ HANDLER CALLBACK/COMMAND ============
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
         "✨ Chào mừng bạn đến với XosoBot!\n"
@@ -266,7 +259,7 @@ async def menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         ],
         [
             InlineKeyboardButton("➕ Ghép xiên", callback_data="ghepxien"),
-            InlineKeyboardButton("3D/4D/Đảo số", callback_data="ghepcang"),
+            InlineKeyboardButton("🎯 3D/4D/Đảo số", callback_data="ghepcang"),
             InlineKeyboardButton("💬 Hỏi Thần tài", callback_data="hoi_gemini"),
         ],
         [
@@ -289,58 +282,9 @@ async def menu_callback_handler(update: Update, context: ContextTypes.DEFAULT_TY
     await query.answer()
     user_id = query.from_user.id
 
+    # Download CSV (Admin)
     if query.data == "download_csv":
         await send_csv_callback(query, user_id)
-        return
-
-    # GHÉP CÀNG/3D/4D/ĐẢO SỐ
-    if query.data == "ghepcang":
-        keyboard = [
-            [
-                InlineKeyboardButton("3D (ghép càng vào số 2 chữ số)", callback_data="ghepcang3"),
-                InlineKeyboardButton("4D (ghép càng vào số 3 chữ số)", callback_data="ghepcang4"),
-                InlineKeyboardButton("Đảo/Lật số", callback_data="latso")
-            ]
-        ]
-        await query.edit_message_text(
-            "Chọn loại 3D, 4D hoặc đảo số:",
-            reply_markup=InlineKeyboardMarkup(keyboard)
-        )
-        return
-
-    if query.data in ["ghepcang3", "ghepcang4"]:
-        socang = int(query.data[-1])
-        context.user_data["wait_cang_step"] = "cang"
-        context.user_data["socang"] = socang
-        await query.edit_message_text(f"Nhập dãy càng (ví dụ: 1 2 3):")
-        return
-
-    if query.data == "latso":
-        context.user_data["wait_latso"] = True
-        await query.edit_message_text("Nhập số 3 hoặc 4 chữ số để đảo/lật (ví dụ: 123 hoặc 1234):")
-        return
-
-    # GHÉP XIÊN
-    if query.data == "ghepxien":
-        keyboard = [
-            [
-                InlineKeyboardButton("Xiên 2", callback_data="ghepxien2"),
-                InlineKeyboardButton("Xiên 3", callback_data="ghepxien3"),
-                InlineKeyboardButton("Xiên 4", callback_data="ghepxien4"),
-            ]
-        ]
-        await query.edit_message_text(
-            "Chọn loại ghép xiên:",
-            reply_markup=InlineKeyboardMarkup(keyboard)
-        )
-        return
-
-    if query.data in ["ghepxien2", "ghepxien3", "ghepxien4"]:
-        xiend = int(query.data[-1])
-        await query.edit_message_text(f"Nhập dãy số (cách nhau bởi dấu cách, phẩy) để ghép xiên {xiend}:")
-        context.user_data["wait_xien"] = True
-        context.user_data["who_xien"] = user_id
-        context.user_data["xiend"] = xiend
         return
 
     # AI CẦU LÔ
@@ -358,7 +302,6 @@ async def menu_callback_handler(update: Update, context: ContextTypes.DEFAULT_TY
             reply_markup=InlineKeyboardMarkup(keyboard)
         )
         return
-
     if query.data.startswith("ai_lo_"):
         days = int(query.data.split("_")[-1])
         if not os.path.exists(DATA_FILE):
@@ -372,7 +315,7 @@ async def menu_callback_handler(update: Update, context: ContextTypes.DEFAULT_TY
         await query.edit_message_text(msg)
         return
 
-    # ADMIN cập nhật dữ liệu
+    # Cập nhật XSMB
     if query.data == "capnhat_xsmb":
         if user_id not in ADMIN_IDS:
             await query.edit_message_text("Bạn không có quyền cập nhật dữ liệu!")
@@ -380,7 +323,7 @@ async def menu_callback_handler(update: Update, context: ContextTypes.DEFAULT_TY
         await crawl_new_days_csv_progress(query, DATA_FILE, 60)
         return
 
-    # ADMIN train AI
+    # Train lại AI
     if query.data == "train_model":
         if user_id not in ADMIN_IDS:
             await query.edit_message_text("Bạn không có quyền train lại mô hình!")
@@ -452,13 +395,63 @@ async def menu_callback_handler(update: Update, context: ContextTypes.DEFAULT_TY
             top_idx = probs.argsort()[-3:][::-1]
             ketqua = [f"{model.classes_[i]:02d}" for i in top_idx]
             await query.edit_message_text(
-                f"{', '.join(ketqua)}"
+                "🤖 Dự đoán AI (RandomForest) cho lần quay tiếp theo:\n"
+                f"Top 3 số: {', '.join(ketqua)}"
             )
         except Exception as e:
             await query.edit_message_text(f"Lỗi dự đoán AI: {e}")
         return
 
-    # Phong thủy ngày
+    # ==== GHÉP XIÊN flow mới ====
+    if query.data == "ghepxien":
+        keyboard = [
+            [
+                InlineKeyboardButton("Xiên 2", callback_data="ghepxien2"),
+                InlineKeyboardButton("Xiên 3", callback_data="ghepxien3"),
+                InlineKeyboardButton("Xiên 4", callback_data="ghepxien4"),
+            ]
+        ]
+        await query.edit_message_text(
+            "Chọn loại ghép xiên:",
+            reply_markup=InlineKeyboardMarkup(keyboard)
+        )
+        return
+    if query.data in ["ghepxien2", "ghepxien3", "ghepxien4"]:
+        xiend = int(query.data[-1])
+        await query.edit_message_text(f"Nhập dãy số (cách nhau bởi dấu cách, phẩy) để ghép xiên {xiend}:")
+        context.user_data["wait_xien"] = True
+        context.user_data["who_xien"] = user_id
+        context.user_data["xiend"] = xiend
+        return
+
+    # ==== GHÉP CÀNG (3D/4D/Đảo số) ====
+    if query.data == "ghepcang":
+        keyboard = [
+            [
+                InlineKeyboardButton("3D", callback_data="ghepcang3"),
+                InlineKeyboardButton("4D", callback_data="ghepcang4"),
+                InlineKeyboardButton("Đảo/Lật số", callback_data="latso")
+            ]
+        ]
+        await query.edit_message_text(
+            "Chọn loại 3D, 4D hoặc đảo số:",
+            reply_markup=InlineKeyboardMarkup(keyboard)
+        )
+        return
+    if query.data in ["ghepcang3", "ghepcang4"]:
+        socang = int(query.data[-1])
+        await query.edit_message_text(f"Nhập dãy càng muốn ghép (ví dụ: 1 2 3):")
+        context.user_data["wait_cang"] = True
+        context.user_data["who_cang"] = user_id
+        context.user_data["socang"] = socang
+        context.user_data["stage"] = "nhap_cang"
+        return
+    if query.data == "latso":
+        context.user_data["wait_latso"] = True
+        await query.edit_message_text("Nhập số 3 hoặc 4 chữ số để đảo/lật (ví dụ: 123 hoặc 1234):")
+        return
+
+    # ==== PHONG THỦY NGÀY ====
     if query.data == "phongthuy_ngay":
         now = datetime.datetime.now()
         can_chi = get_can_chi_ngay(now.year, now.month, now.day)
@@ -476,7 +469,7 @@ async def menu_callback_handler(update: Update, context: ContextTypes.DEFAULT_TY
         await query.edit_message_text(msg)
         return
 
-    # Hỏi thần tài
+    # ==== GEMINI AI ====
     if query.data == "hoi_gemini":
         await query.edit_message_text("Nhập nội dung bạn muốn hỏi Thần tài (Gemini AI):")
         context.user_data["wait_gemini"] = True
@@ -485,59 +478,12 @@ async def menu_callback_handler(update: Update, context: ContextTypes.DEFAULT_TY
 
     await query.edit_message_text("Chức năng này đang phát triển hoặc chưa được cấu hình!")
 
+# ==== XỬ LÝ NHẬP TEXT ====
 async def all_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     text = update.message.text.strip()
 
-    # LUỒNG ĐẢO/LẬT SỐ
-    if context.user_data.get("wait_latso", False):
-        s = ''.join(re.findall(r'\d', text))
-        if len(s) not in (3, 4):
-            await update.message.reply_text("Chỉ nhập số có 3 hoặc 4 chữ số!")
-        else:
-            ketqua = sinh_lat_so(s)
-            await update.message.reply_text(','.join(ketqua))
-        context.user_data["wait_latso"] = False
-        return
-
-    # LUỒNG GHÉP CÀNG 2 BƯỚC
-    if context.user_data.get("wait_cang_step") == "cang":
-        socang = context.user_data.get("socang", 3)
-        cang_list = re.findall(r'\d+', text)
-        if not cang_list:
-            await update.message.reply_text("Hãy nhập dãy càng (cách nhau bằng dấu phẩy hoặc dấu cách, ví dụ: 1 2 3)")
-            return
-        context.user_data["cang_list"] = cang_list
-        context.user_data["wait_cang_step"] = "so"
-        if socang == 3:
-            await update.message.reply_text("Nhập dãy số 2 chữ số để ghép càng (ví dụ: 23 75 46 96):")
-        else:
-            await update.message.reply_text("Nhập dãy số 3 chữ số để ghép càng (ví dụ: 123 456 789):")
-        return
-
-    if context.user_data.get("wait_cang_step") == "so":
-        socang = context.user_data.get("socang", 3)
-        so_list = re.findall(r'\d+', text)
-        cang_list = context.user_data.get("cang_list", [])
-        if not so_list or not cang_list:
-            await update.message.reply_text("Thiếu càng hoặc số. Vui lòng nhập lại.")
-        else:
-            # Lọc đúng độ dài số đuôi
-            if socang == 3:
-                so_list = [s.zfill(2)[-2:] for s in so_list if 1 <= len(s) <= 2]
-            else:
-                so_list = [s.zfill(3)[-3:] for s in so_list if 2 <= len(s) <= 3]
-            result = ghep_cang(cang_list, so_list)
-            MAX_SHOW = 50
-            preview = ','.join(result[:MAX_SHOW])
-            tail = " ..." if len(result) > MAX_SHOW else ""
-            await update.message.reply_text(f"{preview}{tail}")
-        context.user_data["wait_cang_step"] = None
-        context.user_data["cang_list"] = None
-        context.user_data["socang"] = None
-        return
-
-    # LUỒNG GHÉP XIÊN
+    # GHÉP XIÊN flow mới
     if context.user_data.get("wait_xien", False):
         if context.user_data.get("who_xien", None) == user_id:
             xiend = context.user_data.get("xiend", 2)
@@ -553,6 +499,58 @@ async def all_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             context.user_data["wait_xien"] = False
             context.user_data["who_xien"] = None
             context.user_data["xiend"] = None
+        return
+
+    # GHÉP CÀNG 3D/4D: 2 bước nhập
+    if context.user_data.get("wait_cang", False):
+        if context.user_data.get("who_cang", None) == user_id:
+            stage = context.user_data.get("stage", "")
+            if stage == "nhap_cang":
+                cang_list = split_numbers(text)
+                if not cang_list:
+                    await update.message.reply_text("Bạn phải nhập ít nhất 1 càng!")
+                    return
+                context.user_data["cang_list"] = cang_list
+                context.user_data["stage"] = "nhap_so"
+                socang = context.user_data["socang"]
+                if socang == 3:
+                    await update.message.reply_text("Nhập dãy số 2 chữ số cần ghép càng (cách nhau bởi dấu cách, phẩy):")
+                else:
+                    await update.message.reply_text("Nhập dãy số 3 chữ số cần ghép càng (cách nhau bởi dấu cách, phẩy):")
+                return
+            elif stage == "nhap_so":
+                so_list = split_numbers(text)
+                cang_list = context.user_data.get("cang_list", [])
+                socang = context.user_data.get("socang", 3)
+                # Lọc đúng số lượng số
+                if socang == 3:
+                    so_list = [s for s in so_list if len(s) == 2]
+                else:
+                    so_list = [s for s in so_list if len(s) == 3]
+                if not so_list:
+                    await update.message.reply_text(f"Phải nhập số {'2' if socang==3 else '3'} chữ số!")
+                else:
+                    cangs = ghep_cang(cang_list, so_list)
+                    MAX_SHOW = 50
+                    preview = ','.join(cangs[:MAX_SHOW])
+                    tail = " ..." if len(cangs) > MAX_SHOW else ""
+                    await update.message.reply_text(f"{preview}{tail}")
+                context.user_data["wait_cang"] = False
+                context.user_data["who_cang"] = None
+                context.user_data["stage"] = None
+                context.user_data["cang_list"] = []
+                context.user_data["socang"] = None
+        return
+
+    # ĐẢO/LẬT SỐ
+    if context.user_data.get("wait_latso", False):
+        s = ''.join(re.findall(r'\d', text))
+        if len(s) not in (3, 4):
+            await update.message.reply_text("Chỉ nhập số có 3 hoặc 4 chữ số!")
+        else:
+            ketqua = sinh_lat_so(s)
+            await update.message.reply_text(','.join(ketqua))
+        context.user_data["wait_latso"] = False
         return
 
     # HỎI GEMINI
