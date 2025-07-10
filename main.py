@@ -90,21 +90,7 @@ def sinh_so_hap_cho_ngay(can_chi_str):
         "so_ghép": sorted(list(ket_qua))
     }
 
-def ask_gemini(prompt, api_key=None):
-    api_key = api_key or os.getenv("GEMINI_API_KEY")
-    if not api_key:
-        return "Bạn chưa cấu hình GEMINI_API_KEY!"
-    url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent"
-    headers = {"Content-Type": "application/json"}
-    data = {"contents": [{"parts": [{"text": prompt}]}]}
-    try:
-        res = requests.post(f"{url}?key={api_key}", json=data, headers=headers, timeout=30)
-        if res.status_code == 200:
-            return res.json()['candidates'][0]['content']['parts'][0]['text']
-        else:
-            return f"Gemini API lỗi: {res.status_code} - {res.text}"
-    except Exception as e:
-        return f"Lỗi gọi Gemini API: {str(e)}"
+# ======= ĐÃ LOẠI BỎ HÀM ask_gemini và các mã gọi Gemini =======
 
 # ========== CRAWL XỔ SỐ KẾT QUẢ NHIỀU NGÀY ==========
 XSKQ_CONFIG = {
@@ -223,7 +209,7 @@ async def menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
             InlineKeyboardButton("🤖 Dự đoán AI", callback_data="ai_predict"),
             InlineKeyboardButton("🔮 Phong thủy", callback_data="phongthuy_ngay"),
         ],
-        [InlineKeyboardButton("✨ Thần tài", callback_data="than_tai")],
+        # ĐÃ LOẠI BỎ: [InlineKeyboardButton("✨ Thần tài", callback_data="than_tai")],
     ]
     if user_id in ADMIN_IDS:
         keyboard.append([
@@ -289,10 +275,7 @@ async def menu_callback_handler(update: Update, context: ContextTypes.DEFAULT_TY
         context.user_data['wait_for_daoso'] = True
         await query.edit_message_text("Nhập một số hoặc dãy số (VD: 123 hoặc 1234):")
 
-    # ===== Thần tài (Gemini)
-    elif query.data == "than_tai":
-        context.user_data['wait_hoi_gemini'] = True
-        await query.edit_message_text("Nhập câu hỏi cho Thần tài (AI Gemini):")
+    # ===== ĐÃ LOẠI BỎ TOÀN BỘ callback 'than_tai'
 
     # ===== Thống kê, AI, Phong thủy, update, train...
     elif query.data == "thongke":
@@ -388,14 +371,7 @@ async def all_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await menu(update, context)
         return
 
-    # Thần tài (Gemini)
-    if context.user_data.get('wait_hoi_gemini'):
-        question = update.message.text.strip()
-        answer = ask_gemini(question)
-        await update.message.reply_text(answer)
-        context.user_data['wait_hoi_gemini'] = False
-        await menu(update, context)
-        return
+    # ====== ĐÃ LOẠI BỎ TOÀN BỘ BLOCK liên quan 'wait_hoi_gemini'
 
     # Phong thủy theo ngày dương
     if context.user_data.get('wait_phongthuy_ngay_duong'):
