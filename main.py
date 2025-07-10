@@ -25,7 +25,6 @@ TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN") or "YOUR_TELEGRAM_BOT_TOKEN"
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# ==== HỎI GEMINI AI ====
 def ask_gemini(prompt, api_key=None):
     api_key = api_key or os.getenv("GEMINI_API_KEY")
     if not api_key:
@@ -42,9 +41,8 @@ def ask_gemini(prompt, api_key=None):
     except Exception as e:
         return f"Lỗi gọi Gemini API: {str(e)}"
 
-# ==== TIỆN ÍCH GHÉP SỐ, PHONG THỦY, CAN CHI ====
 def split_numbers(s):
-    return [n for n in s.replace(',', ' ').split() if n.isdigit()]
+    return [n for n in re.findall(r'\d+', s)]
 
 def ghep_cang(numbers, so_cang=3):
     if not numbers or len(numbers) == 0:
@@ -99,7 +97,6 @@ def sinh_so_hap_cho_ngay(can_chi_str):
         "so_ghép": sorted(list(ket_qua))
     }
 
-# ==== CRAWL VÀ CẬP NHẬT XSMB (CÓ TIẾN TRÌNH, DỪNG KHI HẾT TRANG) ====
 def crawl_xsmb_one_day(url):
     headers = {"User-Agent": "Mozilla/5.0"}
     resp = requests.get(url, headers=headers, timeout=10)
@@ -182,7 +179,6 @@ async def crawl_new_days_csv_progress(query, filename=DATA_FILE, max_pages=60):
     )
     return True
 
-# ==== AI CẦU LÔ: THỐNG KÊ LÔ THEO CHU KỲ ====
 def thong_ke_lo(csv_file=DATA_FILE, days=7):
     if not os.path.exists(csv_file):
         return [], []
@@ -203,7 +199,6 @@ def thong_ke_lo(csv_file=DATA_FILE, days=7):
     lo_gan = list(tat_ca_lo - da_ve)
     return xac_suat, lo_gan
 
-# ==== GỬI FILE CSV CHO ADMIN (/download_csv HOẶC NÚT MENU) ====
 async def send_csv(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     if user_id not in ADMIN_IDS:
@@ -223,8 +218,6 @@ async def send_csv_callback(query, user_id):
         return
     await query.message.reply_document(InputFile(DATA_FILE), filename="xsmb_full.csv")
     await query.edit_message_text("⬇️ File xsmb_full.csv đã được gửi.")
-
-# ==== BOT TELEGRAM HANDLER ==== 
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
@@ -266,12 +259,10 @@ async def menu_callback_handler(update: Update, context: ContextTypes.DEFAULT_TY
     await query.answer()
     user_id = query.from_user.id
 
-    # ==== Download CSV (ADMIN) ====
     if query.data == "download_csv":
         await send_csv_callback(query, user_id)
         return
 
-    # ==== AI CẦU LÔ ====
     if query.data == "ai_lo_menu":
         keyboard = [
             [
@@ -299,7 +290,6 @@ async def menu_callback_handler(update: Update, context: ContextTypes.DEFAULT_TY
         await query.edit_message_text(msg)
         return
 
-    # ==== Cập nhật XSMB (admin) với tiến trình ====
     if query.data == "capnhat_xsmb":
         if user_id not in ADMIN_IDS:
             await query.edit_message_text("Bạn không có quyền cập nhật dữ liệu!")
@@ -307,13 +297,14 @@ async def menu_callback_handler(update: Update, context: ContextTypes.DEFAULT_TY
         await crawl_new_days_csv_progress(query, DATA_FILE, 60)
         return
 
-    # ==== Train lại AI (admin) ====
     if query.data == "train_model":
         if user_id not in ADMIN_IDS:
             await query.edit_message_text("Bạn không có quyền train lại mô hình!")
             return
         await query.edit_message_text("⏳ Đang train lại AI, vui lòng đợi...")
         try:
+            if not os.path.exists(DATA_FILE):
+                await crawl_new_days_csv_progress(query, DATA_FILE, 60)
             df = pd.read_csv(DATA_FILE)
             df = df.dropna()
             df['Đặc biệt'] = df['Đặc biệt'].astype(str).str[-2:]
@@ -333,7 +324,6 @@ async def menu_callback_handler(update: Update, context: ContextTypes.DEFAULT_TY
             await query.edit_message_text(f"Lỗi khi train mô hình: {e}")
         return
 
-    # ==== Thống kê ====
     if query.data == "thongke":
         if not os.path.exists(DATA_FILE):
             await query.edit_message_text("Chưa có dữ liệu. Đang tự động tạo file xsmb_full.csv...")
@@ -356,7 +346,6 @@ async def menu_callback_handler(update: Update, context: ContextTypes.DEFAULT_TY
             await query.edit_message_text(f"Lỗi thống kê: {e}")
         return
 
-    # ==== Dự đoán AI ====
     if query.data == "du_doan_ai":
         if not os.path.exists(DATA_FILE):
             await query.edit_message_text("Chưa có dữ liệu. Đang tự động tạo file xsmb_full.csv...")
@@ -385,12 +374,68 @@ async def menu_callback_handler(update: Update, context: ContextTypes.DEFAULT_TY
             await query.edit_message_text(f"Lỗi dự đoán AI: {e}")
         return
 
-    # ==== Các callback khác giữ nguyên như mẫu trước ====
+    # ======= GHÉP XIÊN, GHÉP CÀNG, PHONG THỦY, HỎI GEMINI =======
+    if query.data == "ghepxien":
+        await query.edit_message_text("Nhập dãy số (cách nhau bởi dấu cách hoặc phẩy) để ghép xiên (tối thiểu 2 số):")
+        context.user_data["wait_xien"] = True
+        return
+
+    if query.data == "ghepcang":
+        await query.edit_message_text("Nhập dãy số (cách nhau bởi dấu cách hoặc phẩy) để ghép càng (tối thiểu 1 số, ra hết bộ 3 càng):")
+        context.user_data["wait_cang"] = True
+        return
+
+    if query.data == "phongthuy_ngay":
+        now = datetime.datetime.now()
+        can_chi = get_can_chi_ngay(now.year, now.month, now.day)
+        so_hap = sinh_so_hap_cho_ngay(can_chi)
+        if so_hap:
+            msg = (
+                f"🔮 Phong thủy ngày {now.strftime('%d/%m/%Y')}\n"
+                f"Can Chi: {can_chi}\n"
+                f"Số mệnh: {so_hap['so_menh']}\n"
+                f"Số hợp: {', '.join(so_hap['so_hap_list'])}\n"
+                f"Đề xuất các cặp số hợp: {', '.join(so_hap['so_ghép'])}"
+            )
+        else:
+            msg = f"Không tra được phong thủy cho ngày {now.strftime('%d/%m/%Y')}"
+        await query.edit_message_text(msg)
+        return
+
+    if query.data == "hoi_gemini":
+        await query.edit_message_text("Nhập nội dung bạn muốn hỏi Thần tài (Gemini AI):")
+        context.user_data["wait_gemini"] = True
+        return
+
     await query.edit_message_text("Chức năng này đang phát triển hoặc chưa được cấu hình!")
 
 async def all_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    # Giữ nguyên các xử lý cũ (ghép xiên/càng, phong thủy, hỏi Gemini,...)
-    pass
+    text = update.message.text.strip()
+    if context.user_data.get("wait_xien"):
+        nums = split_numbers(text)
+        if len(nums) < 2:
+            await update.message.reply_text("Cần nhập tối thiểu 2 số để ghép xiên.")
+        else:
+            xiens = ghep_xien(nums, 2)
+            await update.message.reply_text(f"Các xiên đôi: {', '.join(xiens[:50])} ...")
+        context.user_data["wait_xien"] = False
+        return
+
+    if context.user_data.get("wait_cang"):
+        nums = split_numbers(text)
+        if len(nums) < 1:
+            await update.message.reply_text("Cần nhập tối thiểu 1 số để ghép càng.")
+        else:
+            cangs = ghep_cang(nums, 3)
+            await update.message.reply_text(f"Các số 3 càng: {', '.join(cangs[:50])} ...")
+        context.user_data["wait_cang"] = False
+        return
+
+    if context.user_data.get("wait_gemini"):
+        res = ask_gemini(text)
+        await update.message.reply_text(f"💬 Thần tài trả lời:\n{res}")
+        context.user_data["wait_gemini"] = False
+        return
 
 def main():
     app = ApplicationBuilder().token(TELEGRAM_TOKEN).build()
