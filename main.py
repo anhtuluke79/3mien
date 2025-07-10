@@ -41,7 +41,6 @@ def ask_gemini(prompt, api_key=None):
         return f"Lỗi gọi Gemini API: {str(e)}"
 
 def split_numbers(s):
-    # Lấy mọi số (chấp nhận cách, phẩy, xuống dòng)
     return re.findall(r'\d+', s)
 
 def ghep_cang(numbers, so_cang=3):
@@ -375,16 +374,49 @@ async def menu_callback_handler(update: Update, context: ContextTypes.DEFAULT_TY
             await query.edit_message_text(f"Lỗi dự đoán AI: {e}")
         return
 
+    # ==== GHÉP XIÊN flow mới ====
     if query.data == "ghepxien":
-        await query.edit_message_text("Nhập dãy số (cách nhau bởi dấu cách hoặc phẩy) để ghép xiên (tối thiểu 2 số):")
-        context.user_data["wait_xien"] = True
-        context.user_data["who_xien"] = user_id
+        keyboard = [
+            [
+                InlineKeyboardButton("Xiên 2", callback_data="ghepxien2"),
+                InlineKeyboardButton("Xiên 3", callback_data="ghepxien3"),
+                InlineKeyboardButton("Xiên 4", callback_data="ghepxien4"),
+            ]
+        ]
+        await query.edit_message_text(
+            "Chọn loại ghép xiên:",
+            reply_markup=InlineKeyboardMarkup(keyboard)
+        )
         return
 
+    if query.data in ["ghepxien2", "ghepxien3", "ghepxien4"]:
+        xiend = int(query.data[-1])
+        await query.edit_message_text(f"Nhập dãy số (cách nhau bởi dấu cách, phẩy) để ghép xiên {xiend}:")
+        context.user_data["wait_xien"] = True
+        context.user_data["who_xien"] = user_id
+        context.user_data["xiend"] = xiend
+        return
+
+    # ==== GHÉP CÀNG flow mới ====
     if query.data == "ghepcang":
-        await query.edit_message_text("Nhập dãy số (cách nhau bởi dấu cách hoặc phẩy) để ghép càng (tối thiểu 1 số, ra hết bộ 3 càng):")
+        keyboard = [
+            [
+                InlineKeyboardButton("3 càng", callback_data="ghepcang3"),
+                InlineKeyboardButton("4 càng", callback_data="ghepcang4"),
+            ]
+        ]
+        await query.edit_message_text(
+            "Chọn loại ghép càng:",
+            reply_markup=InlineKeyboardMarkup(keyboard)
+        )
+        return
+
+    if query.data in ["ghepcang3", "ghepcang4"]:
+        socang = int(query.data[-1])
+        await query.edit_message_text(f"Nhập dãy số (cách nhau bởi dấu cách, phẩy) để ghép {socang} càng:")
         context.user_data["wait_cang"] = True
         context.user_data["who_cang"] = user_id
+        context.user_data["socang"] = socang
         return
 
     if query.data == "phongthuy_ngay":
@@ -416,36 +448,40 @@ async def all_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     text = update.message.text.strip()
 
-    # GHÉP XIÊN
+    # GHÉP XIÊN flow mới
     if context.user_data.get("wait_xien", False):
         if context.user_data.get("who_xien", None) == user_id:
+            xiend = context.user_data.get("xiend", 2)
             nums = split_numbers(text)
-            if len(nums) < 2:
-                await update.message.reply_text("Cần nhập tối thiểu 2 số để ghép xiên. Vui lòng gửi lại.")
+            if len(nums) < xiend:
+                await update.message.reply_text(f"Cần nhập tối thiểu {xiend} số để ghép xiên. Vui lòng gửi lại.")
             else:
-                xiens = ghep_xien(nums, 2)
+                xiens = ghep_xien(nums, xiend)
                 MAX_SHOW = 50
                 preview = ', '.join(xiens[:MAX_SHOW])
                 tail = " ..." if len(xiens) > MAX_SHOW else ""
-                await update.message.reply_text(f"Các bộ xiên: {preview}{tail}")
+                await update.message.reply_text(f"Các bộ xiên {xiend}: {preview}{tail}")
             context.user_data["wait_xien"] = False
             context.user_data["who_xien"] = None
+            context.user_data["xiend"] = None
         return
 
-    # GHÉP CÀNG
+    # GHÉP CÀNG flow mới
     if context.user_data.get("wait_cang", False):
         if context.user_data.get("who_cang", None) == user_id:
+            socang = context.user_data.get("socang", 3)
             nums = split_numbers(text)
             if len(nums) < 1:
                 await update.message.reply_text("Cần nhập tối thiểu 1 số để ghép càng. Vui lòng gửi lại.")
             else:
-                cangs = ghep_cang(nums, 3)
+                cangs = ghep_cang(nums, socang)
                 MAX_SHOW = 50
                 preview = ','.join(cangs[:MAX_SHOW])
                 tail = " ..." if len(cangs) > MAX_SHOW else ""
-                await update.message.reply_text(f"Các số 3 càng: {preview}{tail}")
+                await update.message.reply_text(f"Các số {socang} càng: {preview}{tail}")
             context.user_data["wait_cang"] = False
             context.user_data["who_cang"] = None
+            context.user_data["socang"] = None
         return
 
     # HỎI GEMINI
