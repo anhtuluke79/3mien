@@ -116,25 +116,15 @@ def phong_thuy_format(can_chi, sohap_info, is_today=False, today_str=None):
     return text
 
 # ========== CRAWL XỔ SỐ KẾT QUẢ NHIỀU NGÀY ==========
-XSKQ_CONFIG = {
-    "bac": {
-        "base_url": "https://xosoketqua.com/xo-so-mien-bac-xstd",
-        "csv": "xsmb.csv",
-    },
-    "trung": {
-        "base_url": "https://xosoketqua.com/xo-so-mien-trung-xsmt",
-        "csv": "xsmt.csv",
-    },
-    "nam": {
-        "base_url": "https://xosoketqua.com/xo-so-mien-nam-xsmn",
-        "csv": "xsmn.csv",
-    }
-}
 def crawl_xsketqua_mien_multi(region: str, days: int = 30, progress_callback=None):
     region = region.lower()
+    XSKQ_CONFIG = {
+        "bac": {"csv": "xsmb.csv"},
+        "trung": {"csv": "xsmt.csv"},
+        "nam": {"csv": "xsmn.csv"},
+    }
     if region not in XSKQ_CONFIG:
-        raise ValueError("Miền không hợp lệ. Chọn một trong: 'bac', 'trung', 'nam'.")
-    base_url = XSKQ_CONFIG[region]['base_url']
+        raise ValueError("Miền không hợp lệ. Chọn: 'bac', 'trung', 'nam'.")
     csv_file = XSKQ_CONFIG[region]['csv']
     rows = []
     if os.path.exists(csv_file):
@@ -149,12 +139,14 @@ def crawl_xsketqua_mien_multi(region: str, days: int = 30, progress_callback=Non
     for i in range(days * 2):
         date = today - timedelta(days=i)
         date_str = date.strftime("%d-%m-%Y")
+        if region == "bac":
+            url = f"https://xosoketqua.com/xsmb-{date.strftime('%d-%m-%Y')}.html"
+        elif region == "trung":
+            url = f"https://xosoketqua.com/xsmt-{date.strftime('%d-%m-%Y')}.html"
+        else:
+            url = f"https://xosoketqua.com/xsmn-{date.strftime('%d-%m-%Y')}.html"
         if date_str.replace("-", "/") in dates_exist or date_str in dates_exist:
             continue
-        if region == "bac":
-            url = f"{base_url}/ngay-{date_str}.html"
-        else:
-            url = f"{base_url}?ngay={date_str}"
         try:
             res = requests.get(url, timeout=10, headers=headers)
             print(f"DEBUG: {url} => status {res.status_code}")
@@ -162,16 +154,6 @@ def crawl_xsketqua_mien_multi(region: str, days: int = 30, progress_callback=Non
                 print(f"Failed ({res.status_code}): {url}")
                 continue
             soup = BeautifulSoup(res.text, "html.parser")
-            title = soup.select_one('div.title-bangketqua h2, h2.title')
-            if title:
-                title = title.get_text(strip=True)
-                found_date = re.search(r'(\d{2}-\d{2}-\d{4})', title)
-                if found_date:
-                    actual_date = found_date.group(1)
-                else:
-                    actual_date = date_str
-            else:
-                actual_date = date_str
             table = soup.select_one("table.tblKQXS")
             if not table:
                 print("Không tìm thấy bảng kết quả!")
@@ -189,12 +171,10 @@ def crawl_xsketqua_mien_multi(region: str, days: int = 30, progress_callback=Non
                         results.extend([x for x in txt.split() if x.isdigit()])
             if not results:
                 continue
-            if actual_date.replace("-", "/") in dates_exist or actual_date in dates_exist:
-                continue
             with open(csv_file, "a", encoding="utf-8", newline="") as f:
                 writer = csv.writer(f)
-                writer.writerow([actual_date] + results)
-            dates_exist.add(actual_date)
+                writer.writerow([date_str] + results)
+            dates_exist.add(date_str)
             count += 1
             if progress_callback and (count % 2 == 0 or count == days):
                 progress_callback(count, days)
@@ -359,7 +339,7 @@ async def menu_callback_handler(update: Update, context: ContextTypes.DEFAULT_TY
             "💗 *Cảm ơn bạn đã quan tâm và ủng hộ bot!*\n\n"
             "Bạn có thể gửi góp ý, ý tưởng hoặc donate để bot phát triển lâu dài.\n"
             "👉 Góp ý: Chọn 'Gửi góp ý' bên dưới hoặc gửi trực tiếp qua Telegram.\n"
-            "👉 Ủng hộ: Vietcombank: 0071003914986 (Trương Anh Tú)\n\n"
+            "👉 Ủng hộ: Momo/MBbank: 0987654321 (Trương Anh Tú)\n\n"
             "Hoặc xem 'Danh dự' để xem bảng tri ân những người đã gửi góp ý/ủng hộ. 🙏"
         )
         await query.edit_message_text(info, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="Markdown")
