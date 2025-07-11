@@ -112,31 +112,24 @@ def phong_thuy_format(can_chi, sohap_info, is_today=False, today_str=None):
     )
     return text
 
-# ==== HÀM CHỐT SỐ PHONG THỦY ====
 def chot_so_format(can_chi, sohap_info, today_str):
     if not sohap_info or not sohap_info.get("so_hap_list"):
         return "Không đủ dữ liệu phong thủy để chốt số hôm nay!"
 
     d = [sohap_info['so_menh']] + sohap_info['so_hap_list']
     chams = ','.join(d)
-
-    # Dàn đề: tổ hợp 2 số (có cả số giống nhau: VD 11,44,99)
     dan_de = []
     for x in d:
         for y in d:
             dan_de.append(x + y)
     dan_de = sorted(set(dan_de))
-
-    # Lô: chỉ các số ghép 2 số khác nhau
     lo = []
     for x in d:
         for y in d:
             if x != y:
                 lo.append(x + y)
     lo = sorted(set(lo))
-
     icons = "🎉🍀🥇"
-
     text = (
         f"{icons}\n"
         f"*Chốt số 3 miền ngày {today_str} ({can_chi})*\n"
@@ -153,6 +146,7 @@ async def menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         [InlineKeyboardButton("🎯 Ghép càng/Đảo số", callback_data="menu_ghepcang")],
         [InlineKeyboardButton("🔮 Phong thủy", callback_data="phongthuy_ngay")],
         [InlineKeyboardButton("🎯 Chốt số phong thủy", callback_data="chot_so")],
+        [InlineKeyboardButton("🎯 Chốt số theo ngày", callback_data="chot_so_ngay")],
         [InlineKeyboardButton("💗 Đóng góp", callback_data="donggop")],
     ]
     if hasattr(update, "message") and update.message:
@@ -229,7 +223,6 @@ async def menu_callback_handler(update: Update, context: ContextTypes.DEFAULT_TY
         text = phong_thuy_format(can_chi, sohap_info, is_today=True, today_str=today_str)
         await query.edit_message_text(text, parse_mode="Markdown")
 
-    # ==== CHỐT SỐ PHONG THỦY ====
     elif query.data == "chot_so":
         now = datetime.now()
         y, m, d = now.year, now.month, now.day
@@ -238,6 +231,14 @@ async def menu_callback_handler(update: Update, context: ContextTypes.DEFAULT_TY
         today_str = f"{d:02d}/{m:02d}/{y}"
         text = chot_so_format(can_chi, sohap_info, today_str)
         await query.edit_message_text(text, parse_mode="Markdown")
+
+    elif query.data == "chot_so_ngay":
+        await query.edit_message_text(
+            "📅 Nhập ngày dương lịch muốn chốt số:\n"
+            "- Định dạng đầy đủ: YYYY-MM-DD (vd: 2025-07-11)\n"
+            "- Hoặc chỉ ngày-tháng: DD-MM (vd: 11-07, sẽ lấy năm hiện tại)"
+        )
+        context.user_data['wait_chot_so_ngay'] = True
 
     elif query.data == "donggop":
         keyboard = [
@@ -344,6 +345,30 @@ async def all_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 text = ', '.join(result)
             await update.message.reply_text(f"Tổng {len(result)} hoán vị:\n{text}")
         context.user_data['wait_for_daoso'] = False
+        await menu(update, context)
+        return
+
+    # ==== CHỐT SỐ THEO NGÀY ====
+    if context.user_data.get('wait_chot_so_ngay'):
+        ngay = update.message.text.strip()
+        try:
+            parts = [int(x) for x in ngay.split('-')]
+            if len(parts) == 3:
+                y, m, d = parts
+            elif len(parts) == 2:
+                now = datetime.now()
+                d, m = parts
+                y = now.year
+            else:
+                raise ValueError("Sai định dạng")
+            can_chi = get_can_chi_ngay(y, m, d)
+            sohap_info = sinh_so_hap_cho_ngay(can_chi)
+            today_str = f"{d:02d}/{m:02d}/{y}"
+            text = chot_so_format(can_chi, sohap_info, today_str)
+            await update.message.reply_text(text, parse_mode="Markdown")
+        except Exception:
+            await update.message.reply_text("❗️ Nhập ngày không hợp lệ! Đúng định dạng: YYYY-MM-DD hoặc DD-MM.")
+        context.user_data['wait_chot_so_ngay'] = False
         await menu(update, context)
         return
 
