@@ -50,17 +50,19 @@ def dao_so(s):
 def chuan_hoa_can_chi(s):
     return ' '.join(word.capitalize() for word in s.strip().split())
 
+# ==== SỬA CODE: HÀM CAN CHI NGÀY DƯƠNG CHUẨN HƠN ====
 def get_can_chi_ngay(year, month, day):
     if month < 3:
-        year -= 1
         month += 12
+        year -= 1
     a = year // 100
     b = 2 - a + a // 4
     jd = int(365.25 * (year + 4716)) + int(30.6001 * (month + 1)) + day + b - 1524
-    chi_list = ['Tý', 'Sửu', 'Dần', 'Mão', 'Thìn', 'Tỵ', 'Ngọ', 'Mùi', 'Thân', 'Dậu', 'Tuất', 'Hợi']
-    chi = chi_list[(jd + 1) % 12]
+
     can_list = ['Giáp', 'Ất', 'Bính', 'Đinh', 'Mậu', 'Kỷ', 'Canh', 'Tân', 'Nhâm', 'Quý']
+    chi_list = ['Tý', 'Sửu', 'Dần', 'Mão', 'Thìn', 'Tỵ', 'Ngọ', 'Mùi', 'Thân', 'Dậu', 'Tuất', 'Hợi']
     can = can_list[(jd + 9) % 10]
+    chi = chi_list[(jd + 1) % 12]
     return f"{can} {chi}"
 
 def sinh_so_hap_cho_ngay(can_chi_str):
@@ -87,7 +89,6 @@ def sinh_so_hap_cho_ngay(can_chi_str):
         "so_ghép": sorted(list(ket_qua))
     }
 
-# ========== PATCH: format phong thủy mới ==========
 def phong_thuy_format(can_chi, sohap_info, is_today=False, today_str=None):
     can = can_chi.split()[0]
     can_info = CAN_INFO.get(can, {})
@@ -434,8 +435,11 @@ async def all_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             y, m, d = map(int, ngay.split('-'))
             can_chi = get_can_chi_ngay(y, m, d)
             sohap_info = sinh_so_hap_cho_ngay(can_chi)
-            text = phong_thuy_format(can_chi, sohap_info)
-            await update.message.reply_text(text, parse_mode="Markdown")
+            if sohap_info is None:
+                await update.message.reply_text("❗️ Không tìm thấy thông tin can chi hoặc số hạp cho ngày này!")
+            else:
+                text = phong_thuy_format(can_chi, sohap_info)
+                await update.message.reply_text(text, parse_mode="Markdown")
         except Exception:
             await update.message.reply_text("❗️ Nhập ngày không hợp lệ! Đúng định dạng YYYY-MM-DD.")
         context.user_data['wait_phongthuy_ngay_duong'] = False
@@ -446,13 +450,15 @@ async def all_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if context.user_data.get('wait_phongthuy_ngay_canchi'):
         can_chi = chuan_hoa_can_chi(update.message.text.strip())
         sohap_info = sinh_so_hap_cho_ngay(can_chi)
-        text = phong_thuy_format(can_chi, sohap_info)
-        await update.message.reply_text(text, parse_mode="Markdown")
+        if sohap_info is None:
+            await update.message.reply_text("❗️ Không tìm thấy thông tin can chi hoặc số hạp với tên bạn nhập! Kiểm tra lại định dạng (VD: Giáp Tý).")
+        else:
+            text = phong_thuy_format(can_chi, sohap_info)
+            await update.message.reply_text(text, parse_mode="Markdown")
         context.user_data['wait_phongthuy_ngay_canchi'] = False
         await menu(update, context)
         return
 
-    # ... Các lệnh khác, ví dụ gửi tin nhắn mặc định và quay lại menu
     await update.message.reply_text("Bot đã nhận tin nhắn của bạn!")
     await menu(update, context)
 
