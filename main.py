@@ -11,7 +11,7 @@ from telegram.ext import (
 )
 from itertools import product, combinations, permutations
 import csv
-from datetime import datetime, timedelta
+from datetime import datetime
 import re
 from can_chi_dict import data as CAN_CHI_SO_HAP
 from thien_can import CAN_INFO
@@ -50,7 +50,6 @@ def dao_so(s):
 def chuan_hoa_can_chi(s):
     return ' '.join(word.capitalize() for word in s.strip().split())
 
-# ==== SỬA CODE: HÀM CAN CHI NGÀY DƯƠNG CHUẨN HƠN ====
 def get_can_chi_ngay(year, month, day):
     if month < 3:
         month += 12
@@ -114,113 +113,14 @@ def phong_thuy_format(can_chi, sohap_info, is_today=False, today_str=None):
     )
     return text
 
-# ========== CRAWL XỔ SỐ KẾT QUẢ NHIỀU NGÀY ==========
-def crawl_xsketqua_mien_multi(region: str, days: int = 30, progress_callback=None):
-    region = region.lower()
-    XSKQ_CONFIG = {
-        "bac": {"csv": "xsmb.csv"},
-        "trung": {"csv": "xsmt.csv"},
-        "nam": {"csv": "xsmn.csv"},
-    }
-    if region not in XSKQ_CONFIG:
-        raise ValueError("Miền không hợp lệ. Chọn: 'bac', 'trung', 'nam'.")
-    csv_file = XSKQ_CONFIG[region]['csv']
-    rows = []
-    if os.path.exists(csv_file):
-        with open(csv_file, encoding="utf-8") as f:
-            rows = list(csv.reader(f))
-    dates_exist = set(row[0] for row in rows)
-    count = 0
-    today = datetime.now()
-    headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-    }
-    for i in range(days * 2):
-        date = today - timedelta(days=i)
-        date_str = date.strftime("%d-%m-%Y")
-        if region == "bac":
-            url = f"https://xosoketqua.com/xsmb-{date.strftime('%d-%m-%Y')}.html"
-        elif region == "trung":
-            url = f"https://xosoketqua.com/xsmt-{date.strftime('%d-%m-%Y')}.html"
-        else:
-            url = f"https://xosoketqua.com/xsmn-{date.strftime('%d-%m-%Y')}.html"
-        if date_str.replace("-", "/") in dates_exist or date_str in dates_exist:
-            continue
-        try:
-            res = requests.get(url, timeout=10, headers=headers)
-            print(f"DEBUG: {url} => status {res.status_code}")
-            if res.status_code != 200:
-                print(f"Failed ({res.status_code}): {url}")
-                continue
-            soup = BeautifulSoup(res.text, "html.parser")
-            table = soup.select_one("table.tblKQXS")
-            if not table:
-                print("Không tìm thấy bảng kết quả!")
-                continue
-            results = []
-            for row in table.select("tr"):
-                tds = row.find_all("td", class_="bcls")
-                if not tds:
-                    continue
-                for td in tds:
-                    txt = td.get_text(strip=True)
-                    if txt.isdigit():
-                        results.append(txt)
-                    elif " " in txt:
-                        results.extend([x for x in txt.split() if x.isdigit()])
-            if not results:
-                continue
-            with open(csv_file, "a", encoding="utf-8", newline="") as f:
-                writer = csv.writer(f)
-                writer.writerow([date_str] + results)
-            dates_exist.add(date_str)
-            count += 1
-            if progress_callback and (count % 2 == 0 or count == days):
-                progress_callback(count, days)
-            if count >= days:
-                break
-        except Exception as e:
-            print(f"Lỗi crawl {region} {date_str}: {e}")
-            continue
-    return count
-
-# ========== UPDATE DATA MIỀN (chỉ admin, báo tiến trình) ==========
-async def capnhat_xsm_kq_handler_query(query, region: str, region_label: str):
-    try:
-        import asyncio
-        msg = await query.edit_message_text(f"⏳ Đang cập nhật 0/30 ngày {region_label} từ xosoketqua.com...")
-        progress = {"last_count": 0}
-        def progress_callback(count, total):
-            if count != progress["last_count"]:
-                try:
-                    asyncio.run_coroutine_threadsafe(
-                        msg.edit_text(f"⏳ Đang cập nhật {count}/{total} ngày {region_label}..."),
-                        asyncio.get_event_loop()
-                    )
-                    progress["last_count"] = count
-                except Exception:
-                    pass
-        loop = asyncio.get_event_loop()
-        result = await loop.run_in_executor(None, crawl_xsketqua_mien_multi, region, 30, progress_callback)
-        await msg.edit_text(f"✅ Đã cập nhật {result} ngày {region_label}!")
-    except Exception as e:
-        await query.edit_message_text(f"❌ Lỗi crawl {region_label}: {e}")
-
 # ========== MENU & CALLBACK ==========
 async def menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_id = update.effective_user.id
     keyboard = [
         [InlineKeyboardButton("➕ Ghép xiên", callback_data="menu_ghepxien")],
         [InlineKeyboardButton("🎯 Ghép càng/Đảo số", callback_data="menu_ghepcang")],
         [InlineKeyboardButton("🔮 Phong thủy", callback_data="phongthuy_ngay")],
         [InlineKeyboardButton("💗 Đóng góp", callback_data="donggop")],
     ]
-    if user_id in ADMIN_IDS:
-        keyboard.append([
-            InlineKeyboardButton("🛠️ Update MB", callback_data="capnhat_xsmb_kq"),
-            InlineKeyboardButton("🛠️ Update MT", callback_data="capnhat_xsmt_kq"),
-            InlineKeyboardButton("🛠️ Update MN", callback_data="capnhat_xsmn_kq"),
-        ])
     if hasattr(update, "message") and update.message:
         await update.message.reply_text("🔹 Chọn chức năng:", reply_markup=InlineKeyboardMarkup(keyboard))
     else:
@@ -229,7 +129,6 @@ async def menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def menu_callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
-    user_id = query.from_user.id
 
     # ===== Menu phụ Ghép xiên
     if query.data == "menu_ghepxien":
@@ -278,22 +177,7 @@ async def menu_callback_handler(update: Update, context: ContextTypes.DEFAULT_TY
         context.user_data['wait_for_daoso'] = True
         await query.edit_message_text("Nhập một số hoặc dãy số (VD: 123 hoặc 1234):")
 
-    # ===== Cập nhật, Phong thủy, Đóng góp
-    elif query.data == "capnhat_xsmb_kq":
-        if user_id not in ADMIN_IDS:
-            await query.edit_message_text("Bạn không có quyền cập nhật dữ liệu!")
-            return
-        await capnhat_xsm_kq_handler_query(query, "bac", "Miền Bắc")
-    elif query.data == "capnhat_xsmt_kq":
-        if user_id not in ADMIN_IDS:
-            await query.edit_message_text("Bạn không có quyền cập nhật dữ liệu!")
-            return
-        await capnhat_xsm_kq_handler_query(query, "trung", "Miền Trung")
-    elif query.data == "capnhat_xsmn_kq":
-        if user_id not in ADMIN_IDS:
-            await query.edit_message_text("Bạn không có quyền cập nhật dữ liệu!")
-            return
-        await capnhat_xsm_kq_handler_query(query, "nam", "Miền Nam")
+    # ===== Phong thủy, Đóng góp
     elif query.data == "phongthuy_ngay":
         keyboard = [
             [InlineKeyboardButton("Theo ngày dương (YYYY-MM-DD)", callback_data="phongthuy_ngay_duong")],
