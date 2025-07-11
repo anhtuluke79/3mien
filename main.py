@@ -15,7 +15,6 @@ from itertools import product, combinations, permutations
 import csv
 from datetime import datetime, timedelta
 import re
-
 from can_chi_dict import data as CAN_CHI_SO_HAP
 from thien_can import CAN_INFO
 
@@ -144,6 +143,9 @@ def crawl_xsketqua_mien_multi(region: str, days: int = 30, progress_callback=Non
     dates_exist = set(row[0] for row in rows)
     count = 0
     today = datetime.now()
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+    }
     for i in range(days * 2):
         date = today - timedelta(days=i)
         date_str = date.strftime("%d-%m-%Y")
@@ -154,8 +156,10 @@ def crawl_xsketqua_mien_multi(region: str, days: int = 30, progress_callback=Non
         else:
             url = f"{base_url}?ngay={date_str}"
         try:
-            res = requests.get(url, timeout=10)
+            res = requests.get(url, timeout=10, headers=headers)
+            print(f"DEBUG: {url} => status {res.status_code}")
             if res.status_code != 200:
+                print(f"Failed ({res.status_code}): {url}")
                 continue
             soup = BeautifulSoup(res.text, "html.parser")
             title = soup.select_one('div.title-bangketqua h2, h2.title')
@@ -170,6 +174,7 @@ def crawl_xsketqua_mien_multi(region: str, days: int = 30, progress_callback=Non
                 actual_date = date_str
             table = soup.select_one("table.tblKQXS")
             if not table:
+                print("Không tìm thấy bảng kết quả!")
                 continue
             results = []
             for row in table.select("tr"):
