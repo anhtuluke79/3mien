@@ -238,6 +238,7 @@ async def menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
             InlineKeyboardButton("🤖 Dự đoán AI", callback_data="ai_predict"),
             InlineKeyboardButton("🔮 Phong thủy", callback_data="phongthuy_ngay"),
         ],
+        [InlineKeyboardButton("💗 Đóng góp", callback_data="donggop")],
     ]
     if user_id in ADMIN_IDS:
         keyboard.append([
@@ -349,6 +350,40 @@ async def menu_callback_handler(update: Update, context: ContextTypes.DEFAULT_TY
         today_str = f"{d:02d}/{m:02d}/{y}"
         text = phong_thuy_format(can_chi, sohap_info, is_today=True, today_str=today_str)
         await query.edit_message_text(text, parse_mode="Markdown")
+    elif query.data == "donggop":
+        keyboard = [
+            [InlineKeyboardButton("Gửi góp ý", callback_data="donggop_gui")],
+            [InlineKeyboardButton("Danh dự", callback_data="donggop_danhdu")]
+        ]
+        info = (
+            "💗 *Cảm ơn bạn đã quan tâm và ủng hộ bot!*\n\n"
+            "Bạn có thể gửi góp ý, ý tưởng hoặc donate để bot phát triển lâu dài.\n"
+            "👉 Góp ý: Chọn 'Gửi góp ý' bên dưới hoặc gửi trực tiếp qua Telegram.\n"
+            "👉 Ủng hộ: Vietcombank: 0071003914986 (Trương Anh Tú)\n\n"
+            "Hoặc xem 'Danh dự' để xem bảng tri ân những người đã gửi góp ý/ủng hộ. 🙏"
+        )
+        await query.edit_message_text(info, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="Markdown")
+    elif query.data == "donggop_gui":
+        await query.edit_message_text(
+            "🙏 Vui lòng nhập góp ý, phản hồi hoặc lời nhắn của bạn (mọi góp ý đều được ghi nhận và tri ân công khai)."
+        )
+        context.user_data['wait_for_donggop'] = True
+    elif query.data == "donggop_danhdu":
+        log_file = "donggop_log.txt"
+        names = set()
+        if os.path.exists(log_file):
+            with open(log_file, encoding="utf-8") as f:
+                for line in f:
+                    parts = line.strip().split("|")
+                    if len(parts) >= 3:
+                        name = parts[1].strip()
+                        names.add(name)
+        if not names:
+            msg = "Chưa có ai gửi góp ý/đóng góp. Hãy là người đầu tiên nhé! 💗"
+        else:
+            msg = "🏆 *Bảng danh dự những người đã gửi góp ý/ủng hộ:*\n"
+            msg += "\n".join([f"❤️ {name}" for name in sorted(names)])
+        await query.edit_message_text(msg, parse_mode="Markdown")
 
 # ========== ALL TEXT HANDLER ==========
 async def all_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -358,6 +393,21 @@ async def all_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         text = update.message.text.lower()
         if not (text.startswith("/") or bot_username in text):
             return
+
+    # Đóng góp/góp ý
+    if context.user_data.get('wait_for_donggop'):
+        user = update.message.from_user
+        username = user.username or user.full_name or str(user.id)
+        text = update.message.text.strip()
+        with open("donggop_log.txt", "a", encoding="utf-8") as f:
+            f.write(f"{datetime.now()} | {username} | {user.id} | {text}\n")
+        await update.message.reply_text(
+            "💗 Cảm ơn bạn đã gửi góp ý/ủng hộ! Tất cả phản hồi đều được trân trọng ghi nhận.\n"
+            "Bạn có thể tiếp tục sử dụng bot hoặc gửi góp ý thêm bất cứ lúc nào."
+        )
+        context.user_data['wait_for_donggop'] = False
+        await menu(update, context)
+        return
 
     # Ghép xiên N
     if isinstance(context.user_data.get('wait_for_xien_input'), int):
