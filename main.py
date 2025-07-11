@@ -145,8 +145,7 @@ async def menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         [InlineKeyboardButton("➕ Ghép xiên", callback_data="menu_ghepxien")],
         [InlineKeyboardButton("🎯 Ghép càng/Đảo số", callback_data="menu_ghepcang")],
         [InlineKeyboardButton("🔮 Phong thủy", callback_data="phongthuy_ngay")],
-        [InlineKeyboardButton("🎯 Chốt số phong thủy", callback_data="chot_so")],
-        [InlineKeyboardButton("🎯 Chốt số theo ngày", callback_data="chot_so_ngay")],
+        [InlineKeyboardButton("🎯 Chốt số", callback_data="menu_chotso")],
         [InlineKeyboardButton("💗 Đóng góp", callback_data="donggop")],
     ]
     if hasattr(update, "message") and update.message:
@@ -176,6 +175,15 @@ async def menu_callback_handler(update: Update, context: ContextTypes.DEFAULT_TY
             [InlineKeyboardButton("⬅️ Quay lại menu", callback_data="main_menu")]
         ]
         await query.edit_message_text("Chọn loại càng hoặc đảo số:", reply_markup=InlineKeyboardMarkup(keyboard))
+        return
+
+    if query.data == "menu_chotso":
+        keyboard = [
+            [InlineKeyboardButton("Chốt số hôm nay", callback_data="chot_so_today")],
+            [InlineKeyboardButton("Chốt số theo ngày", callback_data="chot_so_ngay")],
+            [InlineKeyboardButton("⬅️ Quay lại menu", callback_data="main_menu")]
+        ]
+        await query.edit_message_text("Chọn cách chốt số:", reply_markup=InlineKeyboardMarkup(keyboard))
         return
 
     if query.data == "main_menu":
@@ -223,7 +231,8 @@ async def menu_callback_handler(update: Update, context: ContextTypes.DEFAULT_TY
         text = phong_thuy_format(can_chi, sohap_info, is_today=True, today_str=today_str)
         await query.edit_message_text(text, parse_mode="Markdown")
 
-    elif query.data == "chot_so":
+    # ===== CHỐT SỐ PHONG THỦY (HÔM NAY hoặc THEO NGÀY) =====
+    elif query.data == "chot_so_today":
         now = datetime.now()
         y, m, d = now.year, now.month, now.day
         can_chi = get_can_chi_ngay(y, m, d)
@@ -231,7 +240,6 @@ async def menu_callback_handler(update: Update, context: ContextTypes.DEFAULT_TY
         today_str = f"{d:02d}/{m:02d}/{y}"
         text = chot_so_format(can_chi, sohap_info, today_str)
         await query.edit_message_text(text, parse_mode="Markdown")
-
     elif query.data == "chot_so_ngay":
         await query.edit_message_text(
             "📅 Nhập ngày dương lịch muốn chốt số:\n"
