@@ -1,7 +1,5 @@
 import os
 import logging
-import requests
-from bs4 import BeautifulSoup
 from telegram import (
     Update, InlineKeyboardButton, InlineKeyboardMarkup
 )
@@ -10,9 +8,7 @@ from telegram.ext import (
     MessageHandler, filters
 )
 from itertools import product, combinations, permutations
-import csv
 from datetime import datetime
-import re
 from can_chi_dict import data as CAN_CHI_SO_HAP
 from thien_can import CAN_INFO
 
@@ -88,24 +84,30 @@ def sinh_so_hap_cho_ngay(can_chi_str):
         "so_ghép": sorted(list(ket_qua))
     }
 
+# ==== ĐÃ SỬA format đúng ý bạn ====
 def phong_thuy_format(can_chi, sohap_info, is_today=False, today_str=None):
     can = can_chi.split()[0]
     can_info = CAN_INFO.get(can, {})
     am_duong = can_info.get("am_duong", "?")
     ngu_hanh = can_info.get("ngu_hanh", "?")
-    so_hap_can = sohap_info['so_hap_list'][0] if sohap_info and 'so_hap_list' in sohap_info and len(sohap_info['so_hap_list']) > 0 else "?"
-    so_menh = sohap_info['so_menh'] if sohap_info else "?"
+
+    # Số hạp can = số_menh (là số đầu tiên trong dict)
+    # Số mệnh = các số trong so_hap_list (2 số sau trong dict, cách nhau phẩy)
+    if sohap_info and 'so_hap_list' in sohap_info and len(sohap_info['so_hap_list']) >= 1:
+        so_hap_can = sohap_info['so_menh']
+        so_menh = ','.join(sohap_info['so_hap_list'])
+    else:
+        so_hap_can = "?"
+        so_menh = "?"
+
     so_hap_ngay = ','.join(sohap_info['so_ghép']) if sohap_info and 'so_ghép' in sohap_info else "?"
 
     if is_today and today_str:
-        tieu_de = f"*Ngày hiện tại*"
         main_line = f"🔮 Phong thủy NGÀY HIỆN TẠI: {can_chi} ({today_str})"
     else:
-        tieu_de = f"*ngày {can_chi}*"
         main_line = f"🔮 Phong thủy số ngũ hành cho ngày {can_chi}:"
 
     text = (
-        f"{tieu_de}\n"
         f"{main_line}\n"
         f"- Can: {can}, {am_duong} {ngu_hanh}, số hạp {so_hap_can}\n"
         f"- Số mệnh: {so_menh}\n"
@@ -236,14 +238,12 @@ async def menu_callback_handler(update: Update, context: ContextTypes.DEFAULT_TY
 
 # ========== ALL TEXT HANDLER ==========
 async def all_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    # PATCH: Chỉ trả lời group khi có mention @Xs3mbot hoặc lệnh /
     if update.message.chat.type in ["group", "supergroup"]:
         bot_username = "@xs3mbot"
         text = update.message.text.lower()
         if not (text.startswith("/") or bot_username in text):
             return
 
-    # Đóng góp/góp ý
     if context.user_data.get('wait_for_donggop'):
         user = update.message.from_user
         username = user.username or user.full_name or str(user.id)
@@ -258,7 +258,6 @@ async def all_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await menu(update, context)
         return
 
-    # Ghép xiên N
     if isinstance(context.user_data.get('wait_for_xien_input'), int):
         text_msg = update.message.text.strip()
         numbers = split_numbers(text_msg)
@@ -276,7 +275,6 @@ async def all_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await menu(update, context)
         return
 
-    # Ghép càng N
     if isinstance(context.user_data.get('wait_for_cang_input'), int):
         text_msg = update.message.text.strip()
         numbers = split_numbers(text_msg)
@@ -294,7 +292,6 @@ async def all_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await menu(update, context)
         return
 
-    # Đảo số
     if context.user_data.get('wait_for_daoso'):
         s = update.message.text.strip()
         arr = split_numbers(s)
@@ -312,7 +309,6 @@ async def all_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await menu(update, context)
         return
 
-    # Phong thủy theo ngày dương
     if context.user_data.get('wait_phongthuy_ngay_duong'):
         ngay = update.message.text.strip()
         try:
@@ -330,7 +326,6 @@ async def all_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await menu(update, context)
         return
 
-    # Phong thủy theo can chi
     if context.user_data.get('wait_phongthuy_ngay_canchi'):
         can_chi = chuan_hoa_can_chi(update.message.text.strip())
         sohap_info = sinh_so_hap_cho_ngay(can_chi)
