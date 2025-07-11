@@ -84,15 +84,12 @@ def sinh_so_hap_cho_ngay(can_chi_str):
         "so_ghép": sorted(list(ket_qua))
     }
 
-# ==== ĐÃ SỬA format đúng ý bạn ====
 def phong_thuy_format(can_chi, sohap_info, is_today=False, today_str=None):
     can = can_chi.split()[0]
     can_info = CAN_INFO.get(can, {})
     am_duong = can_info.get("am_duong", "?")
     ngu_hanh = can_info.get("ngu_hanh", "?")
 
-    # Số hạp can = số_menh (là số đầu tiên trong dict)
-    # Số mệnh = các số trong so_hap_list (2 số sau trong dict, cách nhau phẩy)
     if sohap_info and 'so_hap_list' in sohap_info and len(sohap_info['so_hap_list']) >= 1:
         so_hap_can = sohap_info['so_menh']
         so_menh = ','.join(sohap_info['so_hap_list'])
@@ -115,12 +112,47 @@ def phong_thuy_format(can_chi, sohap_info, is_today=False, today_str=None):
     )
     return text
 
+# ==== HÀM CHỐT SỐ PHONG THỦY ====
+def chot_so_format(can_chi, sohap_info, today_str):
+    if not sohap_info or not sohap_info.get("so_hap_list"):
+        return "Không đủ dữ liệu phong thủy để chốt số hôm nay!"
+
+    d = [sohap_info['so_menh']] + sohap_info['so_hap_list']
+    chams = ','.join(d)
+
+    # Dàn đề: tổ hợp 2 số (có cả số giống nhau: VD 11,44,99)
+    dan_de = []
+    for x in d:
+        for y in d:
+            dan_de.append(x + y)
+    dan_de = sorted(set(dan_de))
+
+    # Lô: chỉ các số ghép 2 số khác nhau
+    lo = []
+    for x in d:
+        for y in d:
+            if x != y:
+                lo.append(x + y)
+    lo = sorted(set(lo))
+
+    icons = "🎉🍀🥇"
+
+    text = (
+        f"{icons}\n"
+        f"*Chốt số 3 miền ngày {today_str} ({can_chi})*\n"
+        f"Đầu - đuôi (Đặc biệt) - Giải 1: chạm {chams}\n"
+        f"Dàn đề: {', '.join(dan_de)}\n"
+        f"Lô: {', '.join(lo)}"
+    )
+    return text
+
 # ========== MENU & CALLBACK ==========
 async def menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyboard = [
         [InlineKeyboardButton("➕ Ghép xiên", callback_data="menu_ghepxien")],
         [InlineKeyboardButton("🎯 Ghép càng/Đảo số", callback_data="menu_ghepcang")],
         [InlineKeyboardButton("🔮 Phong thủy", callback_data="phongthuy_ngay")],
+        [InlineKeyboardButton("🎯 Chốt số phong thủy", callback_data="chot_so")],
         [InlineKeyboardButton("💗 Đóng góp", callback_data="donggop")],
     ]
     if hasattr(update, "message") and update.message:
@@ -132,7 +164,6 @@ async def menu_callback_handler(update: Update, context: ContextTypes.DEFAULT_TY
     query = update.callback_query
     await query.answer()
 
-    # ===== Menu phụ Ghép xiên
     if query.data == "menu_ghepxien":
         keyboard = [
             [InlineKeyboardButton("Xiên 2", callback_data="ghepxien_2"),
@@ -143,7 +174,6 @@ async def menu_callback_handler(update: Update, context: ContextTypes.DEFAULT_TY
         await query.edit_message_text("Chọn loại xiên:", reply_markup=InlineKeyboardMarkup(keyboard))
         return
 
-    # ===== Menu phụ Ghép càng/đảo số
     if query.data == "menu_ghepcang":
         keyboard = [
             [InlineKeyboardButton("Càng 3D", callback_data="ghepcang_3d"),
@@ -154,12 +184,10 @@ async def menu_callback_handler(update: Update, context: ContextTypes.DEFAULT_TY
         await query.edit_message_text("Chọn loại càng hoặc đảo số:", reply_markup=InlineKeyboardMarkup(keyboard))
         return
 
-    # ===== Quay lại menu chính
     if query.data == "main_menu":
         await menu(update, context)
         return
 
-    # ====== Ghép xiên/càng/đảo số
     if query.data == "ghepxien_2":
         context.user_data['wait_for_xien_input'] = 2
         await query.edit_message_text("Nhập dãy số để ghép xiên 2 (cách nhau dấu cách hoặc phẩy):")
@@ -179,7 +207,6 @@ async def menu_callback_handler(update: Update, context: ContextTypes.DEFAULT_TY
         context.user_data['wait_for_daoso'] = True
         await query.edit_message_text("Nhập một số hoặc dãy số (VD: 123 hoặc 1234):")
 
-    # ===== Phong thủy, Đóng góp
     elif query.data == "phongthuy_ngay":
         keyboard = [
             [InlineKeyboardButton("Theo ngày dương (YYYY-MM-DD)", callback_data="phongthuy_ngay_duong")],
@@ -201,6 +228,17 @@ async def menu_callback_handler(update: Update, context: ContextTypes.DEFAULT_TY
         today_str = f"{d:02d}/{m:02d}/{y}"
         text = phong_thuy_format(can_chi, sohap_info, is_today=True, today_str=today_str)
         await query.edit_message_text(text, parse_mode="Markdown")
+
+    # ==== CHỐT SỐ PHONG THỦY ====
+    elif query.data == "chot_so":
+        now = datetime.now()
+        y, m, d = now.year, now.month, now.day
+        can_chi = get_can_chi_ngay(y, m, d)
+        sohap_info = sinh_so_hap_cho_ngay(can_chi)
+        today_str = f"{d:02d}/{m:02d}/{y}"
+        text = chot_so_format(can_chi, sohap_info, today_str)
+        await query.edit_message_text(text, parse_mode="Markdown")
+
     elif query.data == "donggop":
         keyboard = [
             [InlineKeyboardButton("Gửi góp ý", callback_data="donggop_gui")],
