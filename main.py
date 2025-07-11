@@ -321,9 +321,9 @@ async def menu_callback_handler(update: Update, context: ContextTypes.DEFAULT_TY
         ]
         info = (
             "💗 *Cảm ơn bạn đã quan tâm và ủng hộ bot!*\n\n"
-            "Bạn có thể gửi góp ý, ý tưởng hoặc donate để bot phát triển lâu dài.\n"
+            "Bạn có thể gửi góp ý, ý tưởng và đóng góp 100.000/tháng để bot duy trì phát triển lâu dài.\n"
             "👉 Góp ý: Chọn 'Gửi góp ý' bên dưới hoặc gửi trực tiếp qua Telegram.\n"
-            "👉 Ủng hộ: Momo/MBbank: 0987654321 (Trương Anh Tú)\n\n"
+            "👉 Ủng hộ: Vietcombank: 0071003914986 (Trương Anh Tú)\n\n"
             "Hoặc xem 'Danh dự' để xem bảng tri ân những người đã gửi góp ý/ủng hộ. 🙏"
         )
         await query.edit_message_text(info, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="Markdown")
