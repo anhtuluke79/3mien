@@ -1,7 +1,5 @@
 import os
 import logging
-import pandas as pd
-import joblib
 import requests
 from bs4 import BeautifulSoup
 from telegram import (
@@ -213,11 +211,7 @@ async def menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyboard = [
         [InlineKeyboardButton("➕ Ghép xiên", callback_data="menu_ghepxien")],
         [InlineKeyboardButton("🎯 Ghép càng/Đảo số", callback_data="menu_ghepcang")],
-        [
-            InlineKeyboardButton("📈 Thống kê", callback_data="thongke"),
-            InlineKeyboardButton("🤖 Dự đoán AI", callback_data="ai_predict"),
-            InlineKeyboardButton("🔮 Phong thủy", callback_data="phongthuy_ngay"),
-        ],
+        [InlineKeyboardButton("🔮 Phong thủy", callback_data="phongthuy_ngay")],
         [InlineKeyboardButton("💗 Đóng góp", callback_data="donggop")],
     ]
     if user_id in ADMIN_IDS:
@@ -225,7 +219,6 @@ async def menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
             InlineKeyboardButton("🛠️ Update MB", callback_data="capnhat_xsmb_kq"),
             InlineKeyboardButton("🛠️ Update MT", callback_data="capnhat_xsmt_kq"),
             InlineKeyboardButton("🛠️ Update MN", callback_data="capnhat_xsmn_kq"),
-            InlineKeyboardButton("⚙️ Train AI", callback_data="train_model"),
         ])
     if hasattr(update, "message") and update.message:
         await update.message.reply_text("🔹 Chọn chức năng:", reply_markup=InlineKeyboardMarkup(keyboard))
@@ -284,11 +277,7 @@ async def menu_callback_handler(update: Update, context: ContextTypes.DEFAULT_TY
         context.user_data['wait_for_daoso'] = True
         await query.edit_message_text("Nhập một số hoặc dãy số (VD: 123 hoặc 1234):")
 
-    # ===== Thống kê, AI, Phong thủy, update, train...
-    elif query.data == "thongke":
-        await thongke_handler_query(query)
-    elif query.data == "ai_predict":
-        await ai_predict_handler_query(query)
+    # ===== Cập nhật, Phong thủy, Đóng góp
     elif query.data == "capnhat_xsmb_kq":
         if user_id not in ADMIN_IDS:
             await query.edit_message_text("Bạn không có quyền cập nhật dữ liệu!")
@@ -304,11 +293,6 @@ async def menu_callback_handler(update: Update, context: ContextTypes.DEFAULT_TY
             await query.edit_message_text("Bạn không có quyền cập nhật dữ liệu!")
             return
         await capnhat_xsm_kq_handler_query(query, "nam", "Miền Nam")
-    elif query.data == "train_model":
-        if user_id not in ADMIN_IDS:
-            await query.edit_message_text("Bạn không có quyền train AI!")
-            return
-        await train_model_handler_query(query)
     elif query.data == "phongthuy_ngay":
         keyboard = [
             [InlineKeyboardButton("Theo ngày dương (YYYY-MM-DD)", callback_data="phongthuy_ngay_duong")],
@@ -471,67 +455,6 @@ async def all_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # ... Các lệnh khác, ví dụ gửi tin nhắn mặc định và quay lại menu
     await update.message.reply_text("Bot đã nhận tin nhắn của bạn!")
     await menu(update, context)
-
-# ========== HANDLER: THỐNG KÊ, AI, TRAIN MODEL ==========
-async def thongke_handler_query(query):
-    try:
-        df = pd.read_csv('xsmb.csv')
-        dbs = df['ĐB'].astype(str).str[-2:]
-        counts = dbs.value_counts().head(10)
-        top_list = "\n".join([f"Số {i}: {v} lần" for i, v in counts.items()])
-        today_db = dbs.iloc[0] if len(dbs) > 0 else "?"
-        text = (
-            f"📈 Top 10 số ĐB xuất hiện nhiều nhất 30 ngày gần nhất:\n{top_list}\n"
-            f"\n🎯 Số ĐB hôm nay: {today_db}"
-        )
-        await query.edit_message_text(text)
-    except Exception as e:
-        await query.edit_message_text(f"Lỗi thống kê: {e}")
-
-async def ai_predict_handler_query(query):
-    try:
-        df = pd.read_csv('xsmb.csv')
-        df = df.dropna()
-        df['ĐB'] = df['ĐB'].astype(str).str[-2:]
-        df['ĐB'] = df['ĐB'].astype(int)
-        if not os.path.exists('model_rf_loto.pkl'):
-            await query.edit_message_text("Chưa có mô hình AI, cần train trước!")
-            return
-        model = joblib.load('model_rf_loto.pkl')
-        last7 = df['ĐB'][:7].tolist()
-        if len(last7) < 7:
-            await query.edit_message_text("Không đủ dữ liệu 7 ngày để dự đoán!")
-            return
-        probs = model.predict_proba([last7])[0]
-        top_idx = probs.argsort()[-3:][::-1]
-        ketqua = [f"{model.classes_[i]:02d}" for i in top_idx]
-        await query.edit_message_text(
-            "🤖 Dự đoán AI (RandomForest) cho lần quay tiếp theo:\n"
-            f"Top 3 số: {', '.join(ketqua)}"
-        )
-    except Exception as e:
-        await query.edit_message_text(f"Lỗi AI: {e}")
-
-async def train_model_handler_query(query):
-    try:
-        await query.edit_message_text("⏳ Đang train lại AI, vui lòng đợi...")
-        df = pd.read_csv('xsmb.csv')
-        df = df.dropna()
-        df['ĐB'] = df['ĐB'].astype(str).str[-2:]
-        df['ĐB'] = df['ĐB'].astype(int)
-        X, y = [], []
-        for i in range(len(df) - 7):
-            features = df['ĐB'][i:i+7].tolist()
-            label = df['ĐB'][i+7]
-            X.append(features)
-            y.append(label)
-        from sklearn.ensemble import RandomForestClassifier
-        model = RandomForestClassifier(n_estimators=100, random_state=42)
-        model.fit(X, y)
-        joblib.dump(model, 'model_rf_loto.pkl')
-        await query.edit_message_text("✅ Đã train lại và lưu mô hình thành công!")
-    except Exception as e:
-        await query.edit_message_text(f"Lỗi khi train mô hình: {e}")
 
 # ========== MAIN ==========
 def main():
