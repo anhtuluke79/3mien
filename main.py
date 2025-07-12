@@ -7,7 +7,7 @@ from telegram.ext import (
     ApplicationBuilder, CommandHandler, ContextTypes, CallbackQueryHandler,
     MessageHandler, filters
 )
-from itertools import product, combinations, permutations
+from itertools import combinations, permutations
 from datetime import datetime
 from can_chi_dict import data as CAN_CHI_SO_HAP
 from thien_can import CAN_INFO
@@ -184,23 +184,27 @@ async def menu_callback_handler(update: Update, context: ContextTypes.DEFAULT_TY
         return
 
     if query.data == "ghepxien_2":
+        context.user_data.clear()
         context.user_data['wait_for_xien_input'] = 2
         await query.edit_message_text("Nhập dãy số để ghép xiên 2 (cách nhau dấu cách hoặc phẩy):")
     elif query.data == "ghepxien_3":
+        context.user_data.clear()
         context.user_data['wait_for_xien_input'] = 3
         await query.edit_message_text("Nhập dãy số để ghép xiên 3 (cách nhau dấu cách hoặc phẩy):")
     elif query.data == "ghepxien_4":
+        context.user_data.clear()
         context.user_data['wait_for_xien_input'] = 4
         await query.edit_message_text("Nhập dãy số để ghép xiên 4 (cách nhau dấu cách hoặc phẩy):")
-    
-    # ========== GHÉP CÀNG 3D/4D mới ==========
     elif query.data == "ghepcang_3d":
+        context.user_data.clear()
         context.user_data['wait_for_cang3d_numbers'] = True
         await query.edit_message_text("Nhập dãy số cần ghép (cách nhau phẩy hoặc dấu cách, ví dụ: 23 32 28 82 ...):")
     elif query.data == "ghepcang_4d":
+        context.user_data.clear()
         context.user_data['wait_for_cang4d_numbers'] = True
         await query.edit_message_text("Nhập dãy số cần ghép (3 chữ số, cách nhau phẩy hoặc dấu cách, ví dụ: 123 234 345 ...):")
     elif query.data == "daoso":
+        context.user_data.clear()
         context.user_data['wait_for_daoso'] = True
         await query.edit_message_text("Nhập một số hoặc dãy số (VD: 123 hoặc 1234):")
 
@@ -212,9 +216,11 @@ async def menu_callback_handler(update: Update, context: ContextTypes.DEFAULT_TY
         ]
         await query.edit_message_text("🔮 Bạn muốn tra phong thủy theo kiểu nào?", reply_markup=InlineKeyboardMarkup(keyboard))
     elif query.data == "phongthuy_ngay_duong":
+        context.user_data.clear()
         await query.edit_message_text("📅 Nhập ngày dương lịch (YYYY-MM-DD):")
         context.user_data['wait_phongthuy_ngay_duong'] = True
     elif query.data == "phongthuy_ngay_canchi":
+        context.user_data.clear()
         await query.edit_message_text("📜 Nhập can chi (ví dụ: Giáp Tý):")
         context.user_data['wait_phongthuy_ngay_canchi'] = True
     elif query.data == "phongthuy_ngay_today":
@@ -226,7 +232,6 @@ async def menu_callback_handler(update: Update, context: ContextTypes.DEFAULT_TY
         text = phong_thuy_format(can_chi, sohap_info, is_today=True, today_str=today_str)
         await query.edit_message_text(text, parse_mode="Markdown")
 
-    # ===== CHỐT SỐ PHONG THỦY (HÔM NAY hoặc THEO NGÀY) =====
     elif query.data == "chot_so_today":
         now = datetime.now()
         y, m, d = now.year, now.month, now.day
@@ -236,6 +241,7 @@ async def menu_callback_handler(update: Update, context: ContextTypes.DEFAULT_TY
         text = chot_so_format(can_chi, sohap_info, today_str)
         await query.edit_message_text(text, parse_mode="Markdown")
     elif query.data == "chot_so_ngay":
+        context.user_data.clear()
         await query.edit_message_text(
             "📅 Nhập ngày dương lịch muốn chốt số:\n"
             "- Định dạng đầy đủ: YYYY-MM-DD (vd: 2025-07-11)\n"
@@ -257,6 +263,7 @@ async def menu_callback_handler(update: Update, context: ContextTypes.DEFAULT_TY
         )
         await query.edit_message_text(info, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="Markdown")
     elif query.data == "donggop_gui":
+        context.user_data.clear()
         await query.edit_message_text(
             "🙏 Vui lòng nhập góp ý, phản hồi hoặc lời nhắn của bạn (mọi góp ý đều được ghi nhận và tri ân công khai)."
         )
@@ -280,44 +287,7 @@ async def menu_callback_handler(update: Update, context: ContextTypes.DEFAULT_TY
 
 # ========== ALL TEXT HANDLER ==========
 async def all_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if update.message.chat.type in ["group", "supergroup"]:
-        bot_username = "@xs3mbot"
-        text = update.message.text.lower()
-        if not (text.startswith("/") or bot_username in text):
-            return
-
-    if context.user_data.get('wait_for_donggop'):
-        user = update.message.from_user
-        username = user.username or user.full_name or str(user.id)
-        text = update.message.text.strip()
-        with open("donggop_log.txt", "a", encoding="utf-8") as f:
-            f.write(f"{datetime.now()} | {username} | {user.id} | {text}\n")
-        await update.message.reply_text(
-            "💗 Cảm ơn bạn đã gửi góp ý/ủng hộ! Tất cả phản hồi đều được trân trọng ghi nhận.\n"
-            "Bạn có thể tiếp tục sử dụng bot hoặc gửi góp ý thêm bất cứ lúc nào."
-        )
-        context.user_data['wait_for_donggop'] = False
-        await menu(update, context)
-        return
-
-    if isinstance(context.user_data.get('wait_for_xien_input'), int):
-        text_msg = update.message.text.strip()
-        numbers = split_numbers(text_msg)
-        do_dai = context.user_data.get('wait_for_xien_input')
-        bo_xien = ghep_xien(numbers, do_dai)
-        if not bo_xien:
-            await update.message.reply_text("Không ghép được xiên.")
-        else:
-            if len(bo_xien) > 20:
-                result = '\n'.join([', '.join(bo_xien[i:i+10]) for i in range(0, len(bo_xien), 10)])
-            else:
-                result = ', '.join(bo_xien)
-            await update.message.reply_text(f"{len(bo_xien)} bộ xiên:\n{result}")
-        context.user_data['wait_for_xien_input'] = False
-        await menu(update, context)
-        return
-
-    # ========= GHÉP CÀNG 3D/4D mới =========
+    # ==== Ưu tiên GHÉP CÀNG 3D/4D lên trên cùng ====
     if context.user_data.get('wait_for_cang3d_numbers'):
         arr = [n for n in update.message.text.replace(',', ' ').split() if n.isdigit()]
         if not arr:
@@ -369,6 +339,44 @@ async def all_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(f"Kết quả ghép càng 4D ({len(result)} số):\n" + ', '.join(result))
         context.user_data['wait_for_cang4d_cangs'] = False
         context.user_data['cang4d_numbers'] = []
+        await menu(update, context)
+        return
+    # ==== END GHÉP CÀNG 3D/4D ====
+
+    if update.message.chat.type in ["group", "supergroup"]:
+        bot_username = "@xs3mbot"
+        text = update.message.text.lower()
+        if not (text.startswith("/") or bot_username in text):
+            return
+
+    if context.user_data.get('wait_for_donggop'):
+        user = update.message.from_user
+        username = user.username or user.full_name or str(user.id)
+        text = update.message.text.strip()
+        with open("donggop_log.txt", "a", encoding="utf-8") as f:
+            f.write(f"{datetime.now()} | {username} | {user.id} | {text}\n")
+        await update.message.reply_text(
+            "💗 Cảm ơn bạn đã gửi góp ý/ủng hộ! Tất cả phản hồi đều được trân trọng ghi nhận.\n"
+            "Bạn có thể tiếp tục sử dụng bot hoặc gửi góp ý thêm bất cứ lúc nào."
+        )
+        context.user_data['wait_for_donggop'] = False
+        await menu(update, context)
+        return
+
+    if isinstance(context.user_data.get('wait_for_xien_input'), int):
+        text_msg = update.message.text.strip()
+        numbers = split_numbers(text_msg)
+        do_dai = context.user_data.get('wait_for_xien_input')
+        bo_xien = ghep_xien(numbers, do_dai)
+        if not bo_xien:
+            await update.message.reply_text("Không ghép được xiên.")
+        else:
+            if len(bo_xien) > 20:
+                result = '\n'.join([', '.join(bo_xien[i:i+10]) for i in range(0, len(bo_xien), 10)])
+            else:
+                result = ', '.join(bo_xien)
+            await update.message.reply_text(f"{len(bo_xien)} bộ xiên:\n{result}")
+        context.user_data['wait_for_xien_input'] = False
         await menu(update, context)
         return
 
