@@ -31,13 +31,6 @@ def ghep_xien(numbers, do_dai=2):
     result = [tuple(map(str, comb)) for comb in combinations(numbers, do_dai)]
     return ['&'.join(comb) for comb in result]
 
-def ghep_cang(numbers, so_cang=3):
-    if not numbers or len(numbers) == 0:
-        return []
-    comb = product(numbers, repeat=so_cang)
-    result = [''.join(map(str, tup)) for tup in comb]
-    return sorted(set(result))
-
 def dao_so(s):
     arr = list(s)
     perm = set([''.join(p) for p in permutations(arr)])
@@ -199,12 +192,14 @@ async def menu_callback_handler(update: Update, context: ContextTypes.DEFAULT_TY
     elif query.data == "ghepxien_4":
         context.user_data['wait_for_xien_input'] = 4
         await query.edit_message_text("Nhập dãy số để ghép xiên 4 (cách nhau dấu cách hoặc phẩy):")
+    
+    # ========== GHÉP CÀNG 3D/4D mới ==========
     elif query.data == "ghepcang_3d":
-        context.user_data['wait_for_cang_input'] = 3
-        await query.edit_message_text("Nhập dãy số để ghép càng 3D (cách nhau dấu cách hoặc phẩy):")
+        context.user_data['wait_for_cang3d_numbers'] = True
+        await query.edit_message_text("Nhập dãy số cần ghép (cách nhau phẩy hoặc dấu cách, ví dụ: 23 32 28 82 ...):")
     elif query.data == "ghepcang_4d":
-        context.user_data['wait_for_cang_input'] = 4
-        await query.edit_message_text("Nhập dãy số để ghép càng 4D (cách nhau dấu cách hoặc phẩy):")
+        context.user_data['wait_for_cang4d_numbers'] = True
+        await query.edit_message_text("Nhập dãy số cần ghép (3 chữ số, cách nhau phẩy hoặc dấu cách, ví dụ: 123 234 345 ...):")
     elif query.data == "daoso":
         context.user_data['wait_for_daoso'] = True
         await query.edit_message_text("Nhập một số hoặc dãy số (VD: 123 hoặc 1234):")
@@ -322,20 +317,58 @@ async def all_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await menu(update, context)
         return
 
-    if isinstance(context.user_data.get('wait_for_cang_input'), int):
-        text_msg = update.message.text.strip()
-        numbers = split_numbers(text_msg)
-        so_cang = context.user_data.get('wait_for_cang_input')
-        bo_so = ghep_cang(numbers, so_cang)
-        if not bo_so:
-            await update.message.reply_text("Không ghép được càng.")
-        else:
-            if len(bo_so) > 20:
-                result = '\n'.join([', '.join(bo_so[i:i+10]) for i in range(0, len(bo_so), 10)])
-            else:
-                result = ', '.join(bo_so)
-            await update.message.reply_text(f"{len(bo_so)} số càng:\n{result}")
-        context.user_data['wait_for_cang_input'] = False
+    # ========= GHÉP CÀNG 3D/4D mới =========
+    if context.user_data.get('wait_for_cang3d_numbers'):
+        arr = [n for n in update.message.text.replace(',', ' ').split() if n.isdigit()]
+        if not arr:
+            await update.message.reply_text("Vui lòng nhập dãy số (ví dụ: 23 32 28 ...)")
+            return
+        context.user_data['cang3d_numbers'] = arr
+        context.user_data['wait_for_cang3d_numbers'] = False
+        context.user_data['wait_for_cang3d_cangs'] = True
+        await update.message.reply_text("Nhập các càng muốn ghép (cách nhau phẩy hoặc dấu cách, ví dụ: 1 2 3):")
+        return
+
+    if context.user_data.get('wait_for_cang3d_cangs'):
+        cang_list = [n for n in update.message.text.replace(',', ' ').split() if n.isdigit()]
+        if not cang_list:
+            await update.message.reply_text("Vui lòng nhập các càng (ví dụ: 1 2 3):")
+            return
+        numbers = context.user_data.get('cang3d_numbers', [])
+        result = []
+        for c in cang_list:
+            for n in numbers:
+                result.append(c + n)
+        await update.message.reply_text(f"Kết quả ghép càng 3D ({len(result)} số):\n" + ', '.join(result))
+        context.user_data['wait_for_cang3d_cangs'] = False
+        context.user_data['cang3d_numbers'] = []
+        await menu(update, context)
+        return
+
+    if context.user_data.get('wait_for_cang4d_numbers'):
+        arr = [n for n in update.message.text.replace(',', ' ').split() if n.isdigit()]
+        if not arr or not all(len(n) == 3 for n in arr):
+            await update.message.reply_text("Vui lòng nhập các số 3 chữ số, cách nhau phẩy hoặc dấu cách (ví dụ: 123 234 ...)")
+            return
+        context.user_data['cang4d_numbers'] = arr
+        context.user_data['wait_for_cang4d_numbers'] = False
+        context.user_data['wait_for_cang4d_cangs'] = True
+        await update.message.reply_text("Nhập các càng muốn ghép (cách nhau phẩy hoặc dấu cách, ví dụ: 1 2 3):")
+        return
+
+    if context.user_data.get('wait_for_cang4d_cangs'):
+        cang_list = [n for n in update.message.text.replace(',', ' ').split() if n.isdigit()]
+        if not cang_list:
+            await update.message.reply_text("Vui lòng nhập các càng (ví dụ: 1 2 3):")
+            return
+        numbers = context.user_data.get('cang4d_numbers', [])
+        result = []
+        for c in cang_list:
+            for n in numbers:
+                result.append(c + n)
+        await update.message.reply_text(f"Kết quả ghép càng 4D ({len(result)} số):\n" + ', '.join(result))
+        context.user_data['wait_for_cang4d_cangs'] = False
+        context.user_data['cang4d_numbers'] = []
         await menu(update, context)
         return
 
