@@ -1,7 +1,9 @@
-python-telegram-bot==20.7
+python-telegram-bot>=21.0
 pandas
 joblib
 pydrive2
 requests
 beautifulsoup4
 scikit-learn
+aiosqlite
+aiohttp
