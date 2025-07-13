@@ -546,6 +546,7 @@ def main():
 if __name__ == "__main__":
     # ====== HANDLER CRAWL CHO 3 MIỀN ======
 async def crawl_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def crawl_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     if not is_admin(user_id):
         await update.message.reply_text("❌ Bạn không có quyền dùng lệnh này.")
@@ -598,6 +599,7 @@ async def crawlt_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except Exception as e:
         await update.message.reply_text(f"❗ Lỗi khi crawl: {e}\nBot sẽ dừng lại.")
         sys.exit(1)
+
 
     main()
 
