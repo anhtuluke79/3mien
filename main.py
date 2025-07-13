@@ -91,6 +91,11 @@ async def init_db():
             (superadmin_id, superadmin_username)
         )
         await db.commit()
+async def is_admin(user_id):
+    async with aiosqlite.connect(DB_PATH) as db:
+        async with db.execute("SELECT 1 FROM admin WHERE user_id = ?", (int(user_id),)) as cursor:
+            row = await cursor.fetchone()
+            return bool(row)
 
 async def log_user_action(user, action, content):
     async with aiosqlite.connect(DB_PATH) as db:
