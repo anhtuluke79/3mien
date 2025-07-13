@@ -266,8 +266,7 @@ async def menu_callback_handler(update: Update, context: ContextTypes.DEFAULT_TY
     query = update.callback_query
     user_id = query.from_user.id
     await query.answer()
-
-    # ... các callback menu khác của bạn ở đây ...
+    # Các phần menu khác bạn bổ sung tại đây...
 
     if query.data == "admin_menu":
         if not is_admin(user_id):
@@ -292,11 +291,10 @@ async def menu_callback_handler(update: Update, context: ContextTypes.DEFAULT_TY
             await query.message.reply_text(f"❗ Lỗi khi crawl: {e}")
         return
 
-    # ... các callback menu khác giữ nguyên theo code của bạn ...
+    # Các callback menu khác (ghép xiên, phong thủy, góp ý...) thêm tại đây
 
 # ========== ALL TEXT HANDLER ==========
 async def all_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    # Nếu không có context đặc biệt, mặc định trả về menu
     await update.message.reply_text("Bot đã nhận tin nhắn của bạn! Vui lòng chọn chức năng từ menu.")
     await menu(update, context)
 
