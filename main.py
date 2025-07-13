@@ -213,7 +213,7 @@ def chot_so_format(can_chi, sohap_info, today_str):
     return text
 
 # ========== MENU UI ==========
-def build_main_menu():
+async def build_main_menu(is_admin=False):
     keyboard = [
         [InlineKeyboardButton("🧧 Thần tài gợi ý", callback_data="than_tai_goi_y")],
         [InlineKeyboardButton("🔮 Số Phong thủy", callback_data="phongthuy_ngay")],
@@ -222,6 +222,8 @@ def build_main_menu():
         [InlineKeyboardButton("🎯 Chốt số", callback_data="menu_chotso")],
         [InlineKeyboardButton("💗 Đóng góp", callback_data="donggop")],
     ]
+    if is_admin:
+        keyboard.append([InlineKeyboardButton("⚙️ Quản trị", callback_data="admin_menu")])
     return InlineKeyboardMarkup(keyboard)
 
 def build_than_tai_menu():
@@ -238,13 +240,6 @@ def build_xien_menu():
         [InlineKeyboardButton("Xiên 2", callback_data="ghepxien_2"),
          InlineKeyboardButton("Xiên 3", callback_data="ghepxien_3"),
          InlineKeyboardButton("Xiên 4", callback_data="ghepxien_4")],
-        [InlineKeyboardButton("⬅️ Quay lại menu", callback_data="main_menu")]
-    ]
-    return InlineKeyboardMarkup(keyboard)
-
-def build_phongthuy_menu():
-    keyboard = [
-        [InlineKeyboardButton("Theo ngày dương (YYYY-MM-DD)", callback_data="phongthuy_ngay_duong")],
         [InlineKeyboardButton("⬅️ Quay lại menu", callback_data="main_menu")]
     ]
     return InlineKeyboardMarkup(keyboard)
@@ -318,11 +313,13 @@ async def upload_all_csv_to_github():
 # ========== MENU & HANDLER ==========
 async def menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
+    is_admin_user = await is_admin(user.id)
     await log_user_action(user, action="menu", content="menu")
+    markup = await build_main_menu(is_admin_user)
     if hasattr(update, "message") and update.message:
-        await update.message.reply_text("🔹 Chọn chức năng:", reply_markup=build_main_menu())
+        await update.message.reply_text("🔹 Chọn chức năng:", reply_markup=markup)
     else:
-        await update.callback_query.edit_message_text("🔹 Chọn chức năng:", reply_markup=build_main_menu())
+        await update.callback_query.edit_message_text("🔹 Chọn chức năng:", reply_markup=markup)
 
 async def menu_callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -331,6 +328,37 @@ async def menu_callback_handler(update: Update, context: ContextTypes.DEFAULT_TY
     await query.answer()
     if query.data == "main_menu":
         await menu(update, context)
+        return
+
+    # ==== ADMIN MENU ====
+    if query.data == "admin_menu":
+        if not await is_admin(user.id):
+            await query.edit_message_text("❌ Bạn không có quyền truy cập menu quản trị.")
+            return
+        keyboard = [
+            [InlineKeyboardButton("📤 Đẩy dữ liệu CSV lên GitHub", callback_data="admin_pushcsv")],
+            [InlineKeyboardButton("➕ Thêm admin", callback_data="admin_add_admin")],
+            [InlineKeyboardButton("⬅️ Quay lại menu", callback_data="main_menu")]
+        ]
+        await query.edit_message_text("⚙️ Menu quản trị:", reply_markup=InlineKeyboardMarkup(keyboard))
+        return
+
+    if query.data == "admin_pushcsv":
+        if not await is_admin(user.id):
+            await query.edit_message_text("❌ Bạn không có quyền thực hiện thao tác này.")
+            return
+        await query.edit_message_text("Đang đẩy dữ liệu CSV lên GitHub...")
+        msg = await upload_all_csv_to_github()
+        await query.message.reply_text(msg)
+        await menu(update, context)
+        return
+
+    if query.data == "admin_add_admin":
+        if not await is_admin(user.id):
+            await query.edit_message_text("❌ Bạn không có quyền thực hiện thao tác này.")
+            return
+        context.user_data['wait_input'] = "add_admin"
+        await query.edit_message_text("Nhập user_id và username muốn thêm admin, cách nhau dấu cách:\nVí dụ: 12345678 newadmin")
         return
 
     # ==== Góp ý ====
@@ -377,57 +405,6 @@ async def menu_callback_handler(update: Update, context: ContextTypes.DEFAULT_TY
 
     await menu(update, context)
 
-async def push_all_csv_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user = update.effective_user
-    if not await is_admin(user.id):
-        await update.message.reply_text("❌ Bạn không có quyền dùng lệnh này.")
-        return
-    await update.message.reply_text("⏳ Đang tải lên 3 file csv lên GitHub...")
-    msg = await upload_all_csv_to_github()
-    await update.message.reply_text(msg)
-
-# ========== HANDLER THẦN TÀI (AI/ML) ==========
-async def than_tai_handler(update, context, region):
-    user = update.effective_user
-    await log_user_action(user, action="ai_than_tai", content=region)
-    if region == "MB":
-        csv_file = XSMB_CSV
-        icon = "🇻🇳"
-        tenmien = "miền Bắc"
-    elif region == "MT":
-        csv_file = XSMT_CSV
-        icon = "🌞"
-        tenmien = "miền Trung"
-    else:
-        csv_file = XSMN_CSV
-        icon = "🌴"
-        tenmien = "miền Nam"
-    now = datetime.now().strftime('%d/%m/%Y %H:%M')
-    try:
-        nums, counts = ai_predict_top2(csv_file)
-        if len(nums) < 2:
-            raise Exception("Chưa đủ dữ liệu thống kê!")
-        text = (
-            f"{icon} *Thần tài {tenmien} gợi ý*\n"
-            f"📅 Dữ liệu 15 ngày gần nhất | Cập nhật: {now}\n"
-            f"━━━━━━━━━━━━━\n"
-            f"🥇 *Số mạnh 1*: `{nums[0]}` (về {counts[0]} lần)\n"
-            f"🥈 *Số mạnh 2*: `{nums[1]}` (về {counts[1]} lần)\n"
-            f"━━━━━━━━━━━━━\n"
-            f"💡 *Lưu ý:* Chỉ mang tính tham khảo, không đảm bảo trúng thưởng!\n"
-            f"_Chúc bạn may mắn & vui vẻ!_ 🎉"
-        )
-    except Exception as e:
-        text = (
-            f"{icon} *Thần tài {tenmien} gợi ý*\n"
-            f"Không đủ dữ liệu thống kê hoặc lỗi: {e}\n"
-            f"Bạn hãy kiểm tra lại file dữ liệu hoặc thử lại sau nhé!\n"
-        )
-    keyboard = [[InlineKeyboardButton("⬅️ Quay lại menu", callback_data="main_menu")]]
-    await update.callback_query.edit_message_text(
-        text, parse_mode="Markdown", reply_markup=InlineKeyboardMarkup(keyboard)
-    )
-
 # ========== HANDLER ALL TEXT ==========
 async def all_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     wait_input = context.user_data.get('wait_input')
@@ -436,6 +413,21 @@ async def all_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     user = update.effective_user
     text = update.message.text.strip()
+
+    # ===== THÊM ADMIN TỪ MENU =====
+    if wait_input == "add_admin":
+        try:
+            parts = text.split()
+            new_id = int(parts[0])
+            new_username = parts[1] if len(parts) > 1 else ""
+            await add_admin(new_id, new_username)
+            reply = f"✅ Đã thêm admin {new_username} ({new_id}) thành công!"
+        except Exception:
+            reply = "Sai cú pháp. Nhập: <user_id> <username>"
+        context.user_data['wait_input'] = None
+        await update.message.reply_text(reply)
+        await menu(update, context)
+        return
 
     # ===== GÓP Ý =====
     if wait_input == "gop_y":
@@ -508,6 +500,48 @@ async def all_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data['wait_input'] = None
     return
 
+# ========== HANDLER THẦN TÀI (AI/ML) ==========
+async def than_tai_handler(update, context, region):
+    user = update.effective_user
+    await log_user_action(user, action="ai_than_tai", content=region)
+    if region == "MB":
+        csv_file = XSMB_CSV
+        icon = "🇻🇳"
+        tenmien = "miền Bắc"
+    elif region == "MT":
+        csv_file = XSMT_CSV
+        icon = "🌞"
+        tenmien = "miền Trung"
+    else:
+        csv_file = XSMN_CSV
+        icon = "🌴"
+        tenmien = "miền Nam"
+    now = datetime.now().strftime('%d/%m/%Y %H:%M')
+    try:
+        nums, counts = ai_predict_top2(csv_file)
+        if len(nums) < 2:
+            raise Exception("Chưa đủ dữ liệu thống kê!")
+        text = (
+            f"{icon} *Thần tài {tenmien} gợi ý*\n"
+            f"📅 Dữ liệu 15 ngày gần nhất | Cập nhật: {now}\n"
+            f"━━━━━━━━━━━━━\n"
+            f"🥇 *Số mạnh 1*: `{nums[0]}` (về {counts[0]} lần)\n"
+            f"🥈 *Số mạnh 2*: `{nums[1]}` (về {counts[1]} lần)\n"
+            f"━━━━━━━━━━━━━\n"
+            f"💡 *Lưu ý:* Chỉ mang tính tham khảo, không đảm bảo trúng thưởng!\n"
+            f"_Chúc bạn may mắn & vui vẻ!_ 🎉"
+        )
+    except Exception as e:
+        text = (
+            f"{icon} *Thần tài {tenmien} gợi ý*\n"
+            f"Không đủ dữ liệu thống kê hoặc lỗi: {e}\n"
+            f"Bạn hãy kiểm tra lại file dữ liệu hoặc thử lại sau nhé!\n"
+        )
+    keyboard = [[InlineKeyboardButton("⬅️ Quay lại menu", callback_data="main_menu")]]
+    await update.callback_query.edit_message_text(
+        text, parse_mode="Markdown", reply_markup=InlineKeyboardMarkup(keyboard)
+    )
+
 # ========== BOT STARTUP ==========
 async def on_startup(app):
     await init_db()
@@ -520,7 +554,6 @@ def main():
     app.add_handler(CommandHandler("addadmin", add_admin_handler))
     app.add_handler(CallbackQueryHandler(menu_callback_handler))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, all_text_handler))
-    app.add_handler(CommandHandler("pushcsv", push_all_csv_handler))
     app.run_polling()
 
 if __name__ == "__main__":
