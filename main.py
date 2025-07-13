@@ -6,6 +6,7 @@ from bs4 import BeautifulSoup
 import pandas as pd
 from datetime import datetime, timedelta
 import re
+import base64
 
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
@@ -17,7 +18,16 @@ from itertools import combinations, permutations
 from can_chi_dict import data as CAN_CHI_SO_HAP
 from thien_can import CAN_INFO
 
-# ====== CONFIG ======
+# ========== CONFIG & GITHUB ==========
+GITHUB_TOKEN = os.getenv("GITHUB_TOKEN") or "YOUR_PERSONAL_ACCESS_TOKEN"
+GITHUB_OWNER = "anhtuluke79"
+GITHUB_REPO = "3mien"
+GITHUB_BRANCH = "main"
+CSV_FILES = {
+    "xsmb.csv": "xsmb.csv",
+    "xsmt.csv": "xsmt.csv",
+    "xsmn.csv": "xsmn.csv"
+}
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN") or "YOUR_TOKEN_HERE"
 DB_PATH = "bot_data.db"
 ADMIN_IDS = list(map(int, os.getenv("ADMIN_IDS", "12345678").split(',')))
@@ -181,60 +191,6 @@ def build_than_tai_menu():
     ]
     return InlineKeyboardMarkup(keyboard)
 
-# ========== ASYNC CRAWL (AIOHTTP SONG SONG) ==========
-async def async_crawl_xsmb_1ngay(date):
-    url = f"https://www.minhchinh.com/ket-qua-xo-so-mien-bac/{date.strftime('%d-%m-%Y')}.html"
-    headers = {"User-Agent": "Mozilla/5.0"}
-    async with aiohttp.ClientSession() as session:
-        try:
-            async with session.get(url, timeout=15) as resp:
-                html = await resp.text()
-            soup = BeautifulSoup(html, "html.parser")
-            tables = soup.find_all("table")
-            table = None
-            for tb in tables:
-                trs = tb.find_all("tr")
-                if len(trs) > 7 and any('Đặc biệt' in tr.text or 'Nhất' in tr.text for tr in trs):
-                    table = tb
-                    break
-            if not table:
-                return None
-            result = {"date": date.strftime('%Y-%m-%d')}
-            for tr in table.find_all("tr"):
-                tds = tr.find_all("td")
-                if len(tds) < 2: continue
-                label = tds[0].get_text(strip=True)
-                value = tds[1].get_text(" ", strip=True)
-                if "Đặc biệt" in label or "ĐB" in label:
-                    match = re.search(r'(\d{5})(?!.*\d)', value)
-                    if match:
-                        result["DB"] = match.group(1)
-                    else:
-                        result["DB"] = value
-                elif "Nhất" in label: result["G1"] = value
-                elif "Nhì" in label: result["G2"] = value
-                elif "Ba" in label: result["G3"] = value
-                elif "Tư" in label: result["G4"] = value
-                elif "Năm" in label: result["G5"] = value
-                elif "Sáu" in label: result["G6"] = value
-                elif "Bảy" in label: result["G7"] = value
-            return result
-        except Exception as e:
-            print(f"Lỗi crawl {url}: {e}")
-            return None
-
-async def crawl_xsmb_15ngay_async():
-    today = datetime.today()
-    dates = [today - timedelta(days=i) for i in range(15)]
-    results = await asyncio.gather(*(async_crawl_xsmb_1ngay(d) for d in dates))
-    records = [r for r in results if r]
-    if records:
-        df = pd.DataFrame(records)
-        df = df.sort_values("date", ascending=False)
-        df.to_csv("xsmb.csv", index=False, encoding="utf-8-sig")
-        return df
-    return None
-
 # ========== AI/ML THỐNG KÊ SỐ ĐẸP ==========
 def ai_predict_top2(csv_path):
     df = pd.read_csv(csv_path)
@@ -257,6 +213,50 @@ def ai_predict_top2(csv_path):
     top = ser.head(2)
     return top.index.tolist(), top.values.tolist()
 
+# ========== UPLOAD CSV TO GITHUB (3 FILES) ==========
+async def upload_csv_to_github(local_file, github_path):
+    url = f"https://api.github.com/repos/{GITHUB_OWNER}/{GITHUB_REPO}/contents/{github_path}"
+    headers = {
+        "Authorization": f"token {GITHUB_TOKEN}",
+        "Accept": "application/vnd.github+json"
+    }
+    async with aiohttp.ClientSession() as session:
+        # Lấy SHA file hiện tại (nếu có)
+        async with session.get(url, headers=headers, params={"ref": GITHUB_BRANCH}) as resp:
+            if resp.status == 200:
+                data = await resp.json()
+                sha = data['sha']
+            else:
+                sha = None
+        # Đọc file local & encode base64
+        try:
+            with open(local_file, "rb") as f:
+                content_bytes = f.read()
+        except Exception as e:
+            return False, f"Không tìm thấy file {local_file}: {e}"
+        content_b64 = base64.b64encode(content_bytes).decode()
+        payload = {
+            "message": f"Update {github_path} from Telegram Bot",
+            "content": content_b64,
+            "branch": GITHUB_BRANCH
+        }
+        if sha:
+            payload["sha"] = sha
+        async with session.put(url, headers=headers, json=payload) as resp:
+            result = await resp.json()
+            if resp.status in (200,201):
+                return True, f"✅ Đã cập nhật {github_path} lên GitHub."
+            else:
+                msg = result.get('message', result)
+                return False, f"❌ Lỗi cập nhật {github_path}: {msg}"
+
+async def upload_all_csv_to_github():
+    results = []
+    for local, github in CSV_FILES.items():
+        ok, msg = await upload_csv_to_github(local, github)
+        results.append(msg)
+    return "\n".join(results)
+
 # ========== MENU & HANDLER ==========
 async def menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
@@ -271,26 +271,26 @@ async def menu_callback_handler(update: Update, context: ContextTypes.DEFAULT_TY
     user = query.from_user
     await log_user_action(user, action="menu_callback", content=query.data)
     await query.answer()
-
-    # Main menu
     if query.data == "main_menu":
         await menu(update, context)
         return
-
     if query.data == "than_tai_goi_y":
         await query.edit_message_text("🧧 Chọn vùng xổ số bạn muốn Thần tài gợi ý:", reply_markup=build_than_tai_menu())
         return
-
     if query.data in ["than_tai_mb_btn", "than_tai_mt_btn", "than_tai_mn_btn"]:
         region = {"than_tai_mb_btn": "MB", "than_tai_mt_btn": "MT", "than_tai_mn_btn": "MN"}[query.data]
         await than_tai_handler(update, context, region)
         return
-
-    # Các menu khác: ghép xiên, càng, phong thủy, chốt số, đóng góp... giữ nguyên như cũ, chuyển thành async nếu có.
-
-    # ... (bạn nối tiếp các handler các mục dưới đây)
-
     await menu(update, context)
+
+async def push_all_csv_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user = update.effective_user
+    if not is_admin(user.id):
+        await update.message.reply_text("❌ Bạn không có quyền dùng lệnh này.")
+        return
+    await update.message.reply_text("⏳ Đang tải lên 3 file csv lên GitHub...")
+    msg = await upload_all_csv_to_github()
+    await update.message.reply_text(msg)
 
 # ========== HANDLER THẦN TÀI (AI/ML) ==========
 async def than_tai_handler(update, context, region):
@@ -338,8 +338,6 @@ async def than_tai_handler(update, context, region):
 async def all_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     await log_user_action(user, action="text_input", content=update.message.text)
-    # ... logic nhập liệu, giống như bản đầy đủ trước đó, nhưng chuyển hết sang async nếu gọi hàm nào lâu hoặc truy xuất db ...
-
     await update.message.reply_text("Đã nhận dữ liệu. Chức năng này sẽ cập nhật kết quả tương ứng (demo).")
     await menu(update, context)
 
@@ -354,6 +352,7 @@ def main():
     app.add_handler(CommandHandler("menu", menu))
     app.add_handler(CallbackQueryHandler(menu_callback_handler))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, all_text_handler))
+    app.add_handler(CommandHandler("pushcsv", push_all_csv_handler))
     app.run_polling()
 
 if __name__ == "__main__":
