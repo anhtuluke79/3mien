@@ -1,5 +1,6 @@
 import os
 import logging
+import sys
 import requests
 from bs4 import BeautifulSoup
 import pandas as pd
@@ -258,9 +259,10 @@ async def crawl_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             file_path = "xsmb.csv"
             await update.message.reply_document(document=open(file_path, "rb"), filename="xsmb.csv", caption="✅ Đã crawl xong, đây là file kết quả XSMB 15 ngày gần nhất!")
         else:
-            await update.message.reply_text("❌ Không crawl được dữ liệu nào.")
+            await update.message.reply_text("❌ Không crawl được dữ liệu nào. Dừng bot.")
+            sys.exit(1)
     except Exception as e:
-        await update.message.reply_text(f"❗ Lỗi khi crawl: {e}")
+        await update.message.reply_text(f"❗ Lỗi khi crawl: {e}\nBot sẽ dừng lại.")
         sys.exit(1)
 
 async def menu_callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -268,7 +270,7 @@ async def menu_callback_handler(update: Update, context: ContextTypes.DEFAULT_TY
     user_id = query.from_user.id
     await query.answer()
 
-    # == Xử lý menu quản trị ==
+    # == Quản trị
     if query.data == "admin_menu":
         if not is_admin(user_id):
             await query.edit_message_text("❌ Bạn không có quyền truy cập menu quản trị.")
@@ -287,22 +289,69 @@ async def menu_callback_handler(update: Update, context: ContextTypes.DEFAULT_TY
                 file_path = "xsmb.csv"
                 await query.message.reply_document(document=open(file_path, "rb"), filename="xsmb.csv", caption="✅ Đã crawl xong, đây là file kết quả XSMB 15 ngày gần nhất!")
             else:
-                await query.message.reply_text("❌ Không crawl được dữ liệu nào.")
+                await query.message.reply_text("❌ Không crawl được dữ liệu nào. Dừng bot.")
                 sys.exit(1)
         except Exception as e:
             await query.message.reply_text(f"❗ Lỗi khi crawl: {e}\nBot sẽ dừng lại.")
-        sys.exit(1)
+            sys.exit(1)
         return
 
-    # == Các menu tính năng khác ==
-
+    # == MENU NGƯỜI DÙNG ==
     if query.data == "main_menu":
         await menu(update, context)
         return
 
-    # ... Copy TOÀN BỘ callback của bạn cho ghép xiên, càng, phong thủy, góp ý ... vào đây ...
-    # (Do phần này quá dài, nếu bạn muốn mình sẽ ghép cho bạn chi tiết từng callback theo từng nhóm
-    # hoặc lấy lại từ bản bạn gửi trước, vì bạn đã cung cấp callback rất chi tiết.)
+    if query.data == "menu_ghepxien":
+        keyboard = [
+            [InlineKeyboardButton("Xiên 2", callback_data="ghepxien_2"),
+             InlineKeyboardButton("Xiên 3", callback_data="ghepxien_3"),
+             InlineKeyboardButton("Xiên 4", callback_data="ghepxien_4")],
+            [InlineKeyboardButton("⬅️ Quay lại menu", callback_data="main_menu")]
+        ]
+        await query.edit_message_text("Chọn loại xiên:", reply_markup=InlineKeyboardMarkup(keyboard))
+        return
+
+    if query.data == "menu_ghepcang":
+        keyboard = [
+            [InlineKeyboardButton("Càng 3D", callback_data="ghepcang_3d"),
+             InlineKeyboardButton("Càng 4D", callback_data="ghepcang_4d"),
+             InlineKeyboardButton("Đảo số", callback_data="daoso")],
+            [InlineKeyboardButton("⬅️ Quay lại menu", callback_data="main_menu")]
+        ]
+        await query.edit_message_text("Chọn loại càng hoặc đảo số:", reply_markup=InlineKeyboardMarkup(keyboard))
+        return
+
+    if query.data == "phongthuy_ngay":
+        keyboard = [
+            [InlineKeyboardButton("Theo ngày dương (YYYY-MM-DD)", callback_data="phongthuy_ngay_duong")],
+            [InlineKeyboardButton("Theo can chi (VD: Giáp Tý)", callback_data="phongthuy_ngay_canchi")],
+            [InlineKeyboardButton("Ngày hiện tại", callback_data="phongthuy_ngay_today")],
+            [InlineKeyboardButton("⬅️ Quay lại menu", callback_data="main_menu")]
+        ]
+        await query.edit_message_text("🔮 Bạn muốn tra phong thủy theo kiểu nào?", reply_markup=InlineKeyboardMarkup(keyboard))
+        return
+
+    if query.data == "menu_chotso":
+        keyboard = [
+            [InlineKeyboardButton("Chốt số hôm nay", callback_data="chot_so_today")],
+            [InlineKeyboardButton("Chốt số theo ngày", callback_data="chot_so_ngay")],
+            [InlineKeyboardButton("⬅️ Quay lại menu", callback_data="main_menu")]
+        ]
+        await query.edit_message_text("Chọn cách chốt số:", reply_markup=InlineKeyboardMarkup(keyboard))
+        return
+
+    if query.data == "donggop":
+        keyboard = [
+            [InlineKeyboardButton("Gửi góp ý", callback_data="donggop_gui")],
+            [InlineKeyboardButton("⬅️ Quay lại menu", callback_data="main_menu")]
+        ]
+        await query.edit_message_text("💗 Hãy gửi góp ý/ủng hộ bot!", reply_markup=InlineKeyboardMarkup(keyboard))
+        return
+
+    # Các callback khác về phong thủy, xiên, càng, đảo số, chốt số... bạn có thể bổ sung tương tự ở đây nếu muốn chi tiết hơn.
+
+    # Nếu không khớp callback nào, trả về menu
+    await menu(update, context)
 
 # ========== ALL TEXT HANDLER ==========
 async def all_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
