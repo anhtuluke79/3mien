@@ -96,6 +96,13 @@ async def is_admin(user_id):
         async with db.execute("SELECT 1 FROM admin WHERE user_id = ?", (int(user_id),)) as cursor:
             row = await cursor.fetchone()
             return bool(row)
+async def add_admin(user_id, username, is_superadmin=0):
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute(
+            "INSERT OR IGNORE INTO admin (user_id, username, is_superadmin) VALUES (?, ?, ?)",
+            (int(user_id), username, int(is_superadmin))
+        )
+        await db.commit()
 
 async def log_user_action(user, action, content):
     async with aiosqlite.connect(DB_PATH) as db:
