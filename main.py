@@ -30,32 +30,11 @@ CSV_FILES = {
 }
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN") or "YOUR_TOKEN_HERE"
 DB_PATH = "bot_data.db"
-ADMIN_IDS = list(map(int, os.getenv("ADMIN_IDS", "12345678").split(',')))
 XSMB_CSV = "xsmb.csv"
 XSMT_CSV = "xsmt.csv"
 XSMN_CSV = "xsmn.csv"
 
-# ========== DB INIT ==========
-async def init_db():
-    async with aiosqlite.connect(DB_PATH) as db:
-        await db.execute("""
-            CREATE TABLE IF NOT EXISTS user_log (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                user_id INTEGER,
-                username TEXT,
-                action TEXT,
-                content TEXT,
-                created_at TEXT
-            )
-        """)
-        await db.execute("""
-            CREATE TABLE IF NOT EXISTS user_config (
-                user_id INTEGER PRIMARY KEY,
-                username TEXT,
-                config_json TEXT
-            )
-        """)
-        await db.commit()
+# ========== DB INIT & ADMIN ==========
 async def init_db():
     async with aiosqlite.connect(DB_PATH) as db:
         await db.execute("""
@@ -91,11 +70,13 @@ async def init_db():
             (superadmin_id, superadmin_username)
         )
         await db.commit()
+
 async def is_admin(user_id):
     async with aiosqlite.connect(DB_PATH) as db:
         async with db.execute("SELECT 1 FROM admin WHERE user_id = ?", (int(user_id),)) as cursor:
             row = await cursor.fetchone()
             return bool(row)
+
 async def add_admin(user_id, username, is_superadmin=0):
     async with aiosqlite.connect(DB_PATH) as db:
         await db.execute(
@@ -103,6 +84,7 @@ async def add_admin(user_id, username, is_superadmin=0):
             (int(user_id), username, int(is_superadmin))
         )
         await db.commit()
+
 async def add_admin_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     # Kiểm tra có phải superadmin không
@@ -230,9 +212,6 @@ def chot_so_format(can_chi, sohap_info, today_str):
     )
     return text
 
-def is_admin(user_id):
-    return int(user_id) in ADMIN_IDS
-
 # ========== MENU UI ==========
 def build_main_menu():
     keyboard = [
@@ -348,7 +327,7 @@ async def menu_callback_handler(update: Update, context: ContextTypes.DEFAULT_TY
 
 async def push_all_csv_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
-    if not is_admin(user.id):
+    if not await is_admin(user.id):
         await update.message.reply_text("❌ Bạn không có quyền dùng lệnh này.")
         return
     await update.message.reply_text("⏳ Đang tải lên 3 file csv lên GitHub...")
@@ -413,6 +392,7 @@ def main():
     app = ApplicationBuilder().token(TELEGRAM_TOKEN).post_init(on_startup).build()
     app.add_handler(CommandHandler("start", menu))
     app.add_handler(CommandHandler("menu", menu))
+    app.add_handler(CommandHandler("addadmin", add_admin_handler))
     app.add_handler(CallbackQueryHandler(menu_callback_handler))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, all_text_handler))
     app.add_handler(CommandHandler("pushcsv", push_all_csv_handler))
