@@ -103,6 +103,22 @@ async def add_admin(user_id, username, is_superadmin=0):
             (int(user_id), username, int(is_superadmin))
         )
         await db.commit()
+async def add_admin_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user = update.effective_user
+    # Kiểm tra có phải superadmin không
+    async with aiosqlite.connect(DB_PATH) as db:
+        async with db.execute("SELECT is_superadmin FROM admin WHERE user_id = ?", (user.id,)) as cursor:
+            row = await cursor.fetchone()
+            if not row or row[0] != 1:
+                await update.message.reply_text("❌ Bạn không có quyền thêm admin.")
+                return
+    try:
+        new_id = int(context.args[0])
+        new_username = context.args[1] if len(context.args) > 1 else ""
+        await add_admin(new_id, new_username)
+        await update.message.reply_text(f"✅ Đã thêm admin {new_username} ({new_id}) thành công!")
+    except Exception:
+        await update.message.reply_text("Cách dùng: /addadmin <user_id> [username]")
 
 async def log_user_action(user, action, content):
     async with aiosqlite.connect(DB_PATH) as db:
