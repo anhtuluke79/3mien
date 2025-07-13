@@ -544,5 +544,60 @@ def main():
     app.run_polling()
 
 if __name__ == "__main__":
+    # ====== HANDLER CRAWL CHO 3 MIỀN ======
+async def crawl_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.effective_user.id
+    if not is_admin(user_id):
+        await update.message.reply_text("❌ Bạn không có quyền dùng lệnh này.")
+        return
+    await update.message.reply_text("⏳ Đang crawl kết quả XSMB 15 ngày gần nhất...")
+    try:
+        df = crawl_xsmb_15ngay_minhchinh_csv("xsmb.csv")
+        if df is not None:
+            file_path = "xsmb.csv"
+            await update.message.reply_document(document=open(file_path, "rb"), filename="xsmb.csv", caption="✅ Đã crawl xong, đây là file kết quả XSMB 15 ngày gần nhất!")
+        else:
+            await update.message.reply_text("❌ Không crawl được dữ liệu nào. Dừng bot.")
+            sys.exit(1)
+    except Exception as e:
+        await update.message.reply_text(f"❗ Lỗi khi crawl: {e}\nBot sẽ dừng lại.")
+        sys.exit(1)
+
+async def crawlmn_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.effective_user.id
+    if not is_admin(user_id):
+        await update.message.reply_text("❌ Bạn không có quyền dùng lệnh này.")
+        return
+    await update.message.reply_text("⏳ Đang crawl kết quả XSMN 15 ngày gần nhất...")
+    try:
+        df = crawl_xsmn_15ngay_minhchinh_csv("xsmn.csv")
+        if df is not None:
+            file_path = "xsmn.csv"
+            await update.message.reply_document(document=open(file_path, "rb"), filename="xsmn.csv", caption="✅ Đã crawl xong, đây là file kết quả XSMN 15 ngày gần nhất!")
+        else:
+            await update.message.reply_text("❌ Không crawl được dữ liệu nào. Dừng bot.")
+            sys.exit(1)
+    except Exception as e:
+        await update.message.reply_text(f"❗ Lỗi khi crawl: {e}\nBot sẽ dừng lại.")
+        sys.exit(1)
+
+async def crawlt_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.effective_user.id
+    if not is_admin(user_id):
+        await update.message.reply_text("❌ Bạn không có quyền dùng lệnh này.")
+        return
+    await update.message.reply_text("⏳ Đang crawl kết quả XSMT 15 ngày gần nhất...")
+    try:
+        df = crawl_xsmt_15ngay_minhchinh_csv("xsmt.csv")
+        if df is not None:
+            file_path = "xsmt.csv"
+            await update.message.reply_document(document=open(file_path, "rb"), filename="xsmt.csv", caption="✅ Đã crawl xong, đây là file kết quả XSMT 15 ngày gần nhất!")
+        else:
+            await update.message.reply_text("❌ Không crawl được dữ liệu nào. Dừng bot.")
+            sys.exit(1)
+    except Exception as e:
+        await update.message.reply_text(f"❗ Lỗi khi crawl: {e}\nBot sẽ dừng lại.")
+        sys.exit(1)
+
     main()
 
