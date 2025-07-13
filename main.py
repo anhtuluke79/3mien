@@ -261,6 +261,7 @@ async def crawl_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text("❌ Không crawl được dữ liệu nào.")
     except Exception as e:
         await update.message.reply_text(f"❗ Lỗi khi crawl: {e}")
+        sys.exit(1)
 
 async def menu_callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -287,8 +288,10 @@ async def menu_callback_handler(update: Update, context: ContextTypes.DEFAULT_TY
                 await query.message.reply_document(document=open(file_path, "rb"), filename="xsmb.csv", caption="✅ Đã crawl xong, đây là file kết quả XSMB 15 ngày gần nhất!")
             else:
                 await query.message.reply_text("❌ Không crawl được dữ liệu nào.")
+                sys.exit(1)
         except Exception as e:
-            await query.message.reply_text(f"❗ Lỗi khi crawl: {e}")
+            await query.message.reply_text(f"❗ Lỗi khi crawl: {e}\nBot sẽ dừng lại.")
+        sys.exit(1)
         return
 
     # == Các menu tính năng khác ==
