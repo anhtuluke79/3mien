@@ -56,6 +56,41 @@ async def init_db():
             )
         """)
         await db.commit()
+async def init_db():
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS user_log (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER,
+                username TEXT,
+                action TEXT,
+                content TEXT,
+                created_at TEXT
+            )
+        """)
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS user_config (
+                user_id INTEGER PRIMARY KEY,
+                username TEXT,
+                config_json TEXT
+            )
+        """)
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS admin (
+                user_id INTEGER PRIMARY KEY,
+                username TEXT,
+                added_at TEXT DEFAULT (datetime('now')),
+                is_superadmin INTEGER DEFAULT 0
+            )
+        """)
+        # Nếu chưa có superadmin nào, tự thêm superadmin mặc định (sửa lại user_id của bạn!)
+        superadmin_id = int(os.getenv("SUPERADMIN_ID", "12345678"))
+        superadmin_username = os.getenv("SUPERADMIN_USERNAME", "superadmin")
+        await db.execute(
+            "INSERT OR IGNORE INTO admin (user_id, username, is_superadmin) VALUES (?, ?, 1)",
+            (superadmin_id, superadmin_username)
+        )
+        await db.commit()
 
 async def log_user_action(user, action, content):
     async with aiosqlite.connect(DB_PATH) as db:
