@@ -303,7 +303,6 @@ async def menu_callback_handler(update: Update, context: ContextTypes.DEFAULT_TY
 
 # ========== ALL TEXT HANDLER ==========
 async def all_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    # Copy toàn bộ phần all_text_handler từ các bản trước (đã gửi) để giữ trọn chức năng!
     await update.message.reply_text("Bot đã nhận tin nhắn của bạn! Vui lòng chọn chức năng từ menu.")
     await menu(update, context)
 
