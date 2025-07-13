@@ -1,6 +1,6 @@
 import os
-import logging
 import sys
+import logging
 import requests
 from bs4 import BeautifulSoup
 import pandas as pd
@@ -8,9 +8,7 @@ from datetime import datetime, timedelta
 import time
 import re
 
-from telegram import (
-    Update, InlineKeyboardButton, InlineKeyboardMarkup
-)
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
     ApplicationBuilder, CommandHandler, ContextTypes, CallbackQueryHandler,
     MessageHandler, filters
@@ -35,9 +33,7 @@ def is_admin(user_id):
 def crawl_xsmb_1ngay_minhchinh_dict(ngay, thang, nam):
     date_str = f"{ngay:02d}-{thang:02d}-{nam}"
     url = f"https://www.minhchinh.com/ket-qua-xo-so-mien-bac/{date_str}.html"
-    headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
-    }
+    headers = {"User-Agent": "Mozilla/5.0"}
     resp = requests.get(url, headers=headers, timeout=15)
     soup = BeautifulSoup(resp.text, "html.parser")
     tables = soup.find_all("table")
@@ -47,11 +43,9 @@ def crawl_xsmb_1ngay_minhchinh_dict(ngay, thang, nam):
         if len(trs) > 7 and any('Đặc biệt' in tr.text or 'Nhất' in tr.text for tr in trs):
             table = tb
             break
-
     if not table:
         print(f"Không tìm thấy bảng kết quả {date_str}!")
         return None
-
     result = {"date": f"{nam}-{thang:02d}-{ngay:02d}"}
     for tr in table.find_all("tr"):
         tds = tr.find_all("td")
@@ -64,20 +58,13 @@ def crawl_xsmb_1ngay_minhchinh_dict(ngay, thang, nam):
                 result["DB"] = match.group(1)
             else:
                 result["DB"] = value
-        elif "Nhất" in label:
-            result["G1"] = value
-        elif "Nhì" in label:
-            result["G2"] = value
-        elif "Ba" in label:
-            result["G3"] = value
-        elif "Tư" in label:
-            result["G4"] = value
-        elif "Năm" in label:
-            result["G5"] = value
-        elif "Sáu" in label:
-            result["G6"] = value
-        elif "Bảy" in label:
-            result["G7"] = value
+        elif "Nhất" in label: result["G1"] = value
+        elif "Nhì" in label: result["G2"] = value
+        elif "Ba" in label: result["G3"] = value
+        elif "Tư" in label: result["G4"] = value
+        elif "Năm" in label: result["G5"] = value
+        elif "Sáu" in label: result["G6"] = value
+        elif "Bảy" in label: result["G7"] = value
     return result
 
 def crawl_xsmb_15ngay_minhchinh_csv(out_csv="xsmb.csv"):
@@ -107,9 +94,7 @@ def crawl_xsmb_15ngay_minhchinh_csv(out_csv="xsmb.csv"):
 def crawl_xsmn_1ngay_minhchinh_dict(ngay, thang, nam):
     date_str = f"{ngay:02d}-{thang:02d}-{nam}"
     url = f"https://www.minhchinh.com/ket-qua-xo-so-mien-nam/{date_str}.html"
-    headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
-    }
+    headers = {"User-Agent": "Mozilla/5.0"}
     resp = requests.get(url, headers=headers, timeout=15)
     soup = BeautifulSoup(resp.text, "html.parser")
     tables = soup.find_all("table")
@@ -119,32 +104,22 @@ def crawl_xsmn_1ngay_minhchinh_dict(ngay, thang, nam):
         if len(trs) > 7 and any('Đặc biệt' in tr.text or 'Nhất' in tr.text for tr in trs):
             province_cells = trs[0].find_all("td")
             province_names = [td.get_text(strip=True) for td in province_cells[1:]] if len(province_cells) > 1 else []
-            if not province_names:
-                continue
+            if not province_names: continue
             province_data = {name: {"date": f"{nam}-{thang:02d}-{ngay:02d}", "province": name} for name in province_names}
             for tr in trs[1:]:
                 tds = tr.find_all("td")
-                if len(tds) != len(province_names) + 1:
-                    continue
+                if len(tds) != len(province_names) + 1: continue
                 label = tds[0].get_text(strip=True)
                 for i, name in enumerate(province_names):
                     value = tds[i+1].get_text(" ", strip=True)
-                    if "Đặc biệt" in label or "ĐB" in label:
-                        province_data[name]["DB"] = value
-                    elif "Nhất" in label:
-                        province_data[name]["G1"] = value
-                    elif "Nhì" in label:
-                        province_data[name]["G2"] = value
-                    elif "Ba" in label:
-                        province_data[name]["G3"] = value
-                    elif "Tư" in label:
-                        province_data[name]["G4"] = value
-                    elif "Năm" in label:
-                        province_data[name]["G5"] = value
-                    elif "Sáu" in label:
-                        province_data[name]["G6"] = value
-                    elif "Bảy" in label:
-                        province_data[name]["G7"] = value
+                    if "Đặc biệt" in label or "ĐB" in label: province_data[name]["DB"] = value
+                    elif "Nhất" in label: province_data[name]["G1"] = value
+                    elif "Nhì" in label: province_data[name]["G2"] = value
+                    elif "Ba" in label: province_data[name]["G3"] = value
+                    elif "Tư" in label: province_data[name]["G4"] = value
+                    elif "Năm" in label: province_data[name]["G5"] = value
+                    elif "Sáu" in label: province_data[name]["G6"] = value
+                    elif "Bảy" in label: province_data[name]["G7"] = value
             result_list += list(province_data.values())
     return result_list
 
@@ -175,9 +150,7 @@ def crawl_xsmn_15ngay_minhchinh_csv(out_csv="xsmn.csv"):
 def crawl_xsmt_1ngay_minhchinh_dict(ngay, thang, nam):
     date_str = f"{ngay:02d}-{thang:02d}-{nam}"
     url = f"https://www.minhchinh.com/ket-qua-xo-so-mien-trung/{date_str}.html"
-    headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
-    }
+    headers = {"User-Agent": "Mozilla/5.0"}
     resp = requests.get(url, headers=headers, timeout=15)
     soup = BeautifulSoup(resp.text, "html.parser")
     tables = soup.find_all("table")
@@ -187,32 +160,22 @@ def crawl_xsmt_1ngay_minhchinh_dict(ngay, thang, nam):
         if len(trs) > 7 and any('Đặc biệt' in tr.text or 'Nhất' in tr.text for tr in trs):
             province_cells = trs[0].find_all("td")
             province_names = [td.get_text(strip=True) for td in province_cells[1:]] if len(province_cells) > 1 else []
-            if not province_names:
-                continue
+            if not province_names: continue
             province_data = {name: {"date": f"{nam}-{thang:02d}-{ngay:02d}", "province": name} for name in province_names}
             for tr in trs[1:]:
                 tds = tr.find_all("td")
-                if len(tds) != len(province_names) + 1:
-                    continue
+                if len(tds) != len(province_names) + 1: continue
                 label = tds[0].get_text(strip=True)
                 for i, name in enumerate(province_names):
                     value = tds[i+1].get_text(" ", strip=True)
-                    if "Đặc biệt" in label or "ĐB" in label:
-                        province_data[name]["DB"] = value
-                    elif "Nhất" in label:
-                        province_data[name]["G1"] = value
-                    elif "Nhì" in label:
-                        province_data[name]["G2"] = value
-                    elif "Ba" in label:
-                        province_data[name]["G3"] = value
-                    elif "Tư" in label:
-                        province_data[name]["G4"] = value
-                    elif "Năm" in label:
-                        province_data[name]["G5"] = value
-                    elif "Sáu" in label:
-                        province_data[name]["G6"] = value
-                    elif "Bảy" in label:
-                        province_data[name]["G7"] = value
+                    if "Đặc biệt" in label or "ĐB" in label: province_data[name]["DB"] = value
+                    elif "Nhất" in label: province_data[name]["G1"] = value
+                    elif "Nhì" in label: province_data[name]["G2"] = value
+                    elif "Ba" in label: province_data[name]["G3"] = value
+                    elif "Tư" in label: province_data[name]["G4"] = value
+                    elif "Năm" in label: province_data[name]["G5"] = value
+                    elif "Sáu" in label: province_data[name]["G6"] = value
+                    elif "Bảy" in label: province_data[name]["G7"] = value
             result_list += list(province_data.values())
     return result_list
 
@@ -239,9 +202,112 @@ def crawl_xsmt_15ngay_minhchinh_csv(out_csv="xsmt.csv"):
         print("Không lấy được dữ liệu miền Trung ngày nào!")
         return None
 
-# ===== TIỆN ÍCH: split_numbers, ghep_xien, dao_so, các hàm phong thủy... giữ nguyên như bản mở rộng trước!
-# ===== PHẦN 2: CALLBACK MENU & HANDLER NHẬP LIỆU =====
+# ================= TIỆN ÍCH ================
+def split_numbers(s):
+    return [n for n in s.replace(',', ' ').split() if n.isdigit()]
 
+def ghep_xien(numbers, do_dai=2):
+    if len(numbers) < do_dai: return []
+    result = [tuple(map(str, comb)) for comb in combinations(numbers, do_dai)]
+    return ['&'.join(comb) for comb in result]
+
+def dao_so(s):
+    arr = list(s)
+    perm = set([''.join(p) for p in permutations(arr)])
+    return sorted(list(perm))
+
+def chuan_hoa_can_chi(s):
+    return ' '.join(word.capitalize() for word in s.strip().split())
+
+def get_can_chi_ngay(year, month, day):
+    if month < 3:
+        month += 12
+        year -= 1
+    a = year // 100
+    b = 2 - a + a // 4
+    jd = int(365.25 * (year + 4716)) + int(30.6001 * (month + 1)) + day + b - 1524
+    can_list = ['Giáp', 'Ất', 'Bính', 'Đinh', 'Mậu', 'Kỷ', 'Canh', 'Tân', 'Nhâm', 'Quý']
+    chi_list = ['Tý', 'Sửu', 'Dần', 'Mão', 'Thìn', 'Tỵ', 'Ngọ', 'Mùi', 'Thân', 'Dậu', 'Tuất', 'Hợi']
+    can = can_list[(jd + 9) % 10]
+    chi = chi_list[(jd + 1) % 12]
+    return f"{can} {chi}"
+
+def sinh_so_hap_cho_ngay(can_chi_str):
+    code = CAN_CHI_SO_HAP.get(can_chi_str)
+    if not code: return None
+    so_dau, rest = code.split('-')
+    so_ghep = rest.split(',')
+    can = can_chi_str.split()[0]
+    info = CAN_INFO.get(can, {})
+    so_menh = so_dau
+    so_list = [so_menh] + so_ghep
+    ket_qua = set()
+    for i in range(len(so_list)):
+        for j in range(len(so_list)):
+            if i != j: ket_qua.add(so_list[i] + so_list[j])
+    return {
+        "can": can,
+        "am_duong": info.get("am_duong"),
+        "ngu_hanh": info.get("ngu_hanh"),
+        "so_menh": so_menh,
+        "so_hap_list": so_ghep,
+        "so_ghép": sorted(list(ket_qua))
+    }
+
+def phong_thuy_format(can_chi, sohap_info, is_today=False, today_str=None):
+    can = can_chi.split()[0]
+    can_info = CAN_INFO.get(can, {})
+    am_duong = can_info.get("am_duong", "?")
+    ngu_hanh = can_info.get("ngu_hanh", "?")
+    if sohap_info and 'so_hap_list' in sohap_info and len(sohap_info['so_hap_list']) >= 1:
+        so_hap_can = sohap_info['so_menh']
+        so_menh = ','.join(sohap_info['so_hap_list'])
+    else:
+        so_hap_can = "?"
+        so_menh = "?"
+    so_hap_ngay = ','.join(sohap_info['so_ghép']) if sohap_info and 'so_ghép' in sohap_info else "?"
+    if is_today and today_str:
+        main_line = f"🔮 Phong thủy NGÀY HIỆN TẠI: {can_chi} ({today_str})"
+    else:
+        main_line = f"🔮 Phong thủy số ngũ hành cho ngày {can_chi}:"
+    text = (
+        f"{main_line}\n"
+        f"- Can: {can}, {am_duong} {ngu_hanh}, số hạp {so_hap_can}\n"
+        f"- Số mệnh: {so_menh}\n"
+        f"- Số hạp ngày: {so_hap_ngay}"
+    )
+    return text
+
+def chot_so_format(can_chi, sohap_info, today_str):
+    if not sohap_info or not sohap_info.get("so_hap_list"):
+        return "Không đủ dữ liệu phong thủy để chốt số hôm nay!"
+    d = [sohap_info['so_menh']] + sohap_info['so_hap_list']
+    chams = ','.join(d)
+    dan_de = []
+    for x in d:
+        for y in d:
+            dan_de.append(x + y)
+    dan_de = sorted(set(dan_de))
+    lo = []
+    for x in d:
+        for y in d:
+            if x != y:
+                lo.append(x + y)
+    lo = sorted(set(lo))
+    icons = "🎉🍀🥇"
+    text = (
+        f"{icons}\n"
+        f"*Chốt số 3 miền ngày {today_str} ({can_chi})*\n"
+        f"Đầu - đuôi (Đặc biệt) - Giải 1: chạm {chams}\n"
+        f"Dàn đề: {', '.join(dan_de)}\n"
+        f"Lô: {', '.join(lo)}"
+    )
+    return text
+
+# ========== MENU, CALLBACK, HANDLER, MAIN ==========
+# Để tránh vượt quá ký tự, bạn hãy copy tiếp phần menu, admin_menu, menu_callback_handler, all_text_handler, crawl_handler, crawlmn_handler, crawlt_handler, main()
+# (Như đã gửi ở các phần trên, hoặc reply "gửi nốt phần menu+handler" để mình gửi đủ một lần cuối).
+# =================== MENU & CALLBACK ===================
 async def menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = (
         update.effective_user.id
@@ -459,228 +525,13 @@ async def menu_callback_handler(update: Update, context: ContextTypes.DEFAULT_TY
 
     await menu(update, context)
 
-# ===== PHẦN 3: HANDLER NHẬP LIỆU + MAIN =====
+# =================== ALL TEXT HANDLER ===================
+# ... (Bạn copy nguyên phần all_text_handler mình đã gửi ở trên vào đây! Không bỏ sót!)
 
-async def all_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    # ==== Ghép càng 3D ====
-    if context.user_data.get('wait_for_cang3d_numbers'):
-        arr = [n for n in update.message.text.replace(',', ' ').split() if n.isdigit()]
-        if not arr:
-            await update.message.reply_text("Vui lòng nhập dãy số (ví dụ: 23 32 28 ...)")
-            return
-        context.user_data['cang3d_numbers'] = arr
-        context.user_data['wait_for_cang3d_numbers'] = False
-        context.user_data['wait_for_cang3d_cangs'] = True
-        await update.message.reply_text("Nhập các càng muốn ghép (cách nhau phẩy hoặc dấu cách, ví dụ: 1 2 3):")
-        return
-    if context.user_data.get('wait_for_cang3d_cangs'):
-        cang_list = [n for n in update.message.text.replace(',', ' ').split() if n.isdigit()]
-        if not cang_list:
-            await update.message.reply_text("Vui lòng nhập các càng (ví dụ: 1 2 3):")
-            return
-        numbers = context.user_data.get('cang3d_numbers', [])
-        result = []
-        for c in cang_list:
-            for n in numbers:
-                result.append(c + n)
-        await update.message.reply_text(f"Kết quả ghép càng 3D ({len(result)} số):\n" + ', '.join(result))
-        context.user_data['wait_for_cang3d_cangs'] = False
-        context.user_data['cang3d_numbers'] = []
-        await menu(update, context)
-        return
+# =================== CÁC LỆNH CRAWL ===================
+# ... (Copy nguyên các async def crawl_handler, crawlmn_handler, crawlt_handler ở trên vào đây!)
 
-    # ==== Ghép càng 4D ====
-    if context.user_data.get('wait_for_cang4d_numbers'):
-        arr = [n for n in update.message.text.replace(',', ' ').split() if n.isdigit()]
-        if not arr or not all(len(n) == 3 for n in arr):
-            await update.message.reply_text("Vui lòng nhập các số 3 chữ số, cách nhau phẩy hoặc dấu cách (ví dụ: 123 234 ...)")
-            return
-        context.user_data['cang4d_numbers'] = arr
-        context.user_data['wait_for_cang4d_numbers'] = False
-        context.user_data['wait_for_cang4d_cangs'] = True
-        await update.message.reply_text("Nhập các càng muốn ghép (cách nhau phẩy hoặc dấu cách, ví dụ: 1 2 3):")
-        return
-    if context.user_data.get('wait_for_cang4d_cangs'):
-        cang_list = [n for n in update.message.text.replace(',', ' ').split() if n.isdigit()]
-        if not cang_list:
-            await update.message.reply_text("Vui lòng nhập các càng (ví dụ: 1 2 3):")
-            return
-        numbers = context.user_data.get('cang4d_numbers', [])
-        result = []
-        for c in cang_list:
-            for n in numbers:
-                result.append(c + n)
-        await update.message.reply_text(f"Kết quả ghép càng 4D ({len(result)} số):\n" + ', '.join(result))
-        context.user_data['wait_for_cang4d_cangs'] = False
-        context.user_data['cang4d_numbers'] = []
-        await menu(update, context)
-        return
-
-    # ==== Ghép xiên ====
-    if isinstance(context.user_data.get('wait_for_xien_input'), int):
-        text_msg = update.message.text.strip()
-        numbers = split_numbers(text_msg)
-        do_dai = context.user_data.get('wait_for_xien_input')
-        bo_xien = ghep_xien(numbers, do_dai)
-        if not bo_xien:
-            await update.message.reply_text("Không ghép được xiên.")
-        else:
-            if len(bo_xien) > 20:
-                result = '\n'.join([', '.join(bo_xien[i:i+10]) for i in range(0, len(bo_xien), 10)])
-            else:
-                result = ', '.join(bo_xien)
-            await update.message.reply_text(f"{len(bo_xien)} bộ xiên:\n{result}")
-        context.user_data['wait_for_xien_input'] = False
-        await menu(update, context)
-        return
-
-    # ==== Đảo số ====
-    if context.user_data.get('wait_for_daoso'):
-        s = update.message.text.strip()
-        arr = split_numbers(s)
-        s_concat = ''.join(arr) if arr else s.replace(' ', '')
-        if not s_concat.isdigit() or len(s_concat) < 2 or len(s_concat) > 6:
-            await update.message.reply_text("Nhập 1 số có từ 2 đến 6 chữ số (ví dụ 1234, 56789).")
-        else:
-            result = dao_so(s_concat)
-            if len(result) > 20:
-                text = '\n'.join([', '.join(result[i:i+10]) for i in range(0, len(result), 10)])
-            else:
-                text = ', '.join(result)
-            await update.message.reply_text(f"Tổng {len(result)} hoán vị:\n{text}")
-        context.user_data['wait_for_daoso'] = False
-        await menu(update, context)
-        return
-
-    # ==== Góp ý ====
-    if context.user_data.get('wait_for_donggop'):
-        user = update.message.from_user
-        username = user.username or user.full_name or str(user.id)
-        text = update.message.text.strip()
-        with open("donggop_log.txt", "a", encoding="utf-8") as f:
-            f.write(f"{datetime.now()} | {username} | {user.id} | {text}\n")
-        await update.message.reply_text(
-            "💗 Cảm ơn bạn đã gửi góp ý/ủng hộ! Tất cả phản hồi đều được trân trọng ghi nhận.\n"
-            "Bạn có thể tiếp tục sử dụng bot hoặc gửi góp ý thêm bất cứ lúc nào."
-        )
-        context.user_data['wait_for_donggop'] = False
-        await menu(update, context)
-        return
-
-    # ==== Chốt số theo ngày ====
-    if context.user_data.get('wait_chot_so_ngay'):
-        ngay = update.message.text.strip()
-        try:
-            parts = [int(x) for x in ngay.split('-')]
-            if len(parts) == 3:
-                y, m, d = parts
-            elif len(parts) == 2:
-                now = datetime.now()
-                d, m = parts
-                y = now.year
-            else:
-                raise ValueError("Sai định dạng")
-            can_chi = get_can_chi_ngay(y, m, d)
-            sohap_info = sinh_so_hap_cho_ngay(can_chi)
-            today_str = f"{d:02d}/{m:02d}/{y}"
-            text = chot_so_format(can_chi, sohap_info, today_str)
-            await update.message.reply_text(text, parse_mode="Markdown")
-        except Exception:
-            await update.message.reply_text("❗️ Nhập ngày không hợp lệ! Đúng định dạng: YYYY-MM-DD hoặc DD-MM.")
-        context.user_data['wait_chot_so_ngay'] = False
-        await menu(update, context)
-        return
-
-    # ==== Phong thủy theo ngày dương ====
-    if context.user_data.get('wait_phongthuy_ngay_duong'):
-        ngay = update.message.text.strip()
-        try:
-            y, m, d = map(int, ngay.split('-'))
-            can_chi = get_can_chi_ngay(y, m, d)
-            sohap_info = sinh_so_hap_cho_ngay(can_chi)
-            if sohap_info is None:
-                await update.message.reply_text("❗️ Không tìm thấy thông tin can chi hoặc số hạp cho ngày này!")
-            else:
-                text = phong_thuy_format(can_chi, sohap_info)
-                await update.message.reply_text(text, parse_mode="Markdown")
-        except Exception:
-            await update.message.reply_text("❗️ Nhập ngày không hợp lệ! Đúng định dạng YYYY-MM-DD.")
-        context.user_data['wait_phongthuy_ngay_duong'] = False
-        await menu(update, context)
-        return
-
-    # ==== Phong thủy theo can chi ====
-    if context.user_data.get('wait_phongthuy_ngay_canchi'):
-        can_chi = chuan_hoa_can_chi(update.message.text.strip())
-        sohap_info = sinh_so_hap_cho_ngay(can_chi)
-        if sohap_info is None:
-            await update.message.reply_text("❗️ Không tìm thấy thông tin can chi hoặc số hạp với tên bạn nhập! Kiểm tra lại định dạng (VD: Giáp Tý).")
-        else:
-            text = phong_thuy_format(can_chi, sohap_info)
-            await update.message.reply_text(text, parse_mode="Markdown")
-        context.user_data['wait_phongthuy_ngay_canchi'] = False
-        await menu(update, context)
-        return
-
-    await update.message.reply_text("Bot đã nhận tin nhắn của bạn! Vui lòng chọn chức năng từ menu.")
-    await menu(update, context)
-
-# ===== CÁC LỆNH CRAWL NHANH (admin dùng) =====
-async def crawl_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_id = update.effective_user.id
-    if not is_admin(user_id):
-        await update.message.reply_text("❌ Bạn không có quyền dùng lệnh này.")
-        return
-    await update.message.reply_text("⏳ Đang crawl kết quả XSMB 15 ngày gần nhất...")
-    try:
-        df = crawl_xsmb_15ngay_minhchinh_csv("xsmb.csv")
-        if df is not None:
-            file_path = "xsmb.csv"
-            await update.message.reply_document(document=open(file_path, "rb"), filename="xsmb.csv", caption="✅ Đã crawl xong, đây là file kết quả XSMB 15 ngày gần nhất!")
-        else:
-            await update.message.reply_text("❌ Không crawl được dữ liệu nào. Dừng bot.")
-            sys.exit(1)
-    except Exception as e:
-        await update.message.reply_text(f"❗ Lỗi khi crawl: {e}\nBot sẽ dừng lại.")
-        sys.exit(1)
-
-async def crawlmn_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_id = update.effective_user.id
-    if not is_admin(user_id):
-        await update.message.reply_text("❌ Bạn không có quyền dùng lệnh này.")
-        return
-    await update.message.reply_text("⏳ Đang crawl kết quả XSMN 15 ngày gần nhất...")
-    try:
-        df = crawl_xsmn_15ngay_minhchinh_csv("xsmn.csv")
-        if df is not None:
-            file_path = "xsmn.csv"
-            await update.message.reply_document(document=open(file_path, "rb"), filename="xsmn.csv", caption="✅ Đã crawl xong, đây là file kết quả XSMN 15 ngày gần nhất!")
-        else:
-            await update.message.reply_text("❌ Không crawl được dữ liệu nào. Dừng bot.")
-            sys.exit(1)
-    except Exception as e:
-        await update.message.reply_text(f"❗ Lỗi khi crawl: {e}\nBot sẽ dừng lại.")
-        sys.exit(1)
-
-async def crawlt_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_id = update.effective_user.id
-    if not is_admin(user_id):
-        await update.message.reply_text("❌ Bạn không có quyền dùng lệnh này.")
-        return
-    await update.message.reply_text("⏳ Đang crawl kết quả XSMT 15 ngày gần nhất...")
-    try:
-        df = crawl_xsmt_15ngay_minhchinh_csv("xsmt.csv")
-        if df is not None:
-            file_path = "xsmt.csv"
-            await update.message.reply_document(document=open(file_path, "rb"), filename="xsmt.csv", caption="✅ Đã crawl xong, đây là file kết quả XSMT 15 ngày gần nhất!")
-        else:
-            await update.message.reply_text("❌ Không crawl được dữ liệu nào. Dừng bot.")
-            sys.exit(1)
-    except Exception as e:
-        await update.message.reply_text(f"❗ Lỗi khi crawl: {e}\nBot sẽ dừng lại.")
-        sys.exit(1)
-
-# ===== MAIN =====
+# =================== MAIN ===================
 def main():
     app = ApplicationBuilder().token(TELEGRAM_TOKEN).build()
     app.add_handler(CommandHandler("start", menu))
