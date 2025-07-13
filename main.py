@@ -233,6 +233,22 @@ def build_than_tai_menu():
     ]
     return InlineKeyboardMarkup(keyboard)
 
+def build_xien_menu():
+    keyboard = [
+        [InlineKeyboardButton("Xiên 2", callback_data="ghepxien_2"),
+         InlineKeyboardButton("Xiên 3", callback_data="ghepxien_3"),
+         InlineKeyboardButton("Xiên 4", callback_data="ghepxien_4")],
+        [InlineKeyboardButton("⬅️ Quay lại menu", callback_data="main_menu")]
+    ]
+    return InlineKeyboardMarkup(keyboard)
+
+def build_phongthuy_menu():
+    keyboard = [
+        [InlineKeyboardButton("Theo ngày dương (YYYY-MM-DD)", callback_data="phongthuy_ngay_duong")],
+        [InlineKeyboardButton("⬅️ Quay lại menu", callback_data="main_menu")]
+    ]
+    return InlineKeyboardMarkup(keyboard)
+
 # ========== AI/ML THỐNG KÊ SỐ ĐẸP ==========
 def ai_predict_top2(csv_path):
     df = pd.read_csv(csv_path)
@@ -316,6 +332,41 @@ async def menu_callback_handler(update: Update, context: ContextTypes.DEFAULT_TY
     if query.data == "main_menu":
         await menu(update, context)
         return
+
+    # ==== Góp ý ====
+    if query.data == "donggop_gui":
+        context.user_data['wait_input'] = "gop_y"
+        await query.edit_message_text("🙏 Vui lòng nhập góp ý, phản hồi hoặc lời nhắn của bạn:")
+        return
+
+    # ==== Nhập ngày phong thủy ====
+    if query.data == "phongthuy_ngay_duong":
+        context.user_data['wait_input'] = "phongthuy_ngay"
+        await query.edit_message_text("📅 Nhập ngày dương lịch (YYYY-MM-DD):")
+        return
+
+    # ==== Nhập ngày chốt số ====
+    if query.data == "chotso_ngay":
+        context.user_data['wait_input'] = "chotso_ngay"
+        await query.edit_message_text("📅 Nhập ngày muốn chốt số (YYYY-MM-DD):")
+        return
+
+    # ==== Ghép xiên ====
+    if query.data == "menu_ghepxien":
+        await query.edit_message_text("Chọn loại xiên:", reply_markup=build_xien_menu())
+        return
+    if query.data.startswith("ghepxien_"):
+        context.user_data['wait_input'] = query.data  # ghepxien_2, ghepxien_3,...
+        await query.edit_message_text(f"Nhập dãy số để ghép xiên {query.data[-1]} (cách nhau dấu cách hoặc phẩy):")
+        return
+
+    # ==== Đảo số ====
+    if query.data == "daoso":
+        context.user_data['wait_input'] = "daoso"
+        await query.edit_message_text("Nhập một số hoặc dãy số (VD: 1234):")
+        return
+
+    # ==== Thần tài gợi ý ====
     if query.data == "than_tai_goi_y":
         await query.edit_message_text("🧧 Chọn vùng xổ số bạn muốn Thần tài gợi ý:", reply_markup=build_than_tai_menu())
         return
@@ -323,6 +374,7 @@ async def menu_callback_handler(update: Update, context: ContextTypes.DEFAULT_TY
         region = {"than_tai_mb_btn": "MB", "than_tai_mt_btn": "MT", "than_tai_mn_btn": "MN"}[query.data]
         await than_tai_handler(update, context, region)
         return
+
     await menu(update, context)
 
 async def push_all_csv_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -378,10 +430,83 @@ async def than_tai_handler(update, context, region):
 
 # ========== HANDLER ALL TEXT ==========
 async def all_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    wait_input = context.user_data.get('wait_input')
+    if not wait_input:
+        return  # Không rep nếu không ở trạng thái nhập liệu!
+
     user = update.effective_user
-    await log_user_action(user, action="text_input", content=update.message.text)
-    await update.message.reply_text("Đã nhận dữ liệu. Chức năng này sẽ cập nhật kết quả tương ứng (demo).")
-    await menu(update, context)
+    text = update.message.text.strip()
+
+    # ===== GÓP Ý =====
+    if wait_input == "gop_y":
+        await log_user_action(user, action="gop_y", content=text)
+        context.user_data['wait_input'] = None
+        await update.message.reply_text("💗 Cảm ơn bạn đã góp ý! Mọi ý kiến sẽ được ghi nhận.")
+        await menu(update, context)
+        return
+
+    # ===== NHẬP NGÀY PHONG THỦY =====
+    if wait_input == "phongthuy_ngay":
+        try:
+            y, m, d = map(int, text.split('-'))
+            can_chi = get_can_chi_ngay(y, m, d)
+            sohap_info = sinh_so_hap_cho_ngay(can_chi)
+            reply = phong_thuy_format(can_chi, sohap_info)
+        except Exception:
+            reply = "❗ Nhập ngày không hợp lệ! Đúng định dạng YYYY-MM-DD."
+        context.user_data['wait_input'] = None
+        await update.message.reply_text(reply)
+        await menu(update, context)
+        return
+
+    # ===== NHẬP NGÀY CHỐT SỐ =====
+    if wait_input == "chotso_ngay":
+        try:
+            y, m, d = map(int, text.split('-'))
+            can_chi = get_can_chi_ngay(y, m, d)
+            sohap_info = sinh_so_hap_cho_ngay(can_chi)
+            today_str = f"{d:02d}/{m:02d}/{y}"
+            reply = chot_so_format(can_chi, sohap_info, today_str)
+        except Exception:
+            reply = "❗ Nhập ngày không hợp lệ! Đúng định dạng YYYY-MM-DD."
+        context.user_data['wait_input'] = None
+        await update.message.reply_text(reply)
+        await menu(update, context)
+        return
+
+    # ===== GHÉP XIÊN 2,3,4... =====
+    if wait_input.startswith("ghepxien_"):
+        try:
+            do_dai = int(wait_input.split("_")[1])
+            numbers = split_numbers(text)
+            bo_xien = ghep_xien(numbers, do_dai)
+            if not bo_xien:
+                reply = "Không ghép được xiên."
+            else:
+                reply = f"{len(bo_xien)} bộ xiên:\n" + (', '.join(bo_xien))
+        except Exception:
+            reply = "Nhập dữ liệu không hợp lệ!"
+        context.user_data['wait_input'] = None
+        await update.message.reply_text(reply)
+        await menu(update, context)
+        return
+
+    # ===== ĐẢO SỐ =====
+    if wait_input == "daoso":
+        s = ''.join(split_numbers(text)) if split_numbers(text) else text.replace(' ', '')
+        if not s.isdigit() or len(s) < 2 or len(s) > 6:
+            reply = "Nhập 1 số có từ 2 đến 6 chữ số (ví dụ 1234, 56789)."
+        else:
+            result = dao_so(s)
+            reply = f"Tổng {len(result)} hoán vị:\n" + (', '.join(result[:40]) + ('...' if len(result)>40 else ''))
+        context.user_data['wait_input'] = None
+        await update.message.reply_text(reply)
+        await menu(update, context)
+        return
+
+    # ...Thêm các trạng thái khác tương tự!
+    context.user_data['wait_input'] = None
+    return
 
 # ========== BOT STARTUP ==========
 async def on_startup(app):
@@ -394,7 +519,7 @@ def main():
     app.add_handler(CommandHandler("menu", menu))
     app.add_handler(CommandHandler("addadmin", add_admin_handler))
     app.add_handler(CallbackQueryHandler(menu_callback_handler))
-    #app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, all_text_handler))
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, all_text_handler))
     app.add_handler(CommandHandler("pushcsv", push_all_csv_handler))
     app.run_polling()
 
