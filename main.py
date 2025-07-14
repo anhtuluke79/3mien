@@ -11,18 +11,23 @@ import joblib
 import subprocess
 
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, InputFile
+from telegram.constants import ParseMode
 from telegram.ext import (
     ApplicationBuilder, CommandHandler, ContextTypes, CallbackQueryHandler,
     MessageHandler, filters
 )
 from itertools import combinations, permutations
-from can_chi_dict import data as CAN_CHI_SO_HAP
-from thien_can import CAN_INFO
+from dotenv import load_dotenv
+
+# ---- Dữ liệu can-chi và thiên can (gọi từ file phụ bạn đã upload) ----
+from can_chi_dict import data as CAN_CHI_SO_HAP  # file-UUmDhJhE9Sx4rS3PxvfTDg
+from thien_can import CAN_INFO                   # file-DE4SbrmF67vwuJMWTZ22BP
 
 # ================== CONFIG ==================
+load_dotenv()
 ADMIN_IDS = list(map(int, os.getenv("ADMIN_IDS", "12345678").split(',')))
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
-GITHUB_REPO_PATH = "/app/3mien"   # <--- Đặt đúng đường dẫn repo local trên server của bạn!
+GITHUB_REPO_PATH = os.getenv("GITHUB_REPO_PATH", "/app/3mien")
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
@@ -410,19 +415,17 @@ async def menu_callback_handler(update: Update, context: ContextTypes.DEFAULT_TY
         return
     if query.data == "qr_ungho":
         qr_path = "qr_ung_ho.png"
-    if not os.path.exists(qr_path):
-        await query.message.reply_text("❌ Không tìm thấy file mã QR! Hãy đặt file qr_ung_ho.png vào đúng thư mục bot.")
+        if not os.path.exists(qr_path):
+            await query.message.reply_text("❌ Không tìm thấy file mã QR! Hãy đặt file qr_ung_ho.png vào đúng thư mục bot.")
+            return
+        with open(qr_path, "rb") as f:
+            await query.message.reply_photo(photo=InputFile(f), caption="Quét mã QR để ủng hộ 💗\nXin cảm ơn!")
         return
-    with open(qr_path, "rb") as f:
-        await query.message.reply_photo(photo=InputFile(f), caption="Quét mã QR để ủng hộ 💗\nXin cảm ơn!")
-    return
-
 
     # ============ QUAY LẠI MENU ===========
     if query.data == "main_menu":
         await menu(update, context)
         return
-
 
 async def all_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Ghép càng 3D
@@ -587,14 +590,44 @@ async def all_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await menu(update, context)
         return
 
+# =================== HELP & ERROR HANDLER ===================
+async def help_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    text = (
+        "🤖 *Bot XSMB Phong thủy AI*\n\n"
+        "Các lệnh hỗ trợ:\n"
+        "/start hoặc /menu - Mở menu chính\n"
+        "/help - Xem hướng dẫn\n\n"
+        "Chức năng nổi bật:\n"
+        "• Dự đoán AI XSMB\n"
+        "• Ghép xiên, càng, đảo số\n"
+        "• Tra cứu phong thủy ngày\n"
+        "• Chốt số, hỗ trợ nhiều chế độ\n"
+        "• Quản trị, cập nhật dữ liệu, model AI"
+    )
+    await update.message.reply_text(text, parse_mode=ParseMode.MARKDOWN)
+
+async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE):
+    logger.error("Exception while handling an update:", exc_info=context.error)
+    # Gửi lỗi về admin (nếu muốn)
+    for admin_id in ADMIN_IDS:
+        try:
+            await context.bot.send_message(
+                chat_id=admin_id,
+                text=f"🚨 Exception:\n{context.error}"
+            )
+        except Exception:
+            pass
 
 # =================== MAIN ===================
 def main():
     app = ApplicationBuilder().token(TELEGRAM_TOKEN).build()
     app.add_handler(CommandHandler("start", menu))
     app.add_handler(CommandHandler("menu", menu))
+    app.add_handler(CommandHandler("help", help_handler))
     app.add_handler(CallbackQueryHandler(menu_callback_handler))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, all_text_handler))
+    app.add_error_handler(error_handler)
+    logger.info("🤖 BOT XSMB đã chạy thành công!")
     app.run_polling()
 
 if __name__ == "__main__":
