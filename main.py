@@ -502,18 +502,43 @@ async def menu_callback_handler(update: Update, context: ContextTypes.DEFAULT_TY
         await query.edit_message_text("📅 Nhập ngày dương lịch muốn chốt số:\n- Định dạng đầy đủ: YYYY-MM-DD (vd: 2025-07-11)\n- Hoặc chỉ ngày-tháng: DD-MM (vd: 11-07, sẽ lấy năm hiện tại)")
         return
 
-    # ==== GÓP Ý ====
+    # ==== GÓP Ý & ĐÓNG GÓP ====
     if query.data == "donggop":
         keyboard = [
             [InlineKeyboardButton("Gửi góp ý", callback_data="donggop_gui")],
+            [InlineKeyboardButton("Bảng danh dự", callback_data="donggop_danhdu")],
             [InlineKeyboardButton("⬅️ Quay lại menu", callback_data="main_menu")]
         ]
-        await query.edit_message_text("💗 Hãy gửi góp ý/ủng hộ bot!", reply_markup=InlineKeyboardMarkup(keyboard))
+        text = (
+            "💗 *Cảm ơn bạn đã quan tâm và ủng hộ bot!*\n\n"
+            "Bạn có thể gửi góp ý/ý tưởng hoặc đóng góp ủng hộ bot phát triển:\n"
+            "👉 Gửi góp ý: Chọn 'Gửi góp ý' bên dưới.\n"
+            "👉 Ủng hộ: Vietcombank 0071003914986 (Trương Anh Tú)\n"
+            "Xem 'Bảng danh dự' để tri ân các bạn đã góp ý/ủng hộ."
+        )
+        await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="Markdown")
         return
     if query.data == "donggop_gui":
         context.user_data.clear()
         context.user_data['wait_for_donggop'] = True
         await query.edit_message_text("🙏 Vui lòng nhập góp ý, phản hồi hoặc lời nhắn của bạn (mọi góp ý đều được ghi nhận và tri ân công khai).")
+        return
+    if query.data == "donggop_danhdu":
+        log_file = "donggop_log.txt"
+        names = set()
+        if os.path.exists(log_file):
+            with open(log_file, encoding="utf-8") as f:
+                for line in f:
+                    parts = line.strip().split("|")
+                    if len(parts) >= 3:
+                        name = parts[1].strip()
+                        names.add(name)
+        if not names:
+            msg = "Chưa có ai gửi góp ý/đóng góp. Hãy là người đầu tiên nhé! 💗"
+        else:
+            msg = "🏆 *Bảng danh dự những người đã gửi góp ý/ủng hộ:*\n"
+            msg += "\n".join([f"❤️ {name}" for name in sorted(names)])
+        await query.edit_message_text(msg, parse_mode="Markdown")
         return
 
     if query.data == "main_menu":
@@ -679,8 +704,6 @@ async def all_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await menu(update, context)
         return
     # Không trả lời các tin nhắn khác!
-    # await update.message.reply_text("Bot đã nhận tin nhắn của bạn! Vui lòng chọn chức năng từ menu.")
-    # await menu(update, context)
 
 # =================== CÁC LỆNH CRAWL ===================
 async def crawl_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
