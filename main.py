@@ -232,6 +232,31 @@ def thong_ke_xsmb(n=30):
     for _, row in df.head(n).iterrows():
         msg += f"{row['date']} | {row['DB']} | {row['G1']}\n"
     return msg
+def thong_ke_dau_duoi_db(n=30):
+    """
+    Thống kê số lần xuất hiện từng đầu (số đầu tiên) và từng đuôi (số cuối cùng) 
+    của giải Đặc biệt trong n ngày gần nhất.
+    """
+    csv_path = os.path.join(GITHUB_REPO_PATH, "xsmb.csv")
+    if not os.path.exists(csv_path):
+        return "❌ Chưa có file xsmb.csv trên server!"
+    df = pd.read_csv(csv_path)
+    df = df.sort_values("date", ascending=False).head(n)
+    db_list = df['DB'].astype(str).str.zfill(5)
+    dau = db_list.str[0]
+    duoi = db_list.str[-1]
+    dau_count = dau.value_counts().sort_index()
+    duoi_count = duoi.value_counts().sort_index()
+    msg = f"🔢 *Thống kê ĐẦU & ĐUÔI Đặc biệt {n} ngày gần nhất:*\n\n"
+    msg += "*Đầu:*\n"
+    for i in range(10):
+        msg += f"`{i}` : {dau_count.get(str(i), 0)}  "
+        if i == 4: msg += "\n"
+    msg += "\n*Đuôi:*\n"
+    for i in range(10):
+        msg += f"`{i}` : {duoi_count.get(str(i), 0)}  "
+        if i == 4: msg += "\n"
+    return msg
 
 # ==== BACKUP & RESTORE ====
 def backup_files(to_dir="backup"):
@@ -267,6 +292,7 @@ async def menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         [InlineKeyboardButton("🔮 Phong thủy", callback_data="phongthuy_ngay")],
         [InlineKeyboardButton("🎯 Chốt số", callback_data="menu_chotso")],
         [InlineKeyboardButton("📊 Thống kê", callback_data="thongke_xsmb")],
+        [InlineKeyboardButton("🔢 Thống kê đầu-đuôi", callback_data="thongke_dauduoi")]
         [InlineKeyboardButton("💗 Ủng hộ", callback_data="ungho")],
     ]
     if user_id and is_admin(user_id):
@@ -402,6 +428,11 @@ async def menu_callback_handler(update: Update, context: ContextTypes.DEFAULT_TY
         msg = thong_ke_xsmb(15)
         await query.edit_message_text(msg)
         return
+    if query.data == "thongke_dauduoi":
+    msg = thong_ke_dau_duoi_db(30)  # 30 ngày, hoặc tùy ý
+    await query.edit_message_text(msg, parse_mode=ParseMode.MARKDOWN)
+    return
+
 
     # --- GHÉP XIÊN/CÀNG/ĐẢO SỐ/PHONG THỦY/CHỐT SỐ/ỦNG HỘ... ---
     # (giữ nguyên như hướng dẫn các bản trước, không đổi)
