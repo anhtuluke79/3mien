@@ -296,7 +296,7 @@ async def menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         [InlineKeyboardButton("🔮 Phong thủy", callback_data="phongthuy_ngay")],
         [InlineKeyboardButton("🎯 Chốt số", callback_data="menu_chotso")],
         [InlineKeyboardButton("📊 Thống kê", callback_data="thongke_xsmb")],
-        [InlineKeyboardButton("🔢 Thống kê đầu-đuôi", callback_data="thongke_dauduoi")]
+        [InlineKeyboardButton("🔢 Thống kê đầu-đuôi", callback_data="thongke_dauduoi")],
         [InlineKeyboardButton("💗 Ủng hộ", callback_data="ungho")],
     ]
     if user_id and is_admin(user_id):
