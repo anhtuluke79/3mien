@@ -433,9 +433,9 @@ async def menu_callback_handler(update: Update, context: ContextTypes.DEFAULT_TY
         await query.edit_message_text(msg)
         return
     if query.data == "thongke_dauduoi":
-    msg = thong_ke_dau_duoi_db(30)  # 30 ngày, hoặc tùy ý
-    await query.edit_message_text(msg, parse_mode=ParseMode.MARKDOWN)
-    return
+        msg = thong_ke_dau_duoi_db(30)  # 30 ngày, hoặc tùy ý
+        await query.edit_message_text(msg, parse_mode=ParseMode.MARKDOWN)
+        return
 
 
     # --- GHÉP XIÊN/CÀNG/ĐẢO SỐ/PHONG THỦY/CHỐT SỐ/ỦNG HỘ... ---
