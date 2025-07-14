@@ -524,7 +524,7 @@ async def menu_callback_handler(update: Update, context: ContextTypes.DEFAULT_TY
 
 # =================== ALL TEXT HANDLER ===================
 async def all_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    # ==== Ghép càng 3D ====
+    # Xử lý các trạng thái nhập liệu (chỉ trả lời nếu đang chờ nhập liệu!)
     if context.user_data.get('wait_for_cang3d_numbers'):
         arr = [n for n in update.message.text.replace(',', ' ').split() if n.isdigit()]
         if not arr:
@@ -535,6 +535,7 @@ async def all_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         context.user_data['wait_for_cang3d_cangs'] = True
         await update.message.reply_text("Nhập các càng muốn ghép (cách nhau phẩy hoặc dấu cách, ví dụ: 1 2 3):")
         return
+
     if context.user_data.get('wait_for_cang3d_cangs'):
         cang_list = [n for n in update.message.text.replace(',', ' ').split() if n.isdigit()]
         if not cang_list:
@@ -551,7 +552,6 @@ async def all_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await menu(update, context)
         return
 
-    # ==== Ghép càng 4D ====
     if context.user_data.get('wait_for_cang4d_numbers'):
         arr = [n for n in update.message.text.replace(',', ' ').split() if n.isdigit()]
         if not arr or not all(len(n) == 3 for n in arr):
@@ -562,6 +562,7 @@ async def all_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         context.user_data['wait_for_cang4d_cangs'] = True
         await update.message.reply_text("Nhập các càng muốn ghép (cách nhau phẩy hoặc dấu cách, ví dụ: 1 2 3):")
         return
+
     if context.user_data.get('wait_for_cang4d_cangs'):
         cang_list = [n for n in update.message.text.replace(',', ' ').split() if n.isdigit()]
         if not cang_list:
@@ -578,7 +579,6 @@ async def all_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await menu(update, context)
         return
 
-    # ==== Ghép xiên ====
     if isinstance(context.user_data.get('wait_for_xien_input'), int):
         text_msg = update.message.text.strip()
         numbers = split_numbers(text_msg)
@@ -596,7 +596,6 @@ async def all_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await menu(update, context)
         return
 
-    # ==== Đảo số ====
     if context.user_data.get('wait_for_daoso'):
         s = update.message.text.strip()
         arr = split_numbers(s)
@@ -614,7 +613,6 @@ async def all_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await menu(update, context)
         return
 
-    # ==== Góp ý ====
     if context.user_data.get('wait_for_donggop'):
         user = update.message.from_user
         username = user.username or user.full_name or str(user.id)
@@ -629,7 +627,6 @@ async def all_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await menu(update, context)
         return
 
-    # ==== Chốt số theo ngày ====
     if context.user_data.get('wait_chot_so_ngay'):
         ngay = update.message.text.strip()
         try:
@@ -653,7 +650,6 @@ async def all_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await menu(update, context)
         return
 
-    # ==== Phong thủy theo ngày dương ====
     if context.user_data.get('wait_phongthuy_ngay_duong'):
         ngay = update.message.text.strip()
         try:
@@ -671,7 +667,6 @@ async def all_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await menu(update, context)
         return
 
-    # ==== Phong thủy theo can chi ====
     if context.user_data.get('wait_phongthuy_ngay_canchi'):
         can_chi = chuan_hoa_can_chi(update.message.text.strip())
         sohap_info = sinh_so_hap_cho_ngay(can_chi)
@@ -683,8 +678,9 @@ async def all_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         context.user_data['wait_phongthuy_ngay_canchi'] = False
         await menu(update, context)
         return
-
-    # KHÔNG trả lời ngoài trạng thái nhập liệu!
+    # Không trả lời các tin nhắn khác!
+    # await update.message.reply_text("Bot đã nhận tin nhắn của bạn! Vui lòng chọn chức năng từ menu.")
+    # await menu(update, context)
 
 # =================== CÁC LỆNH CRAWL ===================
 async def crawl_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -750,6 +746,7 @@ def main():
     app.add_handler(CommandHandler("crawlmn", crawlmn_handler))
     app.add_handler(CommandHandler("crawlt", crawlt_handler))
     app.add_handler(CallbackQueryHandler(menu_callback_handler))
+    # Chỉ nhận text khi ĐANG CHỜ NHẬP LIỆU, không nhận mọi tin nhắn
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, all_text_handler))
     app.run_polling()
 
