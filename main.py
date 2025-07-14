@@ -17,7 +17,6 @@ from telegram.ext import (
     MessageHandler, filters
 )
 from itertools import combinations, permutations
-from dotenv import load_dotenv
 
 # ---- Dữ liệu can-chi và thiên can (gọi từ file phụ bạn đã upload) ----
 from can_chi_dict import data as CAN_CHI_SO_HAP  # file-UUmDhJhE9Sx4rS3PxvfTDg
