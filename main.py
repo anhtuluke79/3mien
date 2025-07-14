@@ -1,13 +1,13 @@
 import os
 import sys
 import logging
-import random
 import requests
 from bs4 import BeautifulSoup
 import pandas as pd
 from datetime import datetime, timedelta
 import time
 import re
+import base64
 
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
@@ -21,6 +21,9 @@ from thien_can import CAN_INFO
 # ============= CONFIG ============
 ADMIN_IDS = list(map(int, os.getenv("ADMIN_IDS", "12345678").split(',')))
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
+GITHUB_TOKEN = os.getenv("GITHUB_TOKEN")
+REPO = "anhtuluke79/3mien"
+TARGET_PATH = "xsmb.csv"
 if not TELEGRAM_TOKEN:
     raise ValueError("TELEGRAM_TOKEN chưa được thiết lập!")
 
@@ -156,14 +159,14 @@ def phong_thuy_format(can_chi, sohap_info, is_today=False, today_str=None):
         so_menh = "?"
     so_hap_ngay = ','.join(sohap_info['so_ghép']) if sohap_info and 'so_ghép' in sohap_info else "?"
     if is_today and today_str:
-        main_line = f"🔮 <b>Phong thủy NGÀY HIỆN TẠI:</b> <b>{can_chi}</b> ({today_str})"
+        main_line = f"🔮 Phong thủy NGÀY HIỆN TẠI: {can_chi} ({today_str})"
     else:
-        main_line = f"🔮 <b>Phong thủy số ngũ hành cho ngày {can_chi}:</b>"
+        main_line = f"🔮 Phong thủy số ngũ hành cho ngày {can_chi}:"
     text = (
         f"{main_line}\n"
-        f"- Can: <b>{can}</b>, {am_duong} {ngu_hanh}, số hạp <b>{so_hap_can}</b>\n"
-        f"- Số mệnh: <b>{so_menh}</b>\n"
-        f"- Số hạp ngày: <b>{so_hap_ngay}</b>"
+        f"- Can: {can}, {am_duong} {ngu_hanh}, số hạp {so_hap_can}\n"
+        f"- Số mệnh: {so_menh}\n"
+        f"- Số hạp ngày: {so_hap_ngay}"
     )
     return text
 
@@ -186,103 +189,138 @@ def chot_so_format(can_chi, sohap_info, today_str):
     icons = "🎉🍀🥇"
     text = (
         f"{icons}\n"
-        f"<b>Chốt số ngày {today_str} ({can_chi})</b>\n"
-        f"Đầu - đuôi (Đặc biệt) - Giải 1: <b>chạm {chams}</b>\n"
-        f"Dàn đề: <b>{', '.join(dan_de)}</b>\n"
-        f"Lô: <b>{', '.join(lo)}</b>"
+        f"*Chốt số 3 miền ngày {today_str} ({can_chi})*\n"
+        f"Đầu - đuôi (Đặc biệt) - Giải 1: chạm {chams}\n"
+        f"Dàn đề: {', '.join(dan_de)}\n"
+        f"Lô: {', '.join(lo)}"
     )
     return text
 
-# ============= DỰ ĐOÁN ĐẶC BIỆT XSMB ==============
-def du_doan_xsmb():
-    # Thuật toán mẫu (có thể nâng cấp): chọn 3 số ĐB ngẫu nhiên có thể "may mắn" dựa theo ngày
-    today = datetime.now()
-    random.seed(int(today.strftime("%Y%m%d")))
-    d1 = random.randint(10000, 99999)
-    d2 = random.randint(10000, 99999)
-    d3 = random.randint(10000, 99999)
-    return [str(d1).zfill(5), str(d2).zfill(5), str(d3).zfill(5)]
-
-def du_doan_text():
-    ds = du_doan_xsmb()
-    text = (
-        "🔮 <b>DỰ ĐOÁN KQXS MIỀN BẮC HÔM NAY</b> 🔮\n"
-        "Các con số Đặc biệt có thể về:\n"
-        f"🥇 <b>{ds[0]}</b>\n"
-        f"🥈 <b>{ds[1]}</b>\n"
-        f"🥉 <b>{ds[2]}</b>\n"
-        "\nLưu ý: Chỉ mang tính chất giải trí và tham khảo! 🚦"
-    )
-    return text
+# ========== THẦN TÀI DỰ ĐOÁN ==========
+def than_tai_du_doan():
+    # Dùng Random Forest để dự đoán Đặc biệt hôm nay
+    try:
+        from sklearn.ensemble import RandomForestClassifier
+        df = pd.read_csv("xsmb.csv")
+        df = df.dropna()
+        if "DB" not in df.columns or len(df) < 10:
+            return "⚠️ Chưa đủ dữ liệu để dự đoán!"
+        # Chuẩn hóa feature: tách từng số của giải đặc biệt làm feature
+        X = []
+        y = []
+        for i in range(7, len(df)):
+            prev_dbs = [int(s) for s in ''.join(df["DB"].iloc[i-j]) for j in range(1, 7)]
+            X.append(prev_dbs)
+            y.append(int(df["DB"].iloc[i]))
+        if not X or not y:
+            return "⚠️ Không đủ dữ liệu để dự đoán!"
+        clf = RandomForestClassifier(n_estimators=200)
+        clf.fit(X, y)
+        latest = [int(s) for s in ''.join(df["DB"].iloc[:6])]
+        pred = clf.predict([latest])[0]
+        return f"💰 *Thần tài dự đoán*: Đặc biệt hôm nay có thể về: `{pred:05d}`"
+    except Exception as e:
+        return f"❗ Dự đoán lỗi: {e}"
 
 # =================== MENU & CALLBACK ===================
 async def menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user = update.effective_user
-    user_name = user.full_name if user else "bạn"
+    user_id = (
+        update.effective_user.id
+        if update.effective_user
+        else (update.message.from_user.id if update.message else None)
+    )
     keyboard = [
-        [InlineKeyboardButton("🔮 Dự đoán hôm nay", callback_data="du_doan")],
         [InlineKeyboardButton("➕ Ghép xiên", callback_data="menu_ghepxien")],
         [InlineKeyboardButton("🎯 Ghép càng/Đảo số", callback_data="menu_ghepcang")],
-        [InlineKeyboardButton("🌟 Phong thủy", callback_data="phongthuy_ngay")],
+        [InlineKeyboardButton("🔮 Phong thủy", callback_data="phongthuy_ngay")],
         [InlineKeyboardButton("🎯 Chốt số", callback_data="menu_chotso")],
+        [InlineKeyboardButton("💰 Thần tài dự đoán", callback_data="than_tai_du_doan")],
         [InlineKeyboardButton("💗 Đóng góp", callback_data="donggop")],
     ]
-    if user and is_admin(user.id):
+    if user_id and is_admin(user_id):
         keyboard.append([InlineKeyboardButton("⚙️ Quản trị", callback_data="admin_menu")])
-    greeting = f"Xin chào, <b>{user_name}</b>! 👋\nChọn chức năng bên dưới:"
     if hasattr(update, "message") and update.message:
-        await update.message.reply_text(greeting, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
+        await update.message.reply_text("🔹 Chọn chức năng:", reply_markup=InlineKeyboardMarkup(keyboard))
     else:
-        await update.callback_query.message.reply_text(greeting, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
+        await update.callback_query.message.reply_text("🔹 Chọn chức năng:", reply_markup=InlineKeyboardMarkup(keyboard))
 
 async def admin_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyboard = [
         [InlineKeyboardButton("📥 Crawl XSMB", callback_data="admin_crawl_xsmb")],
+        [InlineKeyboardButton("⬆️ Upload Github", callback_data="admin_upload_csv")],
         [InlineKeyboardButton("⬅️ Quay lại menu", callback_data="main_menu")],
     ]
     if hasattr(update, "message") and update.message:
-        await update.message.reply_text("⚙️ <b>Quản trị:</b>", reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
+        await update.message.reply_text("⚙️ Quản trị:", reply_markup=InlineKeyboardMarkup(keyboard))
     else:
-        await update.callback_query.message.reply_text("⚙️ <b>Quản trị:</b>", reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
+        await update.callback_query.message.reply_text("⚙️ Quản trị:", reply_markup=InlineKeyboardMarkup(keyboard))
 
 async def menu_callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     user_id = query.from_user.id
     await query.answer()
 
-    # DỰ ĐOÁN
-    if query.data == "du_doan":
-        await query.edit_message_text(du_doan_text(), parse_mode="HTML", reply_markup=InlineKeyboardMarkup([
-            [InlineKeyboardButton("⬅️ Về menu", callback_data="main_menu")]
-        ]))
-        return
-
-    # ADMIN
+    # === ADMIN ===
     if query.data == "admin_menu":
         if not is_admin(user_id):
-            await query.edit_message_text("❌ Bạn không có quyền truy cập menu quản trị.", parse_mode="HTML")
+            await query.edit_message_text("❌ Bạn không có quyền truy cập menu quản trị.")
             return
         await admin_menu(update, context)
         return
+
     if query.data == "admin_crawl_xsmb":
         if not is_admin(user_id):
-            await query.edit_message_text("❌ Bạn không có quyền sử dụng chức năng này.", parse_mode="HTML")
+            await query.edit_message_text("❌ Bạn không có quyền sử dụng chức năng này.")
             return
-        await query.edit_message_text("⏳ Đang crawl kết quả XSMB 15 ngày gần nhất, vui lòng đợi...", parse_mode="HTML")
+        await query.edit_message_text("⏳ Đang crawl kết quả XSMB 15 ngày gần nhất, vui lòng đợi...")
         try:
             df = crawl_xsmb_15ngay_minhchinh_csv("xsmb.csv")
             if df is not None:
                 file_path = "xsmb.csv"
                 await query.message.reply_document(document=open(file_path, "rb"), filename="xsmb.csv", caption="✅ Đã crawl xong, đây là file kết quả XSMB 15 ngày gần nhất!")
             else:
-                await query.message.reply_text("❌ Không crawl được dữ liệu nào. Dừng bot.", parse_mode="HTML")
+                await query.message.reply_text("❌ Không crawl được dữ liệu nào. Dừng bot.")
                 sys.exit(1)
         except Exception as e:
-            await query.message.reply_text(f"❗ Lỗi khi crawl: {e}\nBot sẽ dừng lại.", parse_mode="HTML")
+            await query.message.reply_text(f"❗ Lỗi khi crawl: {e}\nBot sẽ dừng lại.")
             sys.exit(1)
         return
 
-    # GHÉP XIÊN
+    if query.data == "admin_upload_csv":
+        if not is_admin(user_id):
+            await query.edit_message_text("❌ Bạn không có quyền sử dụng chức năng này.")
+            return
+        await query.edit_message_text("⏳ Đang upload xsmb.csv lên Github...")
+        try:
+            if not GITHUB_TOKEN:
+                await query.message.reply_text("⚠️ Chưa cấu hình GITHUB_TOKEN.")
+                return
+            with open("xsmb.csv", "rb") as f:
+                content = f.read()
+            b64_content = base64.b64encode(content).decode()
+            url = f"https://api.github.com/repos/{REPO}/contents/{TARGET_PATH}"
+            headers = {
+                "Authorization": f"token {GITHUB_TOKEN}",
+                "Accept": "application/vnd.github.v3+json"
+            }
+            getresp = requests.get(url, headers=headers)
+            sha = getresp.json().get("sha") if getresp.status_code == 200 else None
+            data = {
+                "message": "Update xsmb.csv from Telegram bot",
+                "content": b64_content
+            }
+            if sha:
+                data["sha"] = sha
+            resp = requests.put(url, headers=headers, json=data)
+            if resp.status_code in (200, 201):
+                await query.message.reply_text("✅ Đã upload lên Github thành công!")
+            else:
+                await query.message.reply_text(f"⚠️ Lỗi upload Github: {resp.text}")
+        except Exception as e:
+            await query.message.reply_text("❗ Lỗi khi upload lên Github:\n" + str(e))
+        return
+
+    # ==== GHÉP XIÊN ====
     if query.data == "menu_ghepxien":
         keyboard = [
             [InlineKeyboardButton("Xiên 2", callback_data="ghepxien_2"),
@@ -290,16 +328,16 @@ async def menu_callback_handler(update: Update, context: ContextTypes.DEFAULT_TY
              InlineKeyboardButton("Xiên 4", callback_data="ghepxien_4")],
             [InlineKeyboardButton("⬅️ Quay lại menu", callback_data="main_menu")]
         ]
-        await query.edit_message_text("➕ <b>Chọn loại xiên:</b>", reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
+        await query.edit_message_text("Chọn loại xiên:", reply_markup=InlineKeyboardMarkup(keyboard))
         return
     if query.data.startswith("ghepxien_"):
         context.user_data.clear()
         do_dai = int(query.data.split("_")[1])
         context.user_data['wait_for_xien_input'] = do_dai
-        await query.edit_message_text(f"Nhập dãy số để ghép xiên <b>{do_dai}</b> (cách nhau dấu cách hoặc phẩy):", parse_mode="HTML")
+        await query.edit_message_text(f"Nhập dãy số để ghép xiên {do_dai} (cách nhau dấu cách hoặc phẩy):")
         return
 
-    # GHÉP CÀNG, ĐẢO SỐ
+    # ==== GHÉP CÀNG/ĐẢO SỐ ====
     if query.data == "menu_ghepcang":
         keyboard = [
             [InlineKeyboardButton("Càng 3D", callback_data="ghepcang_3d"),
@@ -307,25 +345,25 @@ async def menu_callback_handler(update: Update, context: ContextTypes.DEFAULT_TY
              InlineKeyboardButton("Đảo số", callback_data="daoso")],
             [InlineKeyboardButton("⬅️ Quay lại menu", callback_data="main_menu")]
         ]
-        await query.edit_message_text("🎯 <b>Chọn loại càng hoặc đảo số:</b>", reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
+        await query.edit_message_text("Chọn loại càng hoặc đảo số:", reply_markup=InlineKeyboardMarkup(keyboard))
         return
     if query.data == "ghepcang_3d":
         context.user_data.clear()
         context.user_data['wait_for_cang3d_numbers'] = True
-        await query.edit_message_text("Nhập dãy số cần ghép (cách nhau phẩy hoặc dấu cách, ví dụ: 23 32 28 82 ...):", parse_mode="HTML")
+        await query.edit_message_text("Nhập dãy số cần ghép (cách nhau phẩy hoặc dấu cách, ví dụ: 23 32 28 82 ...):")
         return
     if query.data == "ghepcang_4d":
         context.user_data.clear()
         context.user_data['wait_for_cang4d_numbers'] = True
-        await query.edit_message_text("Nhập dãy số cần ghép (3 chữ số, cách nhau phẩy hoặc dấu cách, ví dụ: 123 234 345 ...):", parse_mode="HTML")
+        await query.edit_message_text("Nhập dãy số cần ghép (3 chữ số, cách nhau phẩy hoặc dấu cách, ví dụ: 123 234 345 ...):")
         return
     if query.data == "daoso":
         context.user_data.clear()
         context.user_data['wait_for_daoso'] = True
-        await query.edit_message_text("Nhập một số hoặc dãy số (VD: 123 hoặc 1234):", parse_mode="HTML")
+        await query.edit_message_text("Nhập một số hoặc dãy số (VD: 123 hoặc 1234):")
         return
 
-    # PHONG THỦY
+    # ==== PHONG THỦY ====
     if query.data == "phongthuy_ngay":
         keyboard = [
             [InlineKeyboardButton("Theo ngày dương (YYYY-MM-DD)", callback_data="phongthuy_ngay_duong")],
@@ -333,17 +371,17 @@ async def menu_callback_handler(update: Update, context: ContextTypes.DEFAULT_TY
             [InlineKeyboardButton("Ngày hiện tại", callback_data="phongthuy_ngay_today")],
             [InlineKeyboardButton("⬅️ Quay lại menu", callback_data="main_menu")]
         ]
-        await query.edit_message_text("🌟 <b>Tra phong thủy:</b>", reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
+        await query.edit_message_text("🔮 Bạn muốn tra phong thủy theo kiểu nào?", reply_markup=InlineKeyboardMarkup(keyboard))
         return
     if query.data == "phongthuy_ngay_duong":
         context.user_data.clear()
         context.user_data['wait_phongthuy_ngay_duong'] = True
-        await query.edit_message_text("📅 Nhập ngày dương lịch (YYYY-MM-DD):", parse_mode="HTML")
+        await query.edit_message_text("📅 Nhập ngày dương lịch (YYYY-MM-DD):")
         return
     if query.data == "phongthuy_ngay_canchi":
         context.user_data.clear()
         context.user_data['wait_phongthuy_ngay_canchi'] = True
-        await query.edit_message_text("📜 Nhập can chi (ví dụ: Giáp Tý):", parse_mode="HTML")
+        await query.edit_message_text("📜 Nhập can chi (ví dụ: Giáp Tý):")
         return
     if query.data == "phongthuy_ngay_today":
         now = datetime.now()
@@ -352,17 +390,17 @@ async def menu_callback_handler(update: Update, context: ContextTypes.DEFAULT_TY
         sohap_info = sinh_so_hap_cho_ngay(can_chi)
         today_str = f"{d:02d}/{m:02d}/{y}"
         text = phong_thuy_format(can_chi, sohap_info, is_today=True, today_str=today_str)
-        await query.edit_message_text(text, parse_mode="HTML")
+        await query.edit_message_text(text, parse_mode="Markdown")
         return
 
-    # CHỐT SỐ
+    # ==== CHỐT SỐ ====
     if query.data == "menu_chotso":
         keyboard = [
             [InlineKeyboardButton("Chốt số hôm nay", callback_data="chot_so_today")],
             [InlineKeyboardButton("Chốt số theo ngày", callback_data="chot_so_ngay")],
             [InlineKeyboardButton("⬅️ Quay lại menu", callback_data="main_menu")]
         ]
-        await query.edit_message_text("🎯 <b>Chọn cách chốt số:</b>", reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
+        await query.edit_message_text("Chọn cách chốt số:", reply_markup=InlineKeyboardMarkup(keyboard))
         return
     if query.data == "chot_so_today":
         now = datetime.now()
@@ -371,26 +409,32 @@ async def menu_callback_handler(update: Update, context: ContextTypes.DEFAULT_TY
         sohap_info = sinh_so_hap_cho_ngay(can_chi)
         today_str = f"{d:02d}/{m:02d}/{y}"
         text = chot_so_format(can_chi, sohap_info, today_str)
-        await query.edit_message_text(text, parse_mode="HTML")
+        await query.edit_message_text(text, parse_mode="Markdown")
         return
     if query.data == "chot_so_ngay":
         context.user_data.clear()
         context.user_data['wait_chot_so_ngay'] = True
-        await query.edit_message_text("📅 Nhập ngày dương lịch muốn chốt số:\n- Định dạng đầy đủ: YYYY-MM-DD (vd: 2025-07-11)\n- Hoặc chỉ ngày-tháng: DD-MM (vd: 11-07, sẽ lấy năm hiện tại)", parse_mode="HTML")
+        await query.edit_message_text("📅 Nhập ngày dương lịch muốn chốt số:\n- Định dạng đầy đủ: YYYY-MM-DD (vd: 2025-07-11)\n- Hoặc chỉ ngày-tháng: DD-MM (vd: 11-07, sẽ lấy năm hiện tại)")
         return
 
-    # ĐÓNG GÓP
+    # ==== THẦN TÀI DỰ ĐOÁN ====
+    if query.data == "than_tai_du_doan":
+        msg = than_tai_du_doan()
+        await query.edit_message_text(msg, parse_mode="Markdown")
+        return
+
+    # ==== GÓP Ý ====
     if query.data == "donggop":
         keyboard = [
             [InlineKeyboardButton("Gửi góp ý", callback_data="donggop_gui")],
             [InlineKeyboardButton("⬅️ Quay lại menu", callback_data="main_menu")]
         ]
-        await query.edit_message_text("💗 <b>Bạn muốn góp ý/ủng hộ?</b>", reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
+        await query.edit_message_text("💗 Hãy gửi góp ý/ủng hộ bot!", reply_markup=InlineKeyboardMarkup(keyboard))
         return
     if query.data == "donggop_gui":
         context.user_data.clear()
         context.user_data['wait_for_donggop'] = True
-        await query.edit_message_text("🙏 Vui lòng nhập góp ý, phản hồi hoặc lời nhắn của bạn!", parse_mode="HTML")
+        await query.edit_message_text("🙏 Vui lòng nhập góp ý, phản hồi hoặc lời nhắn của bạn (mọi góp ý đều được ghi nhận và tri ân công khai).")
         return
 
     if query.data == "main_menu":
@@ -401,7 +445,7 @@ async def menu_callback_handler(update: Update, context: ContextTypes.DEFAULT_TY
 
 # =================== ALL TEXT HANDLER ===================
 async def all_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    # Chỉ trả lời nếu đang chờ nhập liệu một chức năng
+    # Chỉ trả lời khi có trạng thái nhập liệu!
     if context.user_data.get('wait_for_cang3d_numbers'):
         arr = [n for n in update.message.text.replace(',', ' ').split() if n.isdigit()]
         if not arr:
@@ -497,9 +541,8 @@ async def all_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         with open("donggop_log.txt", "a", encoding="utf-8") as f:
             f.write(f"{datetime.now()} | {username} | {user.id} | {text}\n")
         await update.message.reply_text(
-            "💗 <b>Cảm ơn bạn đã gửi góp ý/ủng hộ! Tất cả phản hồi đều được trân trọng ghi nhận.</b>\n"
-            "Bạn có thể tiếp tục sử dụng bot hoặc gửi góp ý thêm bất cứ lúc nào.",
-            parse_mode="HTML"
+            "💗 Cảm ơn bạn đã gửi góp ý/ủng hộ! Tất cả phản hồi đều được trân trọng ghi nhận.\n"
+            "Bạn có thể tiếp tục sử dụng bot hoặc gửi góp ý thêm bất cứ lúc nào."
         )
         context.user_data['wait_for_donggop'] = False
         await menu(update, context)
@@ -521,7 +564,7 @@ async def all_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             sohap_info = sinh_so_hap_cho_ngay(can_chi)
             today_str = f"{d:02d}/{m:02d}/{y}"
             text = chot_so_format(can_chi, sohap_info, today_str)
-            await update.message.reply_text(text, parse_mode="HTML")
+            await update.message.reply_text(text, parse_mode="Markdown")
         except Exception:
             await update.message.reply_text("❗️ Nhập ngày không hợp lệ! Đúng định dạng: YYYY-MM-DD hoặc DD-MM.")
         context.user_data['wait_chot_so_ngay'] = False
@@ -538,7 +581,7 @@ async def all_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 await update.message.reply_text("❗️ Không tìm thấy thông tin can chi hoặc số hạp cho ngày này!")
             else:
                 text = phong_thuy_format(can_chi, sohap_info)
-                await update.message.reply_text(text, parse_mode="HTML")
+                await update.message.reply_text(text, parse_mode="Markdown")
         except Exception:
             await update.message.reply_text("❗️ Nhập ngày không hợp lệ! Đúng định dạng YYYY-MM-DD.")
         context.user_data['wait_phongthuy_ngay_duong'] = False
@@ -552,7 +595,7 @@ async def all_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text("❗️ Không tìm thấy thông tin can chi hoặc số hạp với tên bạn nhập! Kiểm tra lại định dạng (VD: Giáp Tý).")
         else:
             text = phong_thuy_format(can_chi, sohap_info)
-            await update.message.reply_text(text, parse_mode="HTML")
+            await update.message.reply_text(text, parse_mode="Markdown")
         context.user_data['wait_phongthuy_ngay_canchi'] = False
         await menu(update, context)
         return
@@ -583,7 +626,6 @@ def main():
     app.add_handler(CommandHandler("menu", menu))
     app.add_handler(CommandHandler("crawl", crawl_handler))
     app.add_handler(CallbackQueryHandler(menu_callback_handler))
-    # Chỉ nhận text khi ĐANG CHỜ NHẬP LIỆU, không nhận mọi tin nhắn
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, all_text_handler))
     app.run_polling()
 
