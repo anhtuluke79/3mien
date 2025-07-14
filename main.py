@@ -2,13 +2,13 @@ import os
 import sys
 import logging
 import requests
-from bs4 import BeautifulSoup
 import pandas as pd
-from datetime import datetime, timedelta
 import time
 import re
 import joblib
 import subprocess
+from datetime import datetime, timedelta
+from bs4 import BeautifulSoup
 
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, InputFile
 from telegram.ext import (
@@ -22,8 +22,8 @@ from thien_can import CAN_INFO
 # ============= CONFIG ============
 ADMIN_IDS = list(map(int, os.getenv("ADMIN_IDS", "12345678").split(',')))
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
-GITHUB_REPO_PATH = "/REPO_PATH = '/app/3mien'
-" # Đường dẫn repo local (sửa lại theo máy bạn)
+GITHUB_REPO_PATH = "/app/3mien"   # Sửa lại theo đường dẫn repo trên server bạn
+
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
@@ -33,16 +33,20 @@ def is_admin(user_id):
 # ============= TIỆN ÍCH ============
 def split_numbers(s):
     return [n for n in s.replace(',', ' ').split() if n.isdigit()]
+
 def ghep_xien(numbers, do_dai=2):
     if len(numbers) < do_dai: return []
     result = [tuple(map(str, comb)) for comb in combinations(numbers, do_dai)]
     return ['&'.join(comb) for comb in result]
+
 def dao_so(s):
     arr = list(s)
     perm = set([''.join(p) for p in permutations(arr)])
     return sorted(list(perm))
+
 def chuan_hoa_can_chi(s):
     return ' '.join(word.capitalize() for word in s.strip().split())
+
 def get_can_chi_ngay(year, month, day):
     if month < 3:
         month += 12
@@ -55,6 +59,7 @@ def get_can_chi_ngay(year, month, day):
     can = can_list[(jd + 9) % 10]
     chi = chi_list[(jd + 1) % 12]
     return f"{can} {chi}"
+
 def sinh_so_hap_cho_ngay(can_chi_str):
     code = CAN_CHI_SO_HAP.get(can_chi_str)
     if not code: return None
@@ -73,6 +78,7 @@ def sinh_so_hap_cho_ngay(can_chi_str):
         "ngu_hanh": info.get("ngu_hanh"), "so_menh": so_menh,
         "so_hap_list": so_ghep, "so_ghép": sorted(list(ket_qua))
     }
+
 def phong_thuy_format(can_chi, sohap_info, is_today=False, today_str=None):
     can = can_chi.split()[0]
     can_info = CAN_INFO.get(can, {})
@@ -92,6 +98,7 @@ def phong_thuy_format(can_chi, sohap_info, is_today=False, today_str=None):
         f"- Số mệnh: {so_menh}\n- Số hạp ngày: {so_hap_ngay}"
     )
     return text
+
 def chot_so_format(can_chi, sohap_info, today_str):
     if not sohap_info or not sohap_info.get("so_hap_list"):
         return "Không đủ dữ liệu phong thủy để chốt số hôm nay!"
@@ -126,12 +133,12 @@ def predict_xsmb_rf():
     features = []
     for i in range(-3, 0):
         day = df.iloc[i]
-        features += [int(day['DB'][-2:]), int(day['G1'][-2:])]
+        features += [int(str(day['DB'])[-2:]), int(str(day['G1'])[-2:])]
     X_pred = [features]
     y_pred = model.predict(X_pred)
     return f"🤖 Thần tài dự đoán giải đặc biệt hôm nay (2 số cuối):\n👉 {str(y_pred[0]).zfill(2)}\n(ML: Random Forest)"
 
-# =================== MENU & CALLBACK NHIỀU TẦNG ===================
+# ========== MENU & CALLBACK NHIỀU TẦNG ==========
 async def menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id if update.effective_user else None
     keyboard = [
