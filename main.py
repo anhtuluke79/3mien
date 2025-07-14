@@ -220,18 +220,22 @@ def predict_xsmb_rf():
 
 
 # ==== THỐNG KÊ XỔ SỐ CƠ BẢN ====
-def thong_ke_xsmb(n=30):
+def thong_ke_xsmb(n=15):
     csv_path = os.path.join(GITHUB_REPO_PATH, "xsmb.csv")
     if not os.path.exists(csv_path):
         return "❌ Chưa có file xsmb.csv trên server!"
-    df = pd.read_csv(csv_path)
+    try:
+        df = pd.read_csv(csv_path)
+    except Exception as e:
+        return f"❌ Không đọc được xsmb.csv: {e}"
     df = df.sort_values("date", ascending=False)
-    msg = f"📊 Thống kê {n} ngày gần nhất:\n"
-    msg += "Ngày      | Đặc biệt | Giải nhất\n"
-    msg += "-"*30 + "\n"
+    msg = "📊 *Thống kê kết quả XSMB %d ngày gần nhất:*\n\n" % n
+    msg += "`Ngày       Đặc biệt   Giải nhất`\n"
+    msg += "`-----------------------------`\n"
     for _, row in df.head(n).iterrows():
-        msg += f"{row['date']} | {row['DB']} | {row['G1']}\n"
+        msg += f"`{row['date']}  {str(row['DB']).rjust(7)}   {str(row['G1']).rjust(7)}`\n"
     return msg
+
 def thong_ke_dau_duoi_db(n=30):
     """
     Thống kê số lần xuất hiện từng đầu (số đầu tiên) và từng đuôi (số cuối cùng) 
