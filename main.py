@@ -253,7 +253,7 @@ def build_admin_menu():
     ]
     return InlineKeyboardMarkup(keyboard)
 
-# ========== ASYNC CRAWL (DEMO: GIẢ LẬP 15 NGÀY) ==========
+# ========== ASYNC CRAWL DEMO ==========
 async def async_crawl_xsmb_15ngay():
     today = datetime.today()
     records = []
@@ -368,12 +368,12 @@ async def menu_callback_handler(update: Update, context: ContextTypes.DEFAULT_TY
         await menu(update, context)
         return
 
-    # ==== ADMIN MENU ====
+    # =========== ADMIN MENU ===========
     if query.data == "admin_menu":
         if not await is_admin(user.id):
             await query.edit_message_text("❌ Bạn không có quyền truy cập menu quản trị.")
             return
-        await query.edit_message_text("⚙️ Menu quản trị:", reply_markup=build_admin_menu())
+        await query.edit_message_text("Quản trị hệ thống:", reply_markup=build_admin_menu())
         return
 
     if query.data == "admin_crawl_xsmb":
@@ -424,17 +424,56 @@ async def menu_callback_handler(update: Update, context: ContextTypes.DEFAULT_TY
         await query.edit_message_text("Nhập user_id và username muốn thêm admin, cách nhau dấu cách:\nVí dụ: 12345678 newadmin")
         return
 
-    # ... các callback khác giữ nguyên như cũ ...
+    # =========== MENU THƯỜNG ===========
+    if query.data == "than_tai_goi_y":
+        await query.edit_message_text("🧧 Chọn vùng xổ số bạn muốn Thần tài gợi ý:", reply_markup=build_than_tai_menu())
+        return
+
+    if query.data in ["than_tai_mb_btn", "than_tai_mt_btn", "than_tai_mn_btn"]:
+        region = {"than_tai_mb_btn": "MB", "than_tai_mt_btn": "MT", "than_tai_mn_btn": "MN"}[query.data]
+        await than_tai_handler(update, context, region)
+        return
+
+    if query.data == "menu_ghepxien":
+        await query.edit_message_text("Chọn loại xiên:", reply_markup=build_xien_menu())
+        return
+
+    if query.data.startswith("ghepxien_"):
+        do_dai = int(query.data.split("_")[1])
+        context.user_data['wait_xien'] = do_dai
+        context.user_data['wait_input'] = "xien_numbers"
+        await query.edit_message_text(f"Nhập dãy số để ghép xiên {do_dai} (cách nhau dấu cách hoặc phẩy):")
+        return
+
+    if query.data == "menu_ghepcang":
+        context.user_data['wait_input'] = "ghepcang"
+        await query.edit_message_text("Nhập số cần đảo hoặc ghép càng (demo, tự xử lý mở rộng):")
+        return
+
+    if query.data == "phongthuy_ngay":
+        context.user_data['wait_input'] = "phongthuy_ngay"
+        await query.edit_message_text("Nhập ngày (YYYY-MM-DD) hoặc Can Chi:")
+        return
+
+    if query.data == "menu_chotso":
+        context.user_data['wait_input'] = "chotso"
+        await query.edit_message_text("Nhập ngày dương muốn chốt số (YYYY-MM-DD):")
+        return
+
+    if query.data == "donggop":
+        context.user_data['wait_input'] = "donggop"
+        await query.edit_message_text("Nhập ý kiến/góp ý của bạn:")
+        return
+
     await menu(update, context)
 
 # ========== HANDLER ALL TEXT ==========
 async def all_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     wait_input = context.user_data.get('wait_input')
-    if not wait_input:
-        return  # Không rep nếu không ở trạng thái nhập liệu!
-
     user = update.effective_user
     text = update.message.text.strip()
+    if not wait_input:
+        return  # Không rep nếu không ở trạng thái nhập liệu!
 
     if wait_input == "add_admin":
         try:
@@ -450,7 +489,67 @@ async def all_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await menu(update, context)
         return
 
-    # Thêm các trạng thái nhập liệu khác nếu muốn (ghép xiên, đảo số, v.v.)
+    if wait_input == "xien_numbers":
+        do_dai = context.user_data.get('wait_xien')
+        numbers = split_numbers(text)
+        bo_xien = ghep_xien(numbers, do_dai)
+        if not bo_xien:
+            await update.message.reply_text("Không ghép được xiên.")
+        else:
+            reply = ', '.join(bo_xien)
+            await update.message.reply_text(f"{len(bo_xien)} bộ xiên: {reply}")
+        context.user_data['wait_input'] = None
+        await menu(update, context)
+        return
+
+    if wait_input == "phongthuy_ngay":
+        try:
+            if "-" in text and len(text.split('-')) in (2,3):
+                parts = list(map(int, text.split('-')))
+                if len(parts) == 3:
+                    y, m, d = parts
+                else:
+                    d, m = parts
+                    y = datetime.now().year
+                can_chi = get_can_chi_ngay(y, m, d)
+            else:
+                can_chi = chuan_hoa_can_chi(text)
+            sohap_info = sinh_so_hap_cho_ngay(can_chi)
+            today_str = f"{d:02d}/{m:02d}/{y}" if '-' in text else None
+            res = phong_thuy_format(can_chi, sohap_info, today_str is not None, today_str)
+            await update.message.reply_text(res)
+        except Exception:
+            await update.message.reply_text("Nhập sai định dạng. Ví dụ: 2025-07-15 hoặc Giáp Tý")
+        context.user_data['wait_input'] = None
+        await menu(update, context)
+        return
+
+    if wait_input == "chotso":
+        try:
+            y, m, d = map(int, text.split('-'))
+            can_chi = get_can_chi_ngay(y, m, d)
+            sohap_info = sinh_so_hap_cho_ngay(can_chi)
+            today_str = f"{d:02d}/{m:02d}/{y}"
+            reply = chot_so_format(can_chi, sohap_info, today_str)
+            await update.message.reply_text(reply)
+        except Exception:
+            await update.message.reply_text("Nhập sai ngày, phải theo dạng YYYY-MM-DD.")
+        context.user_data['wait_input'] = None
+        await menu(update, context)
+        return
+
+    if wait_input == "donggop":
+        await log_user_action(user, action="gopy", content=text)
+        await update.message.reply_text("Cảm ơn bạn đã góp ý/ủng hộ!")
+        context.user_data['wait_input'] = None
+        await menu(update, context)
+        return
+
+    if wait_input == "ghepcang":
+        await update.message.reply_text("Đã nhận (demo). Bạn tự code ghép càng hoặc đảo số chi tiết thêm tại đây.")
+        context.user_data['wait_input'] = None
+        await menu(update, context)
+        return
 
     context.user_data['wait_input'] = None
     return
