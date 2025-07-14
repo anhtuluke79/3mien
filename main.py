@@ -17,8 +17,8 @@ logger = logging.getLogger(__name__)
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
 
 # ==== TEXT HANDLER ROUTER ====
+# ==== TEXT HANDLER ROUTER ====
 async def all_text_handler(update, context: ContextTypes.DEFAULT_TYPE):
-    # Ưu tiên các mode đặc biệt
     mode = context.user_data.get("mode")
     if mode == "xiens":
         await so_ghep_text_handler(update, context)
@@ -35,12 +35,15 @@ async def all_text_handler(update, context: ContextTypes.DEFAULT_TYPE):
     if mode == "phongthuy":
         await phongthuy_text_handler(update, context)
         return
-    # Các text thống kê/xsmb
     if mode == "xsmb" or mode == "thongke":
         await xsmb_text_handler(update, context)
         return
-    # Các mode khác... thêm vào nếu có
-    # Nếu không, trả menu
+
+    # Không trả lời gì nếu không ở mode nào
+    # Có thể log lại nếu muốn debug
+    # logger.info("User gửi tin nhắn ngoài chế độ nhập, bỏ qua.")
+    return
+
     await menu(update, context)
 
 # ==== CALLBACK ROUTER ====
