@@ -22,7 +22,8 @@ from thien_can import CAN_INFO
 # ============= CONFIG ============
 ADMIN_IDS = list(map(int, os.getenv("ADMIN_IDS", "12345678").split(',')))
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
-GITHUB_REPO_PATH = "/path/to/3mien" # Đường dẫn repo local (sửa lại theo máy bạn)
+GITHUB_REPO_PATH = "/REPO_PATH = '/app/3mien'
+" # Đường dẫn repo local (sửa lại theo máy bạn)
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
