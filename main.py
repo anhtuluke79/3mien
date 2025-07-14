@@ -206,15 +206,18 @@ def predict_xsmb_rf():
         return "❌ Model hoặc dữ liệu xsmb.csv chưa có trên server!"
     model = joblib.load(model_path)
     df = pd.read_csv(csv_path)
-    if len(df) < 3 or 'DB' not in df.columns or 'G1' not in df.columns:
-        return "❌ Dữ liệu không đủ hoặc thiếu cột DB, G1"
+    n_feature = getattr(model, "n_features_in_", 6)
+    n_day = n_feature // 2
+    if len(df) < n_day or 'DB' not in df.columns or 'G1' not in df.columns:
+        return f"❌ Dữ liệu không đủ ({len(df)} ngày), cần {n_day} ngày gần nhất!"
     features = []
-    for i in range(-3, 0):
+    for i in range(-n_day, 0):
         day = df.iloc[i]
         features += [int(str(day['DB'])[-2:]), int(str(day['G1'])[-2:])]
     X_pred = [features]
     y_pred = model.predict(X_pred)
     return f"🤖 Thần tài dự đoán giải đặc biệt hôm nay (2 số cuối):\n👉 {str(y_pred[0]).zfill(2)}\n(ML: Random Forest)"
+
 
 # ==== THỐNG KÊ XỔ SỐ CƠ BẢN ====
 def thong_ke_xsmb(n=30):
