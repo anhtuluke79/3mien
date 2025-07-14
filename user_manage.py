@@ -1,66 +1,98 @@
-import json
 import os
-from config import SUPER_ADMIN_IDS, ALLOWED_GROUP_IDS
+import json
 
-ALLOWED_USERS_FILE = "allowed_users.json"
+USERS_FILE = "users.json"
 
-def load_allowed_users():
-    try:
-        with open(ALLOWED_USERS_FILE, "r", encoding="utf-8") as f:
+SUPER_ADMIN_IDS = [int(x) for x in os.getenv("SUPER_ADMIN_IDS", "").split(",") if x.strip().isdigit()]
+ADMIN_IDS = [int(x) for x in os.getenv("ADMIN_IDS", "").split(",") if x.strip().isdigit()]
+
+# -- Đọc danh sách user từ file json --
+def load_users():
+    if not os.path.exists(USERS_FILE):
+        return []
+    with open(USERS_FILE, "r", encoding="utf-8") as f:
+        try:
             return json.load(f)
-    except Exception:
-        return {str(uid): {"name": "SuperAdmin", "date": "init"} for uid in SUPER_ADMIN_IDS}
+        except:
+            return []
 
-def save_allowed_users(users_dict):
-    with open(ALLOWED_USERS_FILE, "w", encoding="utf-8") as f:
-        json.dump(users_dict, f, ensure_ascii=False, indent=2)
+# -- Ghi danh sách user vào file json --
+def save_users(users):
+    with open(USERS_FILE, "w", encoding="utf-8") as f:
+        json.dump(users, f, ensure_ascii=False, indent=2)
 
+# -- Thêm user mới (chưa duyệt) --
+def add_user(user_id, username):
+    users = load_users()
+    if any(u["user_id"] == user_id for u in users):
+        return
+    users.append({"user_id": user_id, "username": username, "approved": False})
+    save_users(users)
+
+# -- Duyệt user --
+def approve_user(user_id):
+    users = load_users()
+    for u in users:
+        if u["user_id"] == user_id:
+            u["approved"] = True
+    save_users(users)
+
+# -- Xóa user --
+def remove_user(user_id):
+    users = load_users()
+    users = [u for u in users if u["user_id"] != user_id]
+    save_users(users)
+
+# -- Trả về danh sách user (dạng list of dict) --
+def list_users():
+    return load_users()
+
+# -- Kiểm tra quyền super admin --
 def is_super_admin(user_id):
     return int(user_id) in SUPER_ADMIN_IDS
 
-def is_allowed_user(user_id):
-    users = load_allowed_users()
-    return str(user_id) in users or is_super_admin(user_id)
+# -- Kiểm tra quyền admin --
+def is_admin(user_id):
+    return int(user_id) in ADMIN_IDS or is_super_admin(user_id)
 
-def is_allowed_group(chat):
-    # Đảm bảo chỉ cho phép chạy bot ở các nhóm cho phép
-    return chat.type in ("group", "supergroup") and int(chat.id) in ALLOWED_GROUP_IDS
+# -- Kiểm tra user đã duyệt chưa --
+def is_approved(user_id):
+    users = load_users()
+    for u in users:
+        if u["user_id"] == user_id:
+            return u["approved"]
+    return False
 
-async def listusers(update, context):
-    if not is_super_admin(update.effective_user.id):
-        await update.message.reply_text("❌ Bạn không có quyền sử dụng lệnh này.")
-        return
-    users = load_allowed_users()
-    if not users:
-        await update.message.reply_text("Chưa có user nào được duyệt.")
-        return
-    msg = "📋 *Danh sách user đã duyệt:*\n"
-    for uid, info in users.items():
-        msg += f"- `{uid}`: {info.get('name','')} (duyệt: {info.get('date','')})\n"
-    await update.message.reply_text(msg, parse_mode="Markdown")
+# -- Callback menu quản lý user (trả menu về admin_handlers nếu cần) --
+async def user_manage_callback_handler(update, context):
+    query = update.callback_query
+    data = query.data
 
-async def deluser(update, context):
-    if not is_super_admin(update.effective_user.id):
-        await update.message.reply_text("❌ Bạn không có quyền sử dụng lệnh này.")
+    # Danh sách user (menu callback: user_manage_menu)
+    if data == "user_manage_menu":
+        users = list_users()
+        keyboard = []
+        for u in users:
+            status = "Đã duyệt" if u["approved"] else "Chờ duyệt"
+            btn_text = f'{u["username"]} ({status})'
+            if u["approved"]:
+                keyboard.append([InlineKeyboardButton(f'❌ Xóa {u["username"]}', callback_data=f"user_manage_remove_{u['user_id']}")])
+            else:
+                keyboard.append([InlineKeyboardButton(f'✅ Duyệt {u["username"]}', callback_data=f"user_manage_approve_{u['user_id']}")])
+        keyboard.append([InlineKeyboardButton("⬅️ Quay lại admin", callback_data="admin_menu")])
+        await query.edit_message_text("👥 Quản lý user:", reply_markup=InlineKeyboardMarkup(keyboard))
         return
-    if not context.args:
-        await update.message.reply_text("Dùng: /deluser <user_id>")
-        return
-    user_id = context.args[0]
-    users = load_allowed_users()
-    if user_id in users:
-        info = users[user_id]
-        del users[user_id]
-        save_allowed_users(users)
-        await update.message.reply_text(f"❌ Đã xóa quyền user {user_id} ({info.get('name','')})")
-    else:
-        await update.message.reply_text("User này không có trong danh sách duyệt.")
 
-async def block_unapproved(update, context):
-    user = update.effective_user
-    chat = update.effective_chat
-    if not is_allowed_group(chat):
+    # Duyệt user (user_manage_approve_USERID)
+    if data.startswith("user_manage_approve_"):
+        user_id_approve = int(data.split("_")[-1])
+        approve_user(user_id_approve)
+        await query.edit_message_text(f"✅ Đã duyệt user: {user_id_approve}")
         return
-    if not is_allowed_user(user.id):
-        await update.message.reply_text("⏳ Bạn chưa được duyệt sử dụng bot, vui lòng chờ admin xét duyệt.")
+
+    # Xóa user (user_manage_remove_USERID)
+    if data.startswith("user_manage_remove_"):
+        user_id_remove = int(data.split("_")[-1])
+        remove_user(user_id_remove)
+        await query.edit_message_text(f"❌ Đã xóa user: {user_id_remove}")
         return
