@@ -23,7 +23,6 @@ from can_chi_dict import data as CAN_CHI_SO_HAP  # file-UUmDhJhE9Sx4rS3PxvfTDg
 from thien_can import CAN_INFO                   # file-DE4SbrmF67vwuJMWTZ22BP
 
 # ================== CONFIG ==================
-load_dotenv()
 ADMIN_IDS = list(map(int, os.getenv("ADMIN_IDS", "12345678").split(',')))
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
 GITHUB_REPO_PATH = os.getenv("GITHUB_REPO_PATH", "/app/3mien")
