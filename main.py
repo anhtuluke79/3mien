@@ -406,7 +406,7 @@ async def menu_callback_handler(update: Update, context: ContextTypes.DEFAULT_TY
         text = (
             "💗 *Ủng hộ bot*\n\n"
             "- Vietcombank: 0071003914986 (Trương Anh Tú)\n"
-            "- Momo: 0904123123 (Tú)\n"
+            "- Momo: 0975164416 (Tú)\n"
             "- Xin cảm ơn sự ủng hộ của bạn để bot tiếp tục phát triển!\n"
         )
         await query.edit_message_text(text, parse_mode="Markdown", reply_markup=InlineKeyboardMarkup(keyboard))
