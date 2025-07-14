@@ -25,7 +25,7 @@ from thien_can import CAN_INFO                   # file-DE4SbrmF67vwuJMWTZ22BP
 # ================== CONFIG ==================
 ADMIN_IDS = list(map(int, os.getenv("ADMIN_IDS", "12345678").split(',')))
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
-GITHUB_REPO_PATH = os.getenv("GITHUB_REPO_PATH", "/app/3mien")
+GITHUB_REPO_PATH = os.getenv("GITHUB_REPO_PATH", ".")
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
