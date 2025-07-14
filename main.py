@@ -413,9 +413,9 @@ async def menu_callback_handler(update: Update, context: ContextTypes.DEFAULT_TY
     if not os.path.exists(qr_path):
         await query.message.reply_text("❌ Không tìm thấy file mã QR! Hãy đặt file qr_ung_ho.png vào cùng thư mục bot hoặc sửa lại đường dẫn.")
         return
-    with open(qr_path, "rb") as f:
-        await query.message.reply_photo(photo=InputFile(f), caption="Quét mã QR để ủng hộ 💗\nXin cảm ơn!")
-    return
+    with open("qr_ung_ho.png", "rb") as f:
+    await query.message.reply_photo(photo=InputFile(f), caption="Quét mã QR để ủng hộ 💗\nXin cảm ơn!")
+n
 
 
     # ============ QUAY LẠI MENU ===========
