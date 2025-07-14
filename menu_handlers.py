@@ -27,35 +27,75 @@ async def menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.callback_query.message.reply_text("🔹 Chọn chức năng:", reply_markup=InlineKeyboardMarkup(keyboard))
 
 # === CALLBACK CHO MENU CHÍNH VÀ CÁC MENU CON ===
-async def menu_callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+
+async def menu(update, context):
+    keyboard = [
+        [InlineKeyboardButton("➕ Ghép số", callback_data="submenu_ghepsos")],
+        # ... các nút khác
+    ]
+    if hasattr(update, "message") and update.message:
+        await update.message.reply_text("Chọn chức năng:", reply_markup=InlineKeyboardMarkup(keyboard))
+    else:
+        await update.callback_query.message.reply_text("Chọn chức năng:", reply_markup=InlineKeyboardMarkup(keyboard))
+
+async def menu_callback_handler(update, context):
     query = update.callback_query
-    data = query.data
+    await query.answer()
 
-    # -- GHÉP XIÊN --
-    if data == "menu_ghepxien":
+    # === GHÉP SỐ (SUBMENU) ===
+    if query.data == "submenu_ghepsos":
+        keyboard = [
+            [InlineKeyboardButton("Ghép xiên", callback_data="submenu_xien")],
+            [InlineKeyboardButton("Ghép càng", callback_data="submenu_cang")],
+            [InlineKeyboardButton("Đảo số", callback_data="submenu_daoso")],
+            [InlineKeyboardButton("⬅️ Quay lại menu", callback_data="main_menu")],
+        ]
+        await query.edit_message_text("🔢 Chọn kiểu ghép số:", reply_markup=InlineKeyboardMarkup(keyboard))
+        return
+
+    # === GHÉP XIÊN SUBMENU ===
+    if query.data == "submenu_xien":
+        keyboard = [
+            [InlineKeyboardButton("Xiên 2", callback_data="xien2")],
+            [InlineKeyboardButton("Xiên 3", callback_data="xien3")],
+            [InlineKeyboardButton("Xiên 4", callback_data="xien4")],
+            [InlineKeyboardButton("⬅️ Quay lại", callback_data="submenu_ghepsos")]
+        ]
+        await query.edit_message_text("Chọn loại xiên:", reply_markup=InlineKeyboardMarkup(keyboard))
+        return
+
+    if query.data in ["xien2", "xien3", "xien4"]:
         context.user_data["mode"] = "xiens"
-        context.user_data["do_dai_xien"] = 2  # mặc định xiên 2, có thể mở rộng chọn xiên 3,4
-        await query.edit_message_text("Nhập dãy số để ghép xiên (ví dụ: 12 34 56):")
+        context.user_data["xien_type"] = int(query.data[-1])
+        await query.edit_message_text(f"Nhập dãy số (ghép xiên {query.data[-1]}, cách nhau khoảng trắng hoặc phẩy):")
         return
 
-    # -- GHÉP CÀNG 3D --
-    if data == "menu_cang3d":
-        context.user_data["mode"] = "cang3d"
-        context.user_data["cang3d_numbers"] = []
-        await query.edit_message_text("Nhập dãy số 2 chữ số (cách nhau khoảng trắng):")
+    # === GHÉP CÀNG SUBMENU ===
+    if query.data == "submenu_cang":
+        keyboard = [
+            [InlineKeyboardButton("Càng 3D", callback_data="cang3d")],
+            [InlineKeyboardButton("Càng 4D", callback_data="cang4d")],
+            [InlineKeyboardButton("⬅️ Quay lại", callback_data="submenu_ghepsos")]
+        ]
+        await query.edit_message_text("Chọn loại càng:", reply_markup=InlineKeyboardMarkup(keyboard))
         return
 
-    # -- GHÉP CÀNG 4D --
-    if data == "menu_cang4d":
-        context.user_data["mode"] = "cang4d"
-        context.user_data["cang4d_numbers"] = []
-        await query.edit_message_text("Nhập dãy số 3 chữ số (cách nhau khoảng trắng):")
+    if query.data in ["cang3d", "cang4d"]:
+        context.user_data["mode"] = query.data
+        await query.edit_message_text("Nhập dãy số cần ghép càng (cách nhau khoảng trắng hoặc phẩy, vd: 23 32 28 ...):")
         return
 
-    # -- ĐẢO SỐ --
-    if data == "menu_daoso":
+    # === ĐẢO SỐ ===
+    if query.data == "submenu_daoso":
         context.user_data["mode"] = "daoso"
-        await query.edit_message_text("Nhập 1 số từ 2 đến 6 chữ số (vd: 1234):")
+        await query.edit_message_text("Nhập 1 số hoặc dãy số để đảo hoán vị (vd: 1234):")
+        return
+
+    # === QUAY LẠI MENU CHÍNH ===
+    if query.data == "main_menu":
+        context.user_data["mode"] = None
+        await menu(update, context)
         return
 
     # -- PHONG THỦY --
