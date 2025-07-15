@@ -3,11 +3,10 @@ from telegram.constants import ParseMode
 from telegram.ext import ContextTypes
 from datetime import datetime
 
-# Danh sách can chi hợp lệ
 CAN_LIST = ['Giáp', 'Ất', 'Bính', 'Đinh', 'Mậu', 'Kỷ', 'Canh', 'Tân', 'Nhâm', 'Quý']
 CHI_LIST = ['Tý', 'Sửu', 'Dần', 'Mão', 'Thìn', 'Tỵ', 'Ngọ', 'Mùi', 'Thân', 'Dậu', 'Tuất', 'Hợi']
 CAN_CHI_LIST = [f"{can} {chi}" for can in CAN_LIST for chi in CHI_LIST]
-CAN_CHI_LIST_NOSPACE = [f"{can}{chi}" for can in CAN_LIST for chi in CHI_LIST]  # Cho phép nhập liền
+CAN_CHI_LIST_NOSPACE = [f"{can}{chi}" for can in CAN_LIST for chi in CHI_LIST]
 
 def get_can_chi_ngay(year, month, day):
     can_list = CAN_LIST
@@ -23,14 +22,13 @@ def get_can_chi_ngay(year, month, day):
     return f"{can} {chi}"
 
 def phong_thuy_info(can_chi):
-    # Có thể mở rộng tra cứu từ file can_chi_dict ở đây
     return f"Can Chi ngày: {can_chi}\n(Nhập ngày dạng YYYY-MM-DD, DD-MM hoặc trực tiếp Can Chi, ví dụ: Giáp Tý, Đinh Hợi)"
 
 async def phongthuy_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text.strip()
     mode = context.user_data.get("mode")
     try:
-        # Tra cứu phong thủy hôm nay
+        # --- Tra cứu phong thủy hôm nay ---
         if mode == "phongthuy_today":
             now = datetime.now()
             can_chi = get_can_chi_ngay(now.year, now.month, now.day)
@@ -39,47 +37,47 @@ async def phongthuy_text_handler(update: Update, context: ContextTypes.DEFAULT_T
             context.user_data["mode"] = None
             return
 
-        # Tra cứu theo ngày nhập vào
-        if '-' in text and len(text.split('-')) in (2, 3):
-            parts = [int(x) for x in text.split('-')]
-            if len(parts) == 3:
-                y, m, d = parts
-            elif len(parts) == 2:
-                now = datetime.now()
-                d, m = parts
-                y = now.year
-            else:
-                raise ValueError
-            can_chi = get_can_chi_ngay(y, m, d)
-            info = phong_thuy_info(can_chi)
-            await update.message.reply_text(f"🔮 {info}", parse_mode=ParseMode.MARKDOWN)
+        # --- Tra cứu theo ngày nhập vào ---
+        if mode == "phongthuy":
+            if '-' in text and len(text.split('-')) in (2, 3):
+                parts = [int(x) for x in text.split('-')]
+                if len(parts) == 3:
+                    y, m, d = parts
+                elif len(parts) == 2:
+                    now = datetime.now()
+                    d, m = parts
+                    y = now.year
+                else:
+                    raise ValueError
+                can_chi = get_can_chi_ngay(y, m, d)
+                info = phong_thuy_info(can_chi)
+                await update.message.reply_text(f"🔮 {info}", parse_mode=ParseMode.MARKDOWN)
+                context.user_data["mode"] = None
+                return
+
+            # --- Tra cứu bằng Can Chi ---
+            user_can_chi = text.title().replace(" ", "")
+            can_chi_match = None
+            if text.title() in CAN_CHI_LIST:
+                can_chi_match = text.title()
+            elif user_can_chi in CAN_CHI_LIST_NOSPACE:
+                idx = CAN_CHI_LIST_NOSPACE.index(user_can_chi)
+                can_chi_match = CAN_CHI_LIST[idx]
+            if can_chi_match:
+                info = phong_thuy_info(can_chi_match)
+                await update.message.reply_text(f"🔮 {info}", parse_mode=ParseMode.MARKDOWN)
+                context.user_data["mode"] = None
+                return
+
+            # Nếu không khớp, báo lại cho user
+            await update.message.reply_text(
+                "❗️ Vui lòng nhập ngày dạng YYYY-MM-DD, DD-MM hoặc tên can chi hợp lệ (VD: Giáp Tý, Đinh Hợi)."
+            )
             context.user_data["mode"] = None
             return
 
-        # Tra cứu bằng Can Chi: cho phép nhập "Giáp Tý" hoặc "GiápTý" (không dấu cách)
-        user_can_chi = text.title().replace(" ", "")
-        can_chi_match = None
-        # Dạng có dấu cách (VD: "Giáp Tý")
-        if text.title() in CAN_CHI_LIST:
-            can_chi_match = text.title()
-        # Dạng không dấu cách (VD: "GiápTý")
-        elif user_can_chi in CAN_CHI_LIST_NOSPACE:
-            # Tìm lại Can Chi chuẩn để trả về đúng format
-            idx = CAN_CHI_LIST_NOSPACE.index(user_can_chi)
-            can_chi_match = CAN_CHI_LIST[idx]
-
-        if can_chi_match:
-            # Có thể lấy thêm thông tin từ file can_chi_dict ở đây nếu muốn
-            info = phong_thuy_info(can_chi_match)
-            await update.message.reply_text(f"🔮 {info}", parse_mode=ParseMode.MARKDOWN)
-            context.user_data["mode"] = None
-            return
-
-        # Nếu không khớp, báo lại cho user
-        await update.message.reply_text(
-            "❗️ Vui lòng nhập ngày dạng YYYY-MM-DD, DD-MM hoặc tên can chi hợp lệ (VD: Giáp Tý, Đinh Hợi)."
-        )
+        # Nếu đến đây mà không có mode phù hợp
+        await update.message.reply_text("❗️ Vui lòng chọn chức năng từ menu phong thủy.")
     except Exception:
         await update.message.reply_text("❗️ Lỗi định dạng! Hãy nhập kiểu YYYY-MM-DD, DD-MM hoặc tên can chi.")
-
-    context.user_data["mode"] = None
+        context.user_data["mode"] = None
