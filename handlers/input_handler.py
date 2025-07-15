@@ -18,18 +18,78 @@ async def all_text_handler(update, context: ContextTypes.DEFAULT_TYPE):
         context.user_data['wait_for_xien_input'] = False
         return
 
-    # --- GHÉP CÀNG ---
-    if context.user_data.get('wait_for_cang_input'):
-        so_cang = context.user_data.get('so_cang')
-        text = update.message.text.strip()
-        numbers = split_numbers(text)
-        if not numbers:
-            await update.message.reply_text("Bạn cần nhập các số để ghép!")
-            return
-        bo_so = ghep_cang(numbers, so_cang)
-        await update.message.reply_text(', '.join(bo_so[:100]))
-        context.user_data['wait_for_cang_input'] = False
+    # Ghép càng 3D
+if context.user_data.get('wait_for_cang3d_numbers'):
+    numbers = [n for n in update.message.text.replace(',', ' ').split() if n.isdigit() and len(n) == 2]
+    if not numbers:
+        await update.message.reply_text("Vui lòng nhập các số 2 chữ số (cách nhau phẩy hoặc dấu cách, vd: 23 34 56).")
         return
+    context.user_data['cang3d_numbers'] = numbers
+    context.user_data['wait_for_cang3d_numbers'] = False
+    context.user_data['wait_for_cang3d_cangs'] = True
+    await update.message.reply_text("Nhập các càng (1 chữ số, cách nhau phẩy hoặc dấu cách, vd: 1 2 3):")
+    return
+
+if context.user_data.get('wait_for_cang3d_cangs'):
+    cangs = [c for c in update.message.text.replace(',', ' ').split() if c.isdigit() and len(c) == 1]
+    if not cangs:
+        await update.message.reply_text("Vui lòng nhập các càng (1 chữ số, vd: 1 2 3):")
+        return
+    numbers = context.user_data.get('cang3d_numbers', [])
+    result = []
+    for c in cangs:
+        for n in numbers:
+            result.append(f"{c}{n}")
+    await update.message.reply_text(','.join(result))
+    context.user_data['wait_for_cang3d_cangs'] = False
+    context.user_data['cang3d_numbers'] = []
+    return
+
+# Ghép càng 4D
+if context.user_data.get('wait_for_cang4d_numbers'):
+    numbers = [n for n in update.message.text.replace(',', ' ').split() if n.isdigit() and len(n) == 3]
+    if not numbers:
+        await update.message.reply_text("Vui lòng nhập các số 3 chữ số (cách nhau phẩy hoặc dấu cách, vd: 123 234 456).")
+        return
+    context.user_data['cang4d_numbers'] = numbers
+    context.user_data['wait_for_cang4d_numbers'] = False
+    context.user_data['wait_for_cang4d_cangs'] = True
+    await update.message.reply_text("Nhập các càng (1 chữ số, vd: 1 2 3):")
+    return
+
+if context.user_data.get('wait_for_cang4d_cangs'):
+    cangs = [c for c in update.message.text.replace(',', ' ').split() if c.isdigit() and len(c) == 1]
+    if not cangs:
+        await update.message.reply_text("Vui lòng nhập các càng (1 chữ số, vd: 1 2 3):")
+        return
+    numbers = context.user_data.get('cang4d_numbers', [])
+    result = []
+    for c in cangs:
+        for n in numbers:
+            result.append(f"{c}{n}")
+    await update.message.reply_text(','.join(result))
+    context.user_data['wait_for_cang4d_cangs'] = False
+    context.user_data['cang4d_numbers'] = []
+    return
+
+# ĐẢO SỐ
+if context.user_data.get('wait_for_daoso'):
+    # Hỗ trợ cả nhập 3 số, 4 số, hoặc nhiều số cách nhau phẩy/cách
+    arr = [n for n in update.message.text.replace(',', ' ').split() if n.isdigit()]
+    if not arr:
+        await update.message.reply_text("Vui lòng nhập số (vd: 123, 1234 hoặc 23 45 67 ...).")
+        return
+    result = []
+    from itertools import permutations
+    for num in arr:
+        if 2 <= len(num) <= 6:
+            perm = set([''.join(p) for p in permutations(num)])
+            result.append(','.join(sorted(perm)))
+        else:
+            result.append(num)
+    await update.message.reply_text('\n'.join(result))
+    context.user_data['wait_for_daoso'] = False
+    return
 
     # --- PHONG THỦY NGÀY (nhập ngày dương) ---
     if context.user_data.get('wait_phongthuy_ngay') == 'duong':
