@@ -62,22 +62,6 @@ async def menu_callback_handler(update: Update, context: ContextTypes.DEFAULT_TY
         context.user_data['wait_for_daoso'] = True
         await query.edit_message_text("Nhập số cần đảo (vd: 123, 1234, hoặc nhiều số cách nhau dấu cách):")
 
-    # --- THỐNG KÊ XỔ SỐ ---
-    elif query.data == "thongke":
-        try:
-            df = pd.read_csv('xsmb.csv')
-            dbs = df['ĐB'].astype(str).str[-2:]
-            counts = dbs.value_counts().head(10)
-            top_list = "\n".join([f"Số {i}: {v} lần" for i, v in counts.items()])
-            today_db = dbs.iloc[0] if len(dbs) > 0 else "?"
-            text = (
-                f"📈 Top 10 số ĐB xuất hiện nhiều nhất 30 ngày gần nhất:\n{top_list}\n"
-                f"\n🎯 Số ĐB hôm nay: {today_db}"
-            )
-            await query.edit_message_text(text)
-        except Exception as e:
-            await query.edit_message_text(f"Lỗi thống kê: {e}")
-
     # --- PHONG THỦY NGÀY ---
     elif query.data == "phongthuy_ngay":
         keyboard = [
