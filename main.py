@@ -306,7 +306,75 @@ async def menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("🔹 Chọn chức năng:", reply_markup=InlineKeyboardMarkup(keyboard))
     else:
         await update.callback_query.message.reply_text("🔹 Chọn chức năng:", reply_markup=InlineKeyboardMarkup(keyboard))
+# --- GHÉP XIÊN ---
+    if query.data == "menu_ghepxien":
+        # Cho phép chọn xiên 2, 3, 4...
+        keyboard = [
+            [InlineKeyboardButton("Xiên 2", callback_data="ghepxien_2"),
+             InlineKeyboardButton("Xiên 3", callback_data="ghepxien_3"),
+             InlineKeyboardButton("Xiên 4", callback_data="ghepxien_4")],
+            [InlineKeyboardButton("⬅️ Quay lại menu", callback_data="main_menu")]
+        ]
+        await query.edit_message_text("Chọn loại xiên:", reply_markup=InlineKeyboardMarkup(keyboard))
+        return
+    if query.data.startswith("ghepxien_"):
+        do_dai = int(query.data.split("_")[1])
+        context.user_data['wait_for_xien_input'] = do_dai
+        await query.edit_message_text(f"Nhập dãy số để ghép xiên {do_dai} (cách nhau dấu cách hoặc phẩy):")
+        return
 
+    # --- GHÉP CÀNG/ĐẢO SỐ ---
+    if query.data == "menu_ghepcang":
+        # Cho phép đảo số hoặc ghép càng 3D, 4D
+        keyboard = [
+            [InlineKeyboardButton("Đảo số", callback_data="daoso")],
+            [InlineKeyboardButton("Ghép càng 3D", callback_data="cang3d")],
+            [InlineKeyboardButton("Ghép càng 4D", callback_data="cang4d")],
+            [InlineKeyboardButton("⬅️ Quay lại menu", callback_data="main_menu")]
+        ]
+        await query.edit_message_text("Chọn chức năng:", reply_markup=InlineKeyboardMarkup(keyboard))
+        return
+    if query.data == "daoso":
+        context.user_data['wait_for_daoso'] = True
+        await query.edit_message_text("Nhập số cần đảo (2-6 chữ số):")
+        return
+    if query.data == "cang3d":
+        context.user_data['wait_for_cang3d_numbers'] = True
+        await query.edit_message_text("Nhập các số 2 chữ số cần ghép càng (VD: 23 32 28 ...):")
+        return
+    if query.data == "cang4d":
+        context.user_data['wait_for_cang4d_numbers'] = True
+        await query.edit_message_text("Nhập các số 3 chữ số cần ghép càng (VD: 123 234 ...):")
+        return
+
+    # --- PHONG THỦY NGÀY ---
+    if query.data == "phongthuy_ngay":
+        keyboard = [
+            [InlineKeyboardButton("Nhập ngày dương (YYYY-MM-DD)", callback_data="phongthuy_ngay_duong")],
+            [InlineKeyboardButton("Nhập Can Chi (VD: Giáp Tý)", callback_data="phongthuy_ngay_canchi")],
+            [InlineKeyboardButton("⬅️ Quay lại menu", callback_data="main_menu")]
+        ]
+        await query.edit_message_text("Bạn muốn tra cứu bằng ngày dương hay can chi?", reply_markup=InlineKeyboardMarkup(keyboard))
+        return
+    if query.data == "phongthuy_ngay_duong":
+        context.user_data['wait_phongthuy_ngay_duong'] = True
+        await query.edit_message_text("Nhập ngày dương (YYYY-MM-DD):")
+        return
+    if query.data == "phongthuy_ngay_canchi":
+        context.user_data['wait_phongthuy_ngay_canchi'] = True
+        await query.edit_message_text("Nhập can chi (VD: Giáp Tý):")
+        return
+
+    # --- CHỐT SỐ ---
+    if query.data == "menu_chotso":
+        context.user_data['wait_chot_so_ngay'] = True
+        await query.edit_message_text("Nhập ngày muốn chốt số (YYYY-MM-DD hoặc DD-MM):")
+        return
+
+    # --- ỦNG HỘ ---
+    if query.data == "ungho":
+        await query.edit_message_text("Ủng hộ bot, cảm ơn bạn! (Gắn Momo, ViettelPay hoặc donate link ở đây)")
+        return
 async def admin_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyboard = [
         [InlineKeyboardButton("📥 Crawl XSMB", callback_data="admin_crawl_xsmb")],
