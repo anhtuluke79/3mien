@@ -9,7 +9,7 @@ from admin_handlers import admin_callback_handler
 from user_manage import user_manage_callback_handler
 from logic_xsmb import xsmb_text_handler
 from so_ghép import so_ghep_text_handler
-# KHÔNG import phongthuy_homnay_handler ở đây!
+# KHÔNG import phongthuy_homnay_handler hoặc chotso_* ở đây!
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -34,6 +34,14 @@ async def all_text_handler(update, context: ContextTypes.DEFAULT_TYPE):
     if mode == "daoso":
         await so_ghep_text_handler(update, context)
         return
+    if mode == "chotso_today":
+        from chotso import chotso_today_handler
+        await chotso_today_handler(update, context)
+        return
+    if mode == "chotso_ngay":
+        from chotso import chotso_ngay_handler
+        await chotso_ngay_handler(update, context)
+        return
     if mode == "phongthuy":
         from phongthuy import phongthuy_text_handler  # import tại đây để tránh lỗi vòng lặp
         await phongthuy_text_handler(update, context)
@@ -42,9 +50,8 @@ async def all_text_handler(update, context: ContextTypes.DEFAULT_TYPE):
         await xsmb_text_handler(update, context)
         return
 
-        # Nếu user chưa chọn chức năng nào thì KHÔNG trả lời gì hết
-        return
-
+    # Nếu user chưa chọn chức năng nào thì KHÔNG trả lời gì hết (im lặng)
+    return
 
 # ==== CALLBACK ROUTER ====
 async def global_callback_handler(update, context):
