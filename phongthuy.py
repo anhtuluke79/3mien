@@ -1,6 +1,5 @@
 from telegram import Update
 from telegram.ext import ContextTypes
-from telegram.constants import ParseMode
 from datetime import datetime
 
 from can_chi_dict import data as CAN_CHI_DICT
@@ -24,106 +23,110 @@ def get_can_chi_ngay(year, month, day):
     chi = chi_list[(jd + 1) % 12]
     return f"{can} {chi}"
 
-def extract_so_hap(chuoi):
-    so_hap = []
+def extract_so_hap_chotso(chuoi, can, amduong):
+    """Lấy các số đặc biệt cho chốt số dựa trên quy tắc Âm/Dương và chuỗi mệnh"""
     if not chuoi:
-        return so_hap
+        return []
+    # Từ chuỗi "5-6,1" lấy ra ['5', '6'] và số chủ '1'
     parts = chuoi.replace(" ", "").split(",")
-    # Phần đầu là cặp số dạng 5-6
-    if parts and "-" in parts[0]:
-        so1, so2 = parts[0].split("-")
-        so_hap.extend([f"{so1}{so2}", f"{so2}{so1}"])
-    # Nếu có số chủ (sau dấu phẩy)
-    if len(parts) > 1 and parts[1]:
-        so_hap.append(parts[1]*2)
-        so1, so2 = parts[0].split("-")
-        so_hap.append(f"{so1}{parts[1]}")
-        so_hap.append(f"{so2}{parts[1]}")
-        so_hap.append(f"{parts[1]}{so1}")
-        so_hap.append(f"{parts[1]}{so2}")
-    # Loại trùng
-    return list(dict.fromkeys(so_hap))
+    cap = parts[0].split("-") if "-" in parts[0] else [parts[0]]
+    so_chu = parts[1] if len(parts) > 1 else ""
+    # Nếu can là Âm → chọn số chủ, Dương → chọn cả hai số
+    result = []
+    if amduong == "Âm" and so_chu:
+        result = [so_chu]
+    else:
+        result = cap
+    # Trả về các số lô đề 2 số (ghép với nhau và lặp số chủ nếu có)
+    lo = set()
+    if len(result) == 1:
+        lo.add(result[0] + result[0])
+    elif len(result) == 2:
+        lo.add(result[0] + result[1])
+        lo.add(result[1] + result[0])
+    if so_chu:
+        lo.add(so_chu + so_chu)
+    return list(lo), result, so_chu
 
-async def phongthuy_homnay_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def chotso_today_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     now = datetime.now()
-    can_chi = get_can_chi_ngay(now.year, now.month, now.day)
-    so = CAN_CHI_DICT.get(can_chi, None)
+    day, month, year = now.day, now.month, now.year
+    date_str = now.strftime("%d/%m/%Y")
+    can_chi = get_can_chi_ngay(year, month, day)
     can = can_chi.split()[0]
+    so = CAN_CHI_DICT.get(can_chi, None)
     caninfo = CAN_INFO.get(can, {})
     amduong = caninfo.get("am_duong", "?")
-    nguhanh = caninfo.get("ngu_hanh", "?")
-    so_hap = extract_so_hap(so) if so else []
-    so_main = so.split(",")[1] if so and "," in so else ""
-    so_hap_str = ", ".join(so_hap)
-    msg = f"**Phong thủy số ngày hôm nay:**\n"
-    msg += f"Ngày {can_chi}, {amduong} {nguhanh}"
-    if so:
-        msg += f", hạp {so}."
-    else:
-        msg += "."
-    if so_main:
-        msg += f" (Chủ yếu {so_main})\n"
-    else:
-        msg += "\n"
-    if so_hap_str:
-        msg += f"Số hạp ngày: {so_hap_str}."
-    else:
-        msg += "Không có dữ liệu số hạp cho ngày này."
-    await update.callback_query.edit_message_text(msg, parse_mode="Markdown")
+    # Lấy số hạp cho chốt số
+    lo, cap, so_chu = extract_so_hap_chotso(so, can, amduong)
+    chams = ", ".join(cap)
+    msg = f"Chốt số MB ngày {date_str}\n"
+    msg += f"Đầu - đuôi - G1 chạm {chams}"
+    if so_chu:
+        msg += f" ({so_chu} mạnh)"
+    msg += f"\nLô: {', '.join(lo) if lo else 'Không có'}"
+    await update.message.reply_text(msg)
+    context.user_data["mode"] = None
 
-async def phongthuy_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def chotso_ngay_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text.strip()
-    mode = context.user_data.get("mode")
     try:
-        # Chỉ xử lý nếu user đang ở mode phong thủy
-        if mode != "phongthuy":
-            return
-
-        # Nhận nhiều kiểu: 15-07-2025, 15/7/2025, 15-07, 15/7, thậm chí 15 7 2025, 15 7
+        # Hỗ trợ nhiều kiểu ngày: 15-7-2025, 15/7/2025, 15-7, 15/7, Ất Dậu...
+        # Nhận ngày
         parts = []
         for sep in ["-", "/", " "]:
             if sep in text:
-                parts = [int(x) for x in text.strip().replace("/", sep).replace("-", sep).split(sep) if x.strip().isdigit()]
+                parts = [int(x) for x in text.replace("/", sep).replace("-", sep).split(sep) if x.isdigit()]
                 break
         if not parts:
             parts = [int(x) for x in text.strip().split() if x.isdigit()]
-        # parts = [d, m, y] hoặc [d, m]
         if len(parts) == 3:
             d, m, y = parts
         elif len(parts) == 2:
             d, m = parts
             y = datetime.now().year
         else:
-            await update.message.reply_text("Sai định dạng ngày! Nhập kiểu dd-mm-yyyy, dd-mm hoặc dd/mm/yyyy, dd/mm.", parse_mode=ParseMode.MARKDOWN)
+            # Có thể nhập can chi
+            user_can_chi = text.title().replace(" ", "")
+            can_chi = None
+            if text.title() in CAN_CHI_LIST:
+                can_chi = text.title()
+            elif user_can_chi in CAN_CHI_LIST_NOSPACE:
+                idx = CAN_CHI_LIST_NOSPACE.index(user_can_chi)
+                can_chi = CAN_CHI_LIST[idx]
+            else:
+                await update.message.reply_text("Sai định dạng ngày! Nhập dd-mm-yyyy, dd-mm, dd/mm/yyyy, dd/mm hoặc tên can chi (VD: Ất Dậu).")
+                context.user_data["mode"] = None
+                return
+            can = can_chi.split()[0]
+            so = CAN_CHI_DICT.get(can_chi, None)
+            caninfo = CAN_INFO.get(can, {})
+            amduong = caninfo.get("am_duong", "?")
+            lo, cap, so_chu = extract_so_hap_chotso(so, can, amduong)
+            chams = ", ".join(cap)
+            msg = f"Chốt số MB ngày {can_chi}\n"
+            msg += f"Đầu - đuôi - G1 chạm {chams}"
+            if so_chu:
+                msg += f" ({so_chu} mạnh)"
+            msg += f"\nLô: {', '.join(lo) if lo else 'Không có'}"
+            await update.message.reply_text(msg)
             context.user_data["mode"] = None
             return
-
+        # Nếu nhập ngày dương
         can_chi = get_can_chi_ngay(y, m, d)
-        so = CAN_CHI_DICT.get(can_chi, None)
+        date_str = f"{d:02d}/{m:02d}/{y}"
         can = can_chi.split()[0]
+        so = CAN_CHI_DICT.get(can_chi, None)
         caninfo = CAN_INFO.get(can, {})
         amduong = caninfo.get("am_duong", "?")
-        nguhanh = caninfo.get("ngu_hanh", "?")
-        so_hap = extract_so_hap(so) if so else []
-        so_main = so.split(",")[1] if so and "," in so else ""
-        so_hap_str = ", ".join(so_hap)
-        msg = f"**Phong thủy số ngày tra cứu:**\n"
-        msg += f"Ngày {can_chi}, {amduong} {nguhanh}"
-        if so:
-            msg += f", hạp {so}."
-        else:
-            msg += "."
-        if so_main:
-            msg += f" (Chủ yếu {so_main})\n"
-        else:
-            msg += "\n"
-        if so_hap_str:
-            msg += f"Số hạp ngày: {so_hap_str}."
-        else:
-            msg += "Không có dữ liệu số hạp cho ngày này."
-        await update.message.reply_text(msg, parse_mode=ParseMode.MARKDOWN)
+        lo, cap, so_chu = extract_so_hap_chotso(so, can, amduong)
+        chams = ", ".join(cap)
+        msg = f"Chốt số MB ngày {date_str}\n"
+        msg += f"Đầu - đuôi - G1 chạm {chams}"
+        if so_chu:
+            msg += f" ({so_chu} mạnh)"
+        msg += f"\nLô: {', '.join(lo) if lo else 'Không có'}"
+        await update.message.reply_text(msg)
     except Exception:
-        await update.message.reply_text("Lỗi định dạng ngày! Nhập kiểu dd-mm-yyyy, dd-mm hoặc dd/mm/yyyy, dd/mm.", parse_mode=ParseMode.MARKDOWN)
+        await update.message.reply_text("Sai định dạng ngày! Nhập dd-mm-yyyy, dd-mm, dd/mm/yyyy, dd/mm hoặc tên can chi (VD: Ất Dậu).")
     context.user_data["mode"] = None
-
-__all__ = ["phongthuy_homnay_handler", "phongthuy_text_handler"]
