@@ -4,7 +4,7 @@ from telegram.ext import (
     ApplicationBuilder, CommandHandler, CallbackQueryHandler,
     MessageHandler, ContextTypes, filters
 )
-from menu_handlers import menu, menu_callback_handler
+from menu_handlers import menu, menu_callback_handler  # Đảm bảo file này/tên này đúng!
 from admin_handlers import admin_callback_handler
 from user_manage import user_manage_callback_handler
 from logic_xsmb import xsmb_text_handler
@@ -17,9 +17,11 @@ logger = logging.getLogger(__name__)
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
 
 # ==== TEXT HANDLER ROUTER ====
-# ==== TEXT HANDLER ROUTER ====
 async def all_text_handler(update, context: ContextTypes.DEFAULT_TYPE):
     mode = context.user_data.get("mode")
+    user_id = update.effective_user.id
+    logger.info(f"[all_text_handler] User {user_id} mode: {mode}")
+
     if mode == "xiens":
         await so_ghep_text_handler(update, context)
         return
@@ -39,16 +41,18 @@ async def all_text_handler(update, context: ContextTypes.DEFAULT_TYPE):
         await xsmb_text_handler(update, context)
         return
 
-    # Không trả lời gì nếu không ở mode nào
-    # Có thể log lại nếu muốn debug
-    # logger.info("User gửi tin nhắn ngoài chế độ nhập, bỏ qua.")
-    return
-
-    await menu(update, context)
+    # Nếu user chưa chọn chức năng nào thì hướng dẫn rõ ràng
+    await update.message.reply_text(
+        "Bạn chưa chọn chức năng. Hãy bấm /menu hoặc sử dụng menu dưới đây để bắt đầu."
+    )
+    logger.info(f"User {user_id} gửi tin nhắn ngoài chế độ nhập, đã được hướng dẫn.")
 
 # ==== CALLBACK ROUTER ====
 async def global_callback_handler(update, context):
     data = update.callback_query.data
+    user_id = update.effective_user.id
+    logger.info(f"[global_callback_handler] User {user_id} callback data: {data}")
+
     # Route theo prefix callback
     if data.startswith("admin_") or data.startswith("backup_") or data.startswith("restore_"):
         await admin_callback_handler(update, context)
