@@ -35,19 +35,31 @@ async def menu_callback_handler(update: Update, context: ContextTypes.DEFAULT_TY
 
     # --- GHÉP CÀNG ---
     elif query.data == "ghepcang":
-        keyboard = [
-            [
-                InlineKeyboardButton("3 càng", callback_data="ghepcang_3"),
-                InlineKeyboardButton("4 càng", callback_data="ghepcang_4"),
-            ]
+       keyboard = [
+        [
+            InlineKeyboardButton("Ghép càng 3D", callback_data="ghepcang_3d"),
+            InlineKeyboardButton("Ghép càng 4D", callback_data="ghepcang_4d"),
+        ],
+        [
+            InlineKeyboardButton("Đảo số", callback_data="daoso"),
         ]
-        await query.edit_message_text("Chọn dạng ghép càng:", reply_markup=InlineKeyboardMarkup(keyboard))
-    elif query.data.startswith("ghepcang_"):
-        so_cang = int(query.data.split("_")[1])
-        context.user_data['so_cang'] = so_cang
-        context.user_data['wait_for_cang_input'] = True
-        await query.edit_message_text(f"Nhập dãy số để ghép {so_cang} càng (dấu cách hoặc phẩy):")
+    ]
+    await query.edit_message_text("Chọn chức năng:", reply_markup=InlineKeyboardMarkup(keyboard))
 
+elif query.data == "ghepcang_3d":
+    context.user_data.clear()
+    context.user_data['wait_for_cang3d_numbers'] = True
+    await query.edit_message_text("Nhập các số 2 chữ số để ghép (cách nhau bởi dấu cách hoặc phẩy):")
+
+elif query.data == "ghepcang_4d":
+    context.user_data.clear()
+    context.user_data['wait_for_cang4d_numbers'] = True
+    await query.edit_message_text("Nhập các số 3 chữ số để ghép (cách nhau bởi dấu cách hoặc phẩy):")
+
+elif query.data == "daoso":
+    context.user_data.clear()
+    context.user_data['wait_for_daoso'] = True
+    await query.edit_message_text("Nhập số cần đảo (vd: 123, 1234, hoặc nhiều số cách nhau dấu cách):")
     # --- THỐNG KÊ XỔ SỐ ---
     elif query.data == "thongke":
         try:
