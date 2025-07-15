@@ -94,7 +94,7 @@ async def menu_callback_handler(update: Update, context: ContextTypes.DEFAULT_TY
 
     if data == "pt_today":
         context.user_data["mode"] = "phongthuy_today"
-        await query.edit_message_text("Đang tra phong thủy hôm nay...")
+        await phongthuy_homnay_handler(update, context)
         return
 
     if data == "pt_theongay":
