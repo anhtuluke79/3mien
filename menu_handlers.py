@@ -122,8 +122,9 @@ async def menu_callback_handler(update: Update, context: ContextTypes.DEFAULT_TY
 
     if data == "chotso_ngay":
         context.user_data["mode"] = "chotso_ngay"
-        await query.edit_message_text("Nhập ngày dương lịch muốn chốt số (YYYY-MM-DD hoặc DD-MM):")
+        await query.edit_message_text("Nhập ngày bạn muốn chốt số (vd: 15-07-2025, 15-07, 15/7/2025, 15/7, hoặc can chi VD: Ất Dậu):")
         return
+
 
     # --- THỐNG KÊ SUBMENU ---
     if data == "submenu_thongke":
