@@ -9,7 +9,7 @@ from admin_handlers import admin_callback_handler
 from user_manage import user_manage_callback_handler
 from logic_xsmb import xsmb_text_handler
 from so_ghép import so_ghep_text_handler
-from phongthuy import phongthuy_text_handler
+from phongthuy import phongthuy_homnay_handler
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
