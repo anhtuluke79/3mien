@@ -201,16 +201,16 @@ def crawl_xsmb_15ngay_minhchinh_csv(out_csv=None):
         except Exception as e:
             print(f"❌ {date.strftime('%d-%m-%Y')}: {e}")
     if records:
-    df = pd.DataFrame(records)
-    df = df.sort_values("date", ascending=False)
-    if out_csv is None:
-        out_csv = os.path.join(GITHUB_REPO_PATH, "xsmb.csv")
-    df.to_csv(out_csv, index=False, encoding="utf-8-sig")
-    print(f"\nĐã lưu tổng hợp 15 ngày vào: {out_csv}")
-    return df
-else:
-    print("Không lấy được dữ liệu ngày nào!")
-    return None
+       df = pd.DataFrame(records)
+       df = df.sort_values("date", ascending=False)
+       if out_csv is None:
+          out_csv = os.path.join(GITHUB_REPO_PATH, "xsmb.csv")
+       df.to_csv(out_csv, index=False, encoding="utf-8-sig")
+       print(f"\nĐã lưu tổng hợp 15 ngày vào: {out_csv}")
+       return df
+    else:
+      print("Không lấy được dữ liệu ngày nào!")
+      return None
 
 async def menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyboard = [
