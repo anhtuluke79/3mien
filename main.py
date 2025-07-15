@@ -506,30 +506,34 @@ def restore_files(from_dir="backup"):
 
 # --- Các handler bắt buộc ---
 async def menu_callback_handler(update, context):
-    await menu(update, context)
+    query = update.callback_query
+    data = query.data
+    await query.answer()  # Để tránh loading trên Telegram
 
-async def all_text_handler(update, context):
-    await update.message.reply_text("Bạn hãy chọn chức năng trong menu hoặc gõ /menu.")
-
-async def error_handler(update, context):
-    logger.error("Exception while handling an update:", exc_info=context.error)
-
-async def help_handler(update, context):
-    text = (
-        "🤖 *Bot XSMB Phong thủy AI*\n\n"
-        "Các lệnh hỗ trợ:\n"
-        "/start hoặc /menu - Mở menu chính\n"
-        "/help - Xem hướng dẫn\n\n"
-        "Chức năng nổi bật:\n"
-        "• Dự đoán AI XSMB\n"
-        "• Ghép xiên, càng, đảo số\n"
-        "• Tra cứu phong thủy ngày\n"
-        "• Chốt số, hỗ trợ nhiều chế độ\n"
-        "• Thống kê, quản trị, backup, cập nhật model\n"
-        "• Nhận góp ý, phản hồi, ủng hộ bot"
-    )
-    await update.message.reply_text(text, parse_mode=ParseMode.MARKDOWN)
-
+    if data == "ml_predict":
+        await query.edit_message_text("🤖 Dự đoán AI XSMB sẽ được phát triển tại đây!")
+    elif data == "menu_ghepxien":
+        await query.edit_message_text("Chức năng Ghép xiên!")
+    elif data == "menu_ghepcang":
+        await query.edit_message_text("Chức năng Ghép càng/Đảo số!")
+    elif data == "phongthuy_ngay":
+        await query.edit_message_text("Chức năng Phong thủy!")
+    elif data == "menu_chotso":
+        await query.edit_message_text("Chức năng Chốt số!")
+    elif data == "thongke_xsmb":
+        await query.edit_message_text("Chức năng Thống kê XSMB!")
+    elif data == "thongke_dauduoi":
+        await query.edit_message_text("Chức năng Thống kê đầu-đuôi!")
+    elif data == "ungho":
+        await query.edit_message_text("💗 Cảm ơn bạn đã ủng hộ!")
+    elif data == "admin_menu":
+        await query.edit_message_text("Menu quản trị!")
+    elif data == "backup_restore_menu":
+        await query.edit_message_text("Chức năng backup/restore!")
+    elif data == "main_menu":
+        await menu(update, context)
+    else:
+        await query.edit_message_text("Chức năng đang phát triển hoặc không hợp lệ. Gõ /menu để trở về menu chính.")
 def main():
     app = ApplicationBuilder().token(TELEGRAM_TOKEN).build()
     app.add_handler(CommandHandler("start", menu))
