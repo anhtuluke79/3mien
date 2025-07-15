@@ -679,7 +679,7 @@ def main():
     app.add_handler(CommandHandler("menu", menu))
     app.add_handler(CommandHandler("help", help_handler))
     app.add_handler(CallbackQueryHandler(menu_callback_handler))
-    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, all_text_handler))
+    # KHÔNG ĐĂNG KÝ all_text_handler ở đây nữa!
     app.add_error_handler(error_handler)
     logger.info("🤖 BOT XSMB đã chạy thành công!")
     app.run_polling()
