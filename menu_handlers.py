@@ -93,9 +93,10 @@ async def menu_callback_handler(update: Update, context: ContextTypes.DEFAULT_TY
         return
 
     if data == "pt_today":
-        context.user_data["mode"] = "phongthuy_today"
+        from phongthuy import phongthuy_homnay_handler
         await phongthuy_homnay_handler(update, context)
         return
+
 
     if data == "pt_theongay":
         context.user_data["mode"] = "phongthuy"
