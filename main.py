@@ -41,10 +41,6 @@ async def all_text_handler(update, context: ContextTypes.DEFAULT_TYPE):
     if mode == "xsmb" or mode == "thongke":
         await xsmb_text_handler(update, context)
         return
-    if mode == "chotso_today":
-        from chotso import chotso_today_handler
-        await chotso_today_handler(update, context)
-        return
 
         # Nếu user chưa chọn chức năng nào thì KHÔNG trả lời gì hết
         return
