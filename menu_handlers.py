@@ -100,8 +100,9 @@ async def menu_callback_handler(update: Update, context: ContextTypes.DEFAULT_TY
 
     if data == "pt_theongay":
         context.user_data["mode"] = "phongthuy"
-        await query.edit_message_text("Nhập ngày tra cứu (vd: 15-07-2025, 15-07 hoặc 15/7/2025, 15/7):")
+        await query.edit_message_text("Nhập ngày tra cứu (vd: 15-07-2025, 15-07, 15/7/2025, 15/7):")
         return
+
 
 
     # --- CHỐT SỐ SUBMENU ---
