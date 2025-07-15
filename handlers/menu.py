@@ -8,8 +8,6 @@ async def menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id if update.effective_user else None
     keyboard = [
         [
-            InlineKeyboardButton("📈 Thống kê", callback_data="thongke"),
-            InlineKeyboardButton("🧠 Dự đoán AI", callback_data="du_doan_ai"),
             InlineKeyboardButton("🔮 Phong thủy ngày", callback_data="phongthuy_ngay"),
         ],
         [
