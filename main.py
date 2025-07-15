@@ -319,4 +319,21 @@ def main():
     app.run_polling()
 
 if __name__ == "__main__":
+from telegram.constants import ParseMode
+
+async def help_handler(update, context):
+    text = (
+        "🤖 *Bot XSMB Phong thủy AI*\n\n"
+        "Các lệnh hỗ trợ:\n"
+        "/start hoặc /menu - Mở menu chính\n"
+        "/help - Xem hướng dẫn\n\n"
+        "Chức năng nổi bật:\n"
+        "• Dự đoán AI XSMB\n"
+        "• Ghép xiên, càng, đảo số\n"
+        "• Tra cứu phong thủy ngày\n"
+        "• Chốt số, hỗ trợ nhiều chế độ\n"
+        "• Thống kê, quản trị, backup, cập nhật model\n"
+        "• Nhận góp ý, phản hồi, ủng hộ bot"
+    )
+    await update.message.reply_text(text, parse_mode=ParseMode.MARKDOWN)
     main()
