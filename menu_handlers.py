@@ -21,12 +21,17 @@ async def menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     else:
         await update.callback_query.message.reply_text(msg, reply_markup=InlineKeyboardMarkup(keyboard))
 
-
 # ========== MENU CALLBACK ==========
 async def menu_callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     data = query.data
     await query.answer()
+    # Reset state mỗi khi vào 1 menu chính (tránh bị kẹt state cũ)
+    if data in [
+        "main_menu", "submenu_ghepsos", "submenu_phongthuy",
+        "submenu_chotso", "submenu_thongke"
+    ]:
+        context.user_data["mode"] = None
 
     # --- GHÉP SỐ (SUBMENU) ---
     if data == "submenu_ghepsos":
@@ -37,6 +42,7 @@ async def menu_callback_handler(update: Update, context: ContextTypes.DEFAULT_TY
         ]
         await query.edit_message_text("➕ *Ghép số*:\nChọn loại ghép:", reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="Markdown")
         return
+
     # --- GHÉP XIÊN SUBMENU ---
     if data == "submenu_xien":
         keyboard = [
@@ -47,11 +53,13 @@ async def menu_callback_handler(update: Update, context: ContextTypes.DEFAULT_TY
         ]
         await query.edit_message_text("🔗 *Ghép xiên* - chọn loại:", reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="Markdown")
         return
+
     if data in ["xien2", "xien3", "xien4"]:
         context.user_data["mode"] = "xiens"
-        context.user_data["xien_type"] = int(data[-1])
+        context.user_data["do_dai_xien"] = int(data[-1])  # Ghi nhớ loại xiên
         await query.edit_message_text(f"Nhập dãy số để ghép xiên {data[-1]} (cách nhau khoảng trắng hoặc phẩy):")
         return
+
     # --- GHÉP CÀNG SUBMENU ---
     if data == "submenu_cang":
         keyboard = [
@@ -62,10 +70,13 @@ async def menu_callback_handler(update: Update, context: ContextTypes.DEFAULT_TY
         ]
         await query.edit_message_text("🎯 *Ghép càng* - chọn loại:", reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="Markdown")
         return
+
     if data in ["cang3d", "cang4d"]:
         context.user_data["mode"] = data
+        context.user_data["wait_for_cang"] = False  # Bắt đầu lại luồng nhập
         await query.edit_message_text(f"Nhập dãy số để ghép {data.upper()} (cách nhau khoảng trắng hoặc phẩy):")
         return
+
     if data == "daoso":
         context.user_data["mode"] = "daoso"
         await query.edit_message_text("Nhập số hoặc dãy số để đảo (VD: 1234):")
@@ -80,12 +91,14 @@ async def menu_callback_handler(update: Update, context: ContextTypes.DEFAULT_TY
         ]
         await query.edit_message_text("🔮 *Phong thủy* - Chọn kiểu tra cứu:", reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="Markdown")
         return
+
     if data == "pt_today":
         context.user_data["mode"] = "phongthuy_today"
         await query.edit_message_text("Đang tra phong thủy hôm nay...")
         return
+
     if data == "pt_theongay":
-        context.user_data["mode"] = "phongthuy_date"
+        context.user_data["mode"] = "phongthuy"
         await query.edit_message_text("Nhập ngày (YYYY-MM-DD) hoặc can chi (VD: Giáp Tý):")
         return
 
@@ -98,10 +111,12 @@ async def menu_callback_handler(update: Update, context: ContextTypes.DEFAULT_TY
         ]
         await query.edit_message_text("🎯 *Chốt số*:", reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="Markdown")
         return
+
     if data == "chotso_today":
         context.user_data["mode"] = "chotso_today"
         await query.edit_message_text("Đang chốt số hôm nay...")
         return
+
     if data == "chotso_ngay":
         context.user_data["mode"] = "chotso_ngay"
         await query.edit_message_text("Nhập ngày dương lịch muốn chốt số (YYYY-MM-DD hoặc DD-MM):")
@@ -116,10 +131,12 @@ async def menu_callback_handler(update: Update, context: ContextTypes.DEFAULT_TY
         ]
         await query.edit_message_text("📊 *Thống kê*:", reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="Markdown")
         return
+
     if data == "thongke_xsmb":
         context.user_data["mode"] = "xsmb"
         await query.edit_message_text("Đang thống kê XSMB, vui lòng đợi...")
         return
+
     if data == "thongke_dauduoi":
         context.user_data["mode"] = "thongke"
         context.user_data["submode"] = "dauduoi"
@@ -136,23 +153,22 @@ async def menu_callback_handler(update: Update, context: ContextTypes.DEFAULT_TY
 
     # --- USER MANAGEMENT ---
     if data == "submenu_usermanage":
-        # Chuyển về mode quản lý user, text handler hoặc admin callback sẽ xử lý
         context.user_data["mode"] = "user_manage"
         await query.edit_message_text("👥 Quản lý user: chọn thao tác hoặc nhập lệnh (duyệt, xóa, danh sách)...")
         return
 
     # --- ADMIN MENU ---
     if data == "admin_menu":
-        # Chuyển sang mode admin, handler riêng sẽ xử lý
         context.user_data["mode"] = "admin"
         await query.edit_message_text("⚙️ Vào menu quản trị. Chọn thao tác tiếp theo.")
         return
 
-    # === QUAY LẠI MENU CHÍNH ===
+    # === QUAY LẠI MENU CHÍNH hoặc THOÁT ===
     if data == "main_menu" or data == "exit":
         context.user_data["mode"] = None
         await menu(update, context)
         return
 
     # --- Nếu không khớp, mặc định về menu ---
+    context.user_data["mode"] = None
     await menu(update, context)
