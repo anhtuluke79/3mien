@@ -15,7 +15,6 @@ async def menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         [
             InlineKeyboardButton("➕ Ghép xiên", callback_data="ghepxien"),
             InlineKeyboardButton("🎯 Ghép càng", callback_data="ghepcang"),
-            # ĐÃ BỎ nút "💬 Hỏi Thần tài"
         ]
     ]
     if user_id in ADMIN_IDS:
