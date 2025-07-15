@@ -17,7 +17,7 @@ async def menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
             InlineKeyboardButton("🔁 Đảo số", callback_data="daoso"),
         ],
         [
-            InlineKeyboardButton("🏠 Quay lại menu", callback_data="main_menu"),
+            InlineKeyboardButton("📖 Hướng dẫn", callback_data="huongdan"),
         ]
     ]
 
@@ -30,7 +30,7 @@ async def menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     welcome = (
         "✨ <b>Chào mừng đến với XosoBot!</b>\n"
-        "Bạn hãy chọn chức năng bên dưới 👇"
+        "Hãy chọn chức năng bên dưới 👇"
     )
     if hasattr(update, "message") and update.message:
         await update.message.reply_text(
@@ -44,3 +44,17 @@ async def menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
             reply_markup=InlineKeyboardMarkup(keyboard),
             parse_mode="HTML"
         )
+
+# Nếu bạn muốn thêm hướng dẫn chi tiết khi bấm "📖 Hướng dẫn"
+async def huongdan_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    text = (
+        "<b>📖 Hướng dẫn sử dụng XosoBot</b>\n\n"
+        "• <b>Phong thủy ngày</b>: tra cứu số phong thủy, ngũ hành theo ngày hoặc can chi.\n"
+        "• <b>Ghép xiên</b>: nhập các số cần ghép thành bộ xiên 2, 3, 4...\n"
+        "• <b>Ghép càng</b>: nhập số 2 hoặc 3 chữ số, nhập càng, bot tự ghép đầu càng.\n"
+        "• <b>Đảo số</b>: nhập số bất kỳ (3 hoặc 4 chữ số), bot trả toàn bộ các hoán vị.\n"
+        "\n"
+        "Nếu có thắc mắc hoặc góp ý, hãy liên hệ admin.\n"
+        "Chúc bạn may mắn! 🍀"
+    )
+    await update.callback_query.message.reply_text(text, parse_mode="HTML")
