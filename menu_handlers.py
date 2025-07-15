@@ -116,9 +116,10 @@ async def menu_callback_handler(update: Update, context: ContextTypes.DEFAULT_TY
         return
 
     if data == "chotso_today":
-        context.user_data["mode"] = "chotso_today"
-        await query.edit_message_text("Đang chốt số hôm nay...")
+        from chotso import chotso_today_handler
+        await chotso_today_handler(update, context)
         return
+
 
     if data == "chotso_ngay":
         context.user_data["mode"] = "chotso_ngay"
