@@ -42,11 +42,9 @@ async def all_text_handler(update, context: ContextTypes.DEFAULT_TYPE):
         await xsmb_text_handler(update, context)
         return
 
-    # Nếu user chưa chọn chức năng nào thì hướng dẫn rõ ràng
-    await update.message.reply_text(
-        "Bạn chưa chọn chức năng. Hãy bấm /menu hoặc sử dụng menu dưới đây để bắt đầu."
-    )
-    logger.info(f"User {user_id} gửi tin nhắn ngoài chế độ nhập, đã được hướng dẫn.")
+        # Nếu user chưa chọn chức năng nào thì KHÔNG trả lời gì hết
+        return
+
 
 # ==== CALLBACK ROUTER ====
 async def global_callback_handler(update, context):
