@@ -4,12 +4,12 @@ from telegram.ext import (
     ApplicationBuilder, CommandHandler, CallbackQueryHandler,
     MessageHandler, ContextTypes, filters
 )
-from menu_handlers import menu, menu_callback_handler  # Đảm bảo file này/tên này đúng!
+from menu_handlers import menu, menu_callback_handler
 from admin_handlers import admin_callback_handler
 from user_manage import user_manage_callback_handler
 from logic_xsmb import xsmb_text_handler
 from so_ghép import so_ghep_text_handler
-from phongthuy import phongthuy_homnay_handler
+# KHÔNG import phongthuy_homnay_handler ở đây!
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -35,6 +35,7 @@ async def all_text_handler(update, context: ContextTypes.DEFAULT_TYPE):
         await so_ghep_text_handler(update, context)
         return
     if mode == "phongthuy":
+        from phongthuy import phongthuy_text_handler  # import tại đây để tránh lỗi vòng lặp
         await phongthuy_text_handler(update, context)
         return
     if mode == "xsmb" or mode == "thongke":
