@@ -541,10 +541,9 @@ def main():
     logger.info("🤖 BOT XSMB đã chạy thành công!")
     app.run_polling()
 
-if __name__ == "__main__":
-    main()ut_csv, index=False, encoding="utf-8-sig")
-        print(f"\nĐã lưu tổng hợp 15 ngày vào: {out_csv}")
-        return df
+    if out_csv is None:
+       out_csv = os.path.join(GITHUB_REPO_PATH, "xsmb.csv")
+       df.to_csv(out_csv, index=False, encoding="utf-8-sig")
     else:
         print("Không lấy được dữ liệu ngày nào!")
         return None
