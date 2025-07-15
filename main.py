@@ -317,8 +317,6 @@ def main():
     app.add_error_handler(error_handler)
     logger.info("🤖 BOT XSMB đã chạy thành công!")
     app.run_polling()
-
-if __name__ == "__main__":
 from telegram.constants import ParseMode
 
 async def help_handler(update, context):
@@ -336,4 +334,5 @@ async def help_handler(update, context):
         "• Nhận góp ý, phản hồi, ủng hộ bot"
     )
     await update.message.reply_text(text, parse_mode=ParseMode.MARKDOWN)
+if __name__ == "__main__":
     main()
