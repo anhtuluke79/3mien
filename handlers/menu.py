@@ -80,3 +80,18 @@ async def donggop_ykien_handler(update: Update, context: ContextTypes.DEFAULT_TY
         "Bot sẽ gửi trực tiếp tới admin. Xin cảm ơn! 💡"
     )
     await update.callback_query.message.reply_text(text, parse_mode="HTML")
+async def admin_menu_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.effective_user.id
+    if user_id not in ADMIN_IDS:
+        await update.message.reply_text("❌ Bạn không có quyền truy cập menu admin!")
+        return
+    keyboard = [
+        [InlineKeyboardButton("⚙️ Train lại AI", callback_data="train_model")],
+        [InlineKeyboardButton("🛠️ Cập nhật XSMB", callback_data="capnhat_xsmb")],
+        [InlineKeyboardButton("🏠 Quay lại menu", callback_data="main_menu")],
+    ]
+    await update.message.reply_text(
+        "<b>🛠️ Menu quản trị bot</b>\nChọn chức năng dành cho admin:",
+        reply_markup=InlineKeyboardMarkup(keyboard),
+        parse_mode="HTML"
+    )
