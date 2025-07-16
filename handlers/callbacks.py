@@ -110,7 +110,12 @@ async def menu_callback_handler(update: Update, context: ContextTypes.DEFAULT_TY
             parse_mode="HTML"
         )
         context.user_data['wait_phongthuy_ngay'] = 'canchi'
-
+    elif query.data == "ungho_menu":
+        await ungho_menu_handler(update, context)
+    elif query.data == "ungho_ck":
+        await ungho_ck_handler(update, context)
+    elif query.data == "donggop_ykien":
+        await donggop_ykien_handler(update, context)
     # --- ADMIN CHỨC NĂNG ---
     elif query.data == "train_model":
         if user_id not in ADMIN_IDS:
