@@ -3,7 +3,9 @@ from telegram.ext import ApplicationBuilder, CommandHandler, CallbackQueryHandle
 from handlers.menu import menu
 from handlers.callbacks import menu_callback_handler
 from handlers.input_handler import all_text_handler
+from handlers.menu import admin_menu_handler
 
+app.add_handler(CommandHandler("admin", admin_menu_handler))
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
 if not TELEGRAM_TOKEN:
     raise ValueError("Chưa thiết lập TELEGRAM_TOKEN!")
