@@ -4,6 +4,7 @@ from utils.bot_functions import (
     split_numbers, ghep_xien, ghep_cang, chuan_hoa_can_chi,
     get_can_chi_ngay, sinh_so_hap_cho_ngay, crawl_lich_su_xsmb
 )
+from handlers.menu import ungho_menu_handler, ungho_ck_handler, donggop_ykien_handler
 import os
 
 ADMIN_IDS = list(map(int, os.getenv("ADMIN_IDS", "12345678").split(',')))
