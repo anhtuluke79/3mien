@@ -17,11 +17,10 @@ async def menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
             InlineKeyboardButton("🔁 Đảo số", callback_data="daoso"),
         ],
         [
-            InlineKeyboardButton("📖 Hướng dẫn", callback_data="huongdan"),
+            InlineKeyboardButton("💗 Ủng hộ/Đóng góp", callback_data="ungho_menu"),
         ]
     ]
 
-    # Chỉ hiện nút admin nếu là admin
     if user_id in ADMIN_IDS:
         keyboard.append([
             InlineKeyboardButton("⚙️ Train lại AI", callback_data="train_model"),
@@ -45,16 +44,39 @@ async def menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
             parse_mode="HTML"
         )
 
-# Nếu bạn muốn thêm hướng dẫn chi tiết khi bấm "📖 Hướng dẫn"
-async def huongdan_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+# Handler cho nút Ủng hộ/Đóng góp
+async def ungho_menu_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    keyboard = [
+        [
+            InlineKeyboardButton("💸 Ủng hộ", callback_data="ungho_ck"),
+            InlineKeyboardButton("✍️ Đóng góp ý kiến", callback_data="donggop_ykien"),
+        ],
+        [
+            InlineKeyboardButton("🏠 Quay lại menu", callback_data="main_menu"),
+        ]
+    ]
+    await update.callback_query.message.reply_text(
+        "<b>Bạn muốn ủng hộ hoặc đóng góp gì?</b>",
+        reply_markup=InlineKeyboardMarkup(keyboard),
+        parse_mode="HTML"
+    )
+
+async def ungho_ck_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = (
-        "<b>📖 Hướng dẫn sử dụng XosoBot</b>\n\n"
-        "• <b>Phong thủy ngày</b>: tra cứu số phong thủy, ngũ hành theo ngày hoặc can chi.\n"
-        "• <b>Ghép xiên</b>: nhập các số cần ghép thành bộ xiên 2, 3, 4...\n"
-        "• <b>Ghép càng</b>: nhập số 2 hoặc 3 chữ số, nhập càng, bot tự ghép đầu càng.\n"
-        "• <b>Đảo số</b>: nhập số bất kỳ (3 hoặc 4 chữ số), bot trả toàn bộ các hoán vị.\n"
-        "\n"
-        "Nếu có thắc mắc hoặc góp ý, hãy liên hệ admin.\n"
-        "Chúc bạn may mắn! 🍀"
+        "💗 <b>Cảm ơn bạn đã quan tâm và ủng hộ XosoBot!</b>\n\n"
+        "Bạn có thể chuyển khoản qua ngân hàng:\n"
+        "<b>Ngân hàng:</b> Vietcombank\n"
+        "<b>Tên:</b> TRUONG ANH TU\n"
+        "<b>Số TK:</b> 0071003914986\n"
+        "Nội dung: <code>Ung ho phat trien - tên nick telegram của bạn</code>\n\n"
+        "Mỗi sự đóng góp của bạn là động lực lớn để phát triển bot miễn phí và chất lượng hơn! 🙏"
+    )
+    await update.callback_query.message.reply_text(text, parse_mode="HTML")
+
+async def donggop_ykien_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    context.user_data['wait_for_feedback'] = True
+    text = (
+        "✍️ <b>Hãy nhập góp ý hoặc ý tưởng của bạn!</b>\n"
+        "Bot sẽ gửi trực tiếp tới admin. Xin cảm ơn! 💡"
     )
     await update.callback_query.message.reply_text(text, parse_mode="HTML")
