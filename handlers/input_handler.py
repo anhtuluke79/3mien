@@ -75,6 +75,19 @@ async def all_text_handler(update, context):
         context.user_data['wait_for_daoso'] = False
         return
 
+    if context.user_data.get('wait_for_feedback'):
+        # Gửi góp ý về cho admin (tuỳ chỉnh theo ý bạn)
+        ADMIN_ID = int(os.getenv("ADMIN_ID", "12345678"))
+        try:
+            await context.bot.send_message(
+                chat_id=ADMIN_ID,
+                text=f"✉️ Góp ý từ user @{update.effective_user.username}:\n{update.message.text}"
+            )
+        except Exception:
+            pass
+        await update.message.reply_text("🙏 Cảm ơn bạn đã đóng góp ý kiến! Bot sẽ tiếp nhận và phản hồi sớm nhất.")
+        context.user_data['wait_for_feedback'] = False
+        return
     # Ghép xiên
     if context.user_data.get('wait_for_xien_input'):
         do_dai = context.user_data.get('do_dai')
