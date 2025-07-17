@@ -1,6 +1,6 @@
 import os
 from telegram.ext import ApplicationBuilder, CommandHandler, CallbackQueryHandler, MessageHandler, filters
-from handlers.menu import menu, admin_menu_handler
+from handlers.menu import menu
 from handlers.callbacks import menu_callback_handler
 from handlers.input_handler import all_text_handler
 
@@ -19,10 +19,8 @@ def main():
     app = ApplicationBuilder().token(TELEGRAM_TOKEN).build()
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("menu", menu))
-    app.add_handler(CommandHandler("admin", admin_menu_handler))   # <-- Đặt ở đây!
     app.add_handler(CallbackQueryHandler(menu_callback_handler))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, all_text_handler))
-    app.add_handler(CommandHandler("admin", admin_menu_handler))
     app.run_polling()
 
 if __name__ == "__main__":
