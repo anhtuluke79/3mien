@@ -1,5 +1,5 @@
-from utils.bot_functions import split_numbers, ghep_xien, ghep_cang, chuan_hoa_can_chi, get_can_chi_ngay, sinh_so_hap_cho_ngay
-from itertools import permutations
+from utils.bot_functions import split_numbers, ghep_xien, ghep_cang
+from utils.phongthuy.phongthuy import chuan_hoa_can_chi, get_can_chi_ngay, sinh_so_hap_cho_ngayfrom itertools import permutations
 
 async def all_text_handler(update, context):
     # Ghép càng 3D - bước 1: nhập số
