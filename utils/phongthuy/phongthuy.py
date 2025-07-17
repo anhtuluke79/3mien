@@ -1,5 +1,5 @@
 from .can_chi_dict import data as CAN_CHI_SO_HAP
-from .thien_can import CAN_INFOfrom thien_can import CAN_INFO
+from .thien_can import CAN_INFO
 
 def chuan_hoa_can_chi(s):
     """Chuẩn hóa tên can chi, viết hoa đầu mỗi từ."""
