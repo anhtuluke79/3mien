@@ -6,6 +6,7 @@ from utils.bot_functions import (
 )
 from handlers.menu import ungho_menu_handler, ungho_ck_handler, donggop_ykien_handler
 from utils.crawl_xsmb import crawl_xsmb_Nngay_minhchinh_csv
+from utils.bot_functions import predict_rf_xsmb, predict_rf_lo_mb
 import os
 
 ADMIN_IDS = list(map(int, os.getenv("ADMIN_IDS", "12345678").split(',')))
@@ -111,7 +112,17 @@ async def menu_callback_handler(update: Update, context: ContextTypes.DEFAULT_TY
             parse_mode="HTML"
         )
         context.user_data['wait_phongthuy_ngay'] = 'canchi'
-
+    elif query.data == "ai_menu":
+    keyboard = [
+        [InlineKeyboardButton("🎯 Dự đoán giải ĐB", callback_data="ai_rf_db")],
+        [InlineKeyboardButton("🔢 Dự đoán lô MB", callback_data="ai_rf_lo")],
+        [InlineKeyboardButton("🏠 Quay lại menu", callback_data="main_menu")],
+    ]
+    await query.edit_message_text(
+        "<b>Chọn chức năng dự đoán AI Random Forest:</b>",
+        reply_markup=InlineKeyboardMarkup(keyboard),
+        parse_mode="HTML"
+    )
     # --- ỦNG HỘ / ĐÓNG GÓP ---
     elif query.data == "ungho_menu":
         await ungho_menu_handler(update, context)
@@ -119,7 +130,25 @@ async def menu_callback_handler(update: Update, context: ContextTypes.DEFAULT_TY
         await ungho_ck_handler(update, context)
     elif query.data == "donggop_ykien":
         await donggop_ykien_handler(update, context)
+   elif query.data == "ai_rf_db":
+    try:
+        kq = predict_rf_xsmb("xsmb.csv", "model_rf_xsmb.pkl", 7)
+        await query.edit_message_text(
+            f"🎯 <b>Dự đoán AI RF giải ĐB miền Bắc:</b> <code>{kq}</code>",
+            parse_mode="HTML"
+        )
+    except Exception as e:
+        await query.edit_message_text(f"❌ Lỗi dự đoán AI: {e}")
 
+   elif query.data == "ai_rf_lo":
+    try:
+        kq = predict_rf_lo_mb("xsmb.csv", "model_rf_lo_mb.pkl", 7)
+        await query.edit_message_text(
+            f"🔢 <b>Dự đoán AI RF lô miền Bắc:</b> <code>{kq}</code>",
+            parse_mode="HTML"
+        )
+    except Exception as e:
+        await query.edit_message_text(f"❌ Lỗi dự đoán AI: {e}") 
     # --- ADMIN CHỨC NĂNG ---
     elif query.data == "admin_menu":
         if user_id not in ADMIN_IDS:
@@ -153,7 +182,12 @@ async def menu_callback_handler(update: Update, context: ContextTypes.DEFAULT_TY
                 )
         except Exception as e:
             await query.message.reply_text(f"❌ Lỗi cập nhật: {e}")
-
+keyboard = [
+    [InlineKeyboardButton("⚙️ Train lại AI RF ĐB", callback_data="train_model_db")],
+    [InlineKeyboardButton("⚙️ Train lại AI RF Lô", callback_data="train_model_lo")],
+    [InlineKeyboardButton("🔄 Cập nhật XSMB", callback_data="capnhat_xsmb")],
+    [InlineKeyboardButton("🏠 Quay lại menu", callback_data="main_menu")],
+]
     # --- QUAY LẠI MENU ---
     elif query.data == "main_menu":
         from handlers.menu import menu
