@@ -118,10 +118,10 @@ async def menu_callback_handler(update: Update, context: ContextTypes.DEFAULT_TY
         await donggop_ykien_handler(update, context)
     # --- ADMIN CHỨC NĂNG ---
     elif query.data == "admin_menu":
-        if user_id not in ADMIN_IDS:
+    if user_id not in ADMIN_IDS:
         await query.edit_message_text("❌ Bạn không có quyền truy cập menu admin!")
         return
-    keyboard = [
+      keyboard = [
         [InlineKeyboardButton("⚙️ Train lại AI", callback_data="train_model")],
         [InlineKeyboardButton("🛠️ Cập nhật XSMB", callback_data="capnhat_xsmb")],
         [InlineKeyboardButton("🏠 Quay lại menu", callback_data="main_menu")],
