@@ -2,7 +2,7 @@ from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
 from utils.bot_functions import (
     split_numbers, ghep_xien, ghep_cang, chuan_hoa_can_chi,
-    get_can_chi_ngay, sinh_so_hap_cho_ngay, crawl_lich_su_xsmb
+    get_can_chi_ngay, sinh_so_hap_cho_ngay
 )
 from handlers.menu import ungho_menu_handler, ungho_ck_handler, donggop_ykien_handler
 from utils.crawl_xsmb import crawl_xsmb_Nngay_minhchinh_csv
@@ -127,7 +127,7 @@ async def menu_callback_handler(update: Update, context: ContextTypes.DEFAULT_TY
             return
         keyboard = [
             [InlineKeyboardButton("⚙️ Train lại AI", callback_data="train_model")],
-            [InlineKeyboardButton("🛠️ Cập nhật XSMB", callback_data="capnhat_xsmb")],
+            [InlineKeyboardButton("🔄 Cập nhật XSMB", callback_data="capnhat_xsmb")],
             [InlineKeyboardButton("🏠 Quay lại menu", callback_data="main_menu")],
         ]
         await query.edit_message_text(
@@ -136,23 +136,21 @@ async def menu_callback_handler(update: Update, context: ContextTypes.DEFAULT_TY
             parse_mode="HTML"
         )
 
-    elif query.data == "train_model":
-        if user_id not in ADMIN_IDS:
-            await query.edit_message_text("❌ Bạn không có quyền train lại mô hình!")
-            return
-        await query.edit_message_text("⏳ Đang train lại AI, vui lòng đợi... (chức năng tạm ẩn)")
-
     elif query.data == "capnhat_xsmb":
         if user_id not in ADMIN_IDS:
             await query.edit_message_text("❌ Bạn không có quyền cập nhật dữ liệu!")
             return
         try:
-            await query.edit_message_text("⏳ Đang crawl và cập nhật 60 ngày xổ số...")
+            await query.edit_message_text("🔄 Đang cập nhật XSMB, chỉ thêm ngày mới...")
             df = crawl_xsmb_Nngay_minhchinh_csv(60, "xsmb.csv")
             if df is not None:
-                await query.message.reply_text("✅ Đã cập nhật dữ liệu xsmb.csv thành công!")
+                await query.message.reply_text(
+                    f"✅ Đã cập nhật file xsmb.csv ({len(df)} ngày dữ liệu, không trùng lặp ngày)."
+                )
             else:
-                await query.message.reply_text("❌ Không lấy được dữ liệu mới, vui lòng thử lại sau.")
+                await query.message.reply_text(
+                    "❌ Không có dữ liệu mới nào để cập nhật."
+                )
         except Exception as e:
             await query.message.reply_text(f"❌ Lỗi cập nhật: {e}")
 
