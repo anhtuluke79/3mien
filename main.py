@@ -22,6 +22,7 @@ def main():
     app.add_handler(CommandHandler("admin", admin_menu_handler))   # <-- Đặt ở đây!
     app.add_handler(CallbackQueryHandler(menu_callback_handler))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, all_text_handler))
+    app.add_handler(CommandHandler("admin", admin_menu_handler))
     app.run_polling()
 
 if __name__ == "__main__":
