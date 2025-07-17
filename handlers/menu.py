@@ -21,10 +21,10 @@ async def menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         ]
     ]
 
+    # Thêm nút quản trị nếu là admin
     if user_id in ADMIN_IDS:
         keyboard.append([
-            InlineKeyboardButton("⚙️ Train lại AI", callback_data="train_model"),
-            InlineKeyboardButton("🛠️ Cập nhật XSMB", callback_data="capnhat_xsmb"),
+            InlineKeyboardButton("🛠️ Quản trị/Admin", callback_data="admin_menu"),
         ])
 
     welcome = (
@@ -80,6 +80,8 @@ async def donggop_ykien_handler(update: Update, context: ContextTypes.DEFAULT_TY
         "Bot sẽ gửi trực tiếp tới admin. Xin cảm ơn! 💡"
     )
     await update.callback_query.message.reply_text(text, parse_mode="HTML")
+
+# Handler bảng quản trị cho admin
 async def admin_menu_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     if user_id not in ADMIN_IDS:
