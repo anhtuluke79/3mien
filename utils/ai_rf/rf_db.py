@@ -6,9 +6,6 @@ import os
 def train_rf_db(csv_path="xsmb.csv", model_path="model_rf_xsmb.pkl", n_feature=7):
     """
     Train model Random Forest cho dự đoán giải Đặc Biệt miền Bắc.
-    - csv_path: file dữ liệu XSMB đã crawl (cần cột 'ĐB')
-    - model_path: tên file model lưu lại
-    - n_feature: số ngày dùng làm feature
     """
     if not os.path.exists(csv_path):
         print("❌ Chưa có file dữ liệu xsmb.csv!")
@@ -28,5 +25,18 @@ def train_rf_db(csv_path="xsmb.csv", model_path="model_rf_xsmb.pkl", n_feature=7
     print(f"✅ Train xong model RF ĐB, lưu tại: {model_path}")
     return True
 
+def predict_rf_xsmb(csv_path="xsmb.csv", model_path="model_rf_xsmb.pkl", n_feature=7):
+    if not (os.path.exists(csv_path) and os.path.exists(model_path)):
+        return "Chưa train hoặc chưa có dữ liệu."
+    df = pd.read_csv(csv_path)
+    dbs = df['ĐB'].astype(str).str[-2:].astype(int)
+    if len(dbs) < n_feature:
+        return "Không đủ dữ liệu!"
+    model = joblib.load(model_path)
+    features = dbs[:n_feature].tolist()
+    pred = model.predict([features])[0]
+    return str(pred).zfill(2)
+
+# Test
 if __name__ == "__main__":
     train_rf_db()
