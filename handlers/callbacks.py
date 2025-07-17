@@ -147,13 +147,14 @@ async def menu_callback_handler(update: Update, context: ContextTypes.DEFAULT_TY
             await query.edit_message_text("❌ Bạn không có quyền cập nhật dữ liệu!")
             return
         try:
-            ok = crawl_lich_su_xsmb("xsmb.csv")
-            if ok:
-                await query.edit_message_text("✅ Đã cập nhật dữ liệu xsmb.csv thành công (từ xsmn.mobi)!")
+            await query.edit_message_text("⏳ Đang crawl và cập nhật 60 ngày xổ số...")
+            df = crawl_xsmb_Nngay_minhchinh_csv(60, "xsmb.csv")
+            if df is not None:
+                await query.message.reply_text("✅ Đã cập nhật dữ liệu xsmb.csv thành công!")
             else:
-                await query.edit_message_text("❌ Không lấy được dữ liệu mới, vui lòng thử lại sau.")
+                await query.message.reply_text("❌ Không lấy được dữ liệu mới, vui lòng thử lại sau.")
         except Exception as e:
-            await query.edit_message_text(f"❌ Lỗi cập nhật: {e}")
+            await query.message.reply_text(f"❌ Lỗi cập nhật: {e}")
 
     # --- QUAY LẠI MENU ---
     elif query.data == "main_menu":
