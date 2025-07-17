@@ -7,9 +7,17 @@ from utils.crawl.crawl_xsmb import crawl_xsmb_Nngay_minhchinh_csv
 from utils.upload_github import upload_file_to_github
 import os
 
+MY_ID = 892780229  # Thay bằng ID Telegram của bạn
 ADMIN_IDS = list(map(int, os.getenv("ADMIN_IDS", "12345678").split(',')))
 
 async def menu_callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    chat = update.effective_chat
+    user = update.effective_user
+
+    # Chỉ trả lời ở group/supergroup hoặc nếu là bạn trong chat riêng
+    if chat.type == "private" and user.id not in ADMIN_IDS and user.id != MY_ID:
+        return
+
     query = update.callback_query
     await query.answer()
     user_id = query.from_user.id
