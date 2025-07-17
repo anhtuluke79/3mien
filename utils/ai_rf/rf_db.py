@@ -3,6 +3,9 @@ from sklearn.ensemble import RandomForestClassifier
 import joblib
 import os
 
+def predict_rf_xsmb(csv_path, model_path, n_days=7):
+    # Dummy function, bạn thay bằng code thật nếu có
+    return "Dự đoán ĐB mẫu"
 def train_rf_xsmb(csv_path, model_path, n_feature=7):
     if not os.path.exists(csv_path):
         return False
