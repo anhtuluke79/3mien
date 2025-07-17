@@ -5,6 +5,7 @@ from utils.bot_functions import (
     get_can_chi_ngay, sinh_so_hap_cho_ngay, crawl_lich_su_xsmb
 )
 from handlers.menu import ungho_menu_handler, ungho_ck_handler, donggop_ykien_handler
+from utils.crawl_xsmb import crawl_xsmb_Nngay_minhchinh_csv
 import os
 
 ADMIN_IDS = list(map(int, os.getenv("ADMIN_IDS", "12345678").split(',')))
