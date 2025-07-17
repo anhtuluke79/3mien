@@ -27,7 +27,7 @@ async def menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         ])
 
     welcome = (
-        "✨ <b>Chào mừng đến với XosoBot!</b>\n"
+        "✨ <b>Chào mừng đến với Thần tài bot!</b>\n"
         "Hãy chọn chức năng bên dưới 👇"
     )
     if hasattr(update, "message") and update.message:
