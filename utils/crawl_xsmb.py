@@ -6,11 +6,6 @@ import time
 import os
 
 def crawl_xsmb_1ngay_minhchinh_dict(ngay, thang, nam):
-    """
-    Crawl kết quả xổ số miền Bắc 1 ngày từ minhchinh.com.
-    Trả về dict gồm các giải: ĐB, G1, G2, G3, G4, G5, G6, G7.
-    Nếu không lấy được, trả về None.
-    """
     date_str = f"{ngay:02d}-{thang:02d}-{nam}"
     url = f"https://www.minhchinh.com/ket-qua-xo-so-mien-bac/{date_str}.html"
     headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
@@ -35,7 +30,6 @@ def crawl_xsmb_1ngay_minhchinh_dict(ngay, thang, nam):
             if len(tds) < 2: continue
             label = tds[0].get_text(strip=True)
             value = tds[1].get_text(" ", strip=True)
-            # Chuẩn hóa tên cột
             if "Đặc biệt" in label or "ĐB" in label:
                 result["DB"] = value
             elif "Nhất" in label:
@@ -59,30 +53,45 @@ def crawl_xsmb_1ngay_minhchinh_dict(ngay, thang, nam):
 
 def crawl_xsmb_Nngay_minhchinh_csv(N=60, out_csv="xsmb.csv"):
     """
-    Crawl kết quả xổ số miền Bắc trong N ngày gần nhất (trừ ngày hôm nay), lưu vào file CSV.
-    Nếu crawl được dữ liệu, trả về DataFrame. Nếu không, trả về None.
+    Crawl N ngày gần nhất (bỏ ngày hôm nay), chỉ thêm ngày mới chưa có vào file CSV.
     """
     today = datetime.today()
+    # Đọc file hiện tại nếu có
+    if os.path.exists(out_csv):
+        df_old = pd.read_csv(out_csv)
+        days_have = set(str(d) for d in df_old['date'])
+    else:
+        df_old = None
+        days_have = set()
     records = []
     for i in range(1, N+1):  # Bắt đầu từ hôm qua (i=1)
         date = today - timedelta(days=i)
+        date_str = f"{date.year}-{date.month:02d}-{date.day:02d}"
+        if date_str in days_have:
+            print(f"❎ {date.strftime('%d-%m-%Y')} ĐÃ có trong file, bỏ qua.")
+            continue
         row = crawl_xsmb_1ngay_minhchinh_dict(date.day, date.month, date.year)
         if row:
             records.append(row)
-            print(f"✔️ {date.strftime('%d-%m-%Y')} OK")
+            print(f"✔️ {date.strftime('%d-%m-%Y')} OK, đã thêm mới.")
         else:
             print(f"❌ {date.strftime('%d-%m-%Y')} KHÔNG lấy được!")
-        time.sleep(1)  # tránh bị block IP
+        time.sleep(1)
+    # Gộp dữ liệu cũ và mới
     if records:
-        df = pd.DataFrame(records)
-        df = df.sort_values("date", ascending=False)
-        df.to_csv(out_csv, index=False, encoding="utf-8-sig")
-        print(f"\nĐã lưu tổng hợp {len(df)} ngày vào: {out_csv}")
-        return df
+        df_new = pd.DataFrame(records)
+        if df_old is not None:
+            df_all = pd.concat([df_old, df_new], ignore_index=True)
+        else:
+            df_all = df_new
+        df_all = df_all.drop_duplicates(subset="date").sort_values("date", ascending=False)
+        df_all.to_csv(out_csv, index=False, encoding="utf-8-sig")
+        print(f"\nĐã cập nhật file: {out_csv}. Tổng cộng {len(df_all)} ngày.")
+        return df_all
     else:
-        print("Không lấy được dữ liệu ngày nào!")
-        return None
+        print("Không có ngày nào mới để cập nhật!")
+        return df_old if df_old is not None else None
 
-# --- Chạy thử độc lập ---
+# --- Chạy thử ---
 if __name__ == "__main__":
     crawl_xsmb_Nngay_minhchinh_csv(60, "xsmb.csv")
