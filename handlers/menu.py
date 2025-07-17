@@ -5,23 +5,21 @@ import os
 ADMIN_IDS = list(map(int, os.getenv("ADMIN_IDS", "12345678").split(',')))
 
 async def menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    # Không xử lý nếu chat riêng (private)
+    if update.effective_chat.type == "private":
+        return
+
     user_id = update.effective_user.id if update.effective_user else None
 
     keyboard = [
-        [
-            InlineKeyboardButton("🔮 Phong thủy ngày", callback_data="phongthuy_ngay"),
-        ],
-        [
-            InlineKeyboardButton("🤖 Dự đoán MB", callback_data="ai_menu"),
-        ],
+        [InlineKeyboardButton("🔮 Phong thủy ngày", callback_data="phongthuy_ngay")],
+        [InlineKeyboardButton("🤖 Dự đoán MB", callback_data="ai_menu")],
         [
             InlineKeyboardButton("➕ Ghép xiên", callback_data="ghepxien"),
             InlineKeyboardButton("🎯 Ghép càng", callback_data="ghepcang"),
             InlineKeyboardButton("🔁 Đảo số", callback_data="daoso"),
         ],
-        [
-            InlineKeyboardButton("💗 Ủng hộ/Đóng góp", callback_data="ungho_menu"),
-        ]
+        [InlineKeyboardButton("💗 Ủng hộ/Đóng góp", callback_data="ungho_menu")],
     ]
     if user_id in ADMIN_IDS:
         keyboard.append([
@@ -47,6 +45,9 @@ async def menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 # Handler cho nút Ủng hộ/Đóng góp
 async def ungho_menu_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if update.effective_chat.type == "private":
+        return
+
     keyboard = [
         [
             InlineKeyboardButton("💸 Ủng hộ", callback_data="ungho_ck"),
@@ -63,6 +64,9 @@ async def ungho_menu_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
     )
 
 async def ungho_ck_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if update.effective_chat.type == "private":
+        return
+
     text = (
         "💗 <b>Cảm ơn bạn đã quan tâm và ủng hộ XosoBot!</b>\n\n"
         "Bạn có thể chuyển khoản qua ngân hàng:\n"
@@ -75,6 +79,9 @@ async def ungho_ck_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.callback_query.message.reply_text(text, parse_mode="HTML")
 
 async def donggop_ykien_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if update.effective_chat.type == "private":
+        return
+
     context.user_data['wait_for_feedback'] = True
     text = (
         "✍️ <b>Hãy nhập góp ý hoặc ý tưởng của bạn!</b>\n"
@@ -84,27 +91,20 @@ async def donggop_ykien_handler(update: Update, context: ContextTypes.DEFAULT_TY
 
 # Handler bảng quản trị cho admin
 async def admin_menu_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_id = update.effective_user.id if update.effective_user else None
+    if update.effective_chat.type == "private":
+        return
+
+    user_id = update.effective_user.id
     if user_id not in ADMIN_IDS:
-        if hasattr(update, "message") and update.message:
-            await update.message.reply_text("❌ Bạn không có quyền truy cập menu admin!")
-        else:
-            await update.callback_query.message.reply_text("❌ Bạn không có quyền truy cập menu admin!")
+        await update.message.reply_text("❌ Bạn không có quyền truy cập menu admin!")
         return
     keyboard = [
         [InlineKeyboardButton("⚙️ Train lại AI", callback_data="train_model")],
         [InlineKeyboardButton("🛠️ Cập nhật XSMB", callback_data="capnhat_xsmb")],
         [InlineKeyboardButton("🏠 Quay lại menu", callback_data="main_menu")],
     ]
-    if hasattr(update, "message") and update.message:
-        await update.message.reply_text(
-            "<b>🛠️ Menu quản trị bot</b>\nChọn chức năng dành cho admin:",
-            reply_markup=InlineKeyboardMarkup(keyboard),
-            parse_mode="HTML"
-        )
-    else:
-        await update.callback_query.message.reply_text(
-            "<b>🛠️ Menu quản trị bot</b>\nChọn chức năng dành cho admin:",
-            reply_markup=InlineKeyboardMarkup(keyboard),
-            parse_mode="HTML"
-        )
+    await update.message.reply_text(
+        "<b>🛠️ Menu quản trị bot</b>\nChọn chức năng dành cho admin:",
+        reply_markup=InlineKeyboardMarkup(keyboard),
+        parse_mode="HTML"
+    )
