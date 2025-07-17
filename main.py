@@ -2,6 +2,7 @@ import os
 from telegram.ext import ApplicationBuilder, CommandHandler, CallbackQueryHandler, MessageHandler, filters
 from handlers.menu import menu
 from handlers.callbacks import menu_callback_handler
+from utils.phongthuy.phongthuy import get_can_chi_ngay
 from handlers.input_handler import all_text_handler
 
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
