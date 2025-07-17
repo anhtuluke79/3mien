@@ -110,27 +110,31 @@ async def menu_callback_handler(update: Update, context: ContextTypes.DEFAULT_TY
             parse_mode="HTML"
         )
         context.user_data['wait_phongthuy_ngay'] = 'canchi'
+
+    # --- ỦNG HỘ / ĐÓNG GÓP ---
     elif query.data == "ungho_menu":
         await ungho_menu_handler(update, context)
     elif query.data == "ungho_ck":
         await ungho_ck_handler(update, context)
     elif query.data == "donggop_ykien":
         await donggop_ykien_handler(update, context)
+
     # --- ADMIN CHỨC NĂNG ---
     elif query.data == "admin_menu":
-    if user_id not in ADMIN_IDS:
-        await query.edit_message_text("❌ Bạn không có quyền truy cập menu admin!")
-        return
-      keyboard = [
-        [InlineKeyboardButton("⚙️ Train lại AI", callback_data="train_model")],
-        [InlineKeyboardButton("🛠️ Cập nhật XSMB", callback_data="capnhat_xsmb")],
-        [InlineKeyboardButton("🏠 Quay lại menu", callback_data="main_menu")],
-    ]
-    await query.edit_message_text(
-        "<b>🛠️ Menu quản trị bot</b>\nChọn chức năng dành cho admin:",
-        reply_markup=InlineKeyboardMarkup(keyboard),
-        parse_mode="HTML"
-    )
+        if user_id not in ADMIN_IDS:
+            await query.edit_message_text("❌ Bạn không có quyền truy cập menu admin!")
+            return
+        keyboard = [
+            [InlineKeyboardButton("⚙️ Train lại AI", callback_data="train_model")],
+            [InlineKeyboardButton("🛠️ Cập nhật XSMB", callback_data="capnhat_xsmb")],
+            [InlineKeyboardButton("🏠 Quay lại menu", callback_data="main_menu")],
+        ]
+        await query.edit_message_text(
+            "<b>🛠️ Menu quản trị bot</b>\nChọn chức năng dành cho admin:",
+            reply_markup=InlineKeyboardMarkup(keyboard),
+            parse_mode="HTML"
+        )
+
     elif query.data == "train_model":
         if user_id not in ADMIN_IDS:
             await query.edit_message_text("❌ Bạn không có quyền train lại mô hình!")
