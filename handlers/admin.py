@@ -5,7 +5,7 @@ from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
 from utils.ai_rf.rf_db import train_rf_db
 from utils.ai_rf.rf_lo import train_rf_lo_mb
-from utils.crawl_xsmb import crawl_xsmb_Nngay_minhchinh_csv
+from utils.crawl.crawl_xsmb import crawl_xsmb_Nngay_minhchinh_csv
 from utils.upload_github import upload_file_to_github  # tạo file này
 ADMIN_IDS = list(map(int, os.getenv("ADMIN_IDS", "12345678").split(',')))
 
