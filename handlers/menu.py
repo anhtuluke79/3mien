@@ -1,19 +1,13 @@
+# handlers/menu.py
+
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
 import os
 
-MY_ID = 892780229  # <-- sửa thành Telegram user_id của bạn
 ADMIN_IDS = list(map(int, os.getenv("ADMIN_IDS", "12345678").split(',')))
 
 async def menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    chat = update.effective_chat
-    user = update.effective_user
-
-    # Chỉ trả lời nhóm hoặc nhắn riêng với chính bạn
-    if chat.type == "private" and user.id != MY_ID:
-        return
-
-    user_id = user.id if user else None
+    user_id = update.effective_user.id if update.effective_user else None
 
     keyboard = [
         [InlineKeyboardButton("🤖 Dự đoán MB", callback_data="ai_menu")],
@@ -22,16 +16,21 @@ async def menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
             InlineKeyboardButton("🎯 Ghép càng", callback_data="ghepcang"),
             InlineKeyboardButton("🔁 Đảo số", callback_data="daoso"),
         ],
-        [InlineKeyboardButton("💗 Ủng hộ/Đóng góp", callback_data="ungho_menu")]
+        [InlineKeyboardButton("🔮 Phong thủy ngày", callback_data="phongthuy_ngay")],
+        [InlineKeyboardButton("💗 Ủng hộ/Đóng góp", callback_data="ungho_menu")],
     ]
+
+    # Chỉ hiện admin cho ADMIN_IDS
     if user_id in ADMIN_IDS:
-        keyboard.append([InlineKeyboardButton("🛠️ Quản trị/Admin", callback_data="admin_menu")])
+        keyboard.append([
+            InlineKeyboardButton("🛠️ Quản trị/Admin", callback_data="admin_menu"),
+        ])
 
     welcome = (
-        "✨ <b>Chào mừng đến với XosoBot!</b>\n"
-        "• /menu để chọn tính năng\n"
-        "• Hoặc chọn chức năng bằng nút phía dưới."
+        "✨ <b>Chào mừng bạn đến với XosoBot!</b>\n"
+        "Hãy chọn chức năng bên dưới 👇"
     )
+
     if hasattr(update, "message") and update.message:
         await update.message.reply_text(
             welcome,
@@ -44,3 +43,39 @@ async def menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
             reply_markup=InlineKeyboardMarkup(keyboard),
             parse_mode="HTML"
         )
+
+async def ungho_menu_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    keyboard = [
+        [
+            InlineKeyboardButton("💸 Ủng hộ", callback_data="ungho_ck"),
+            InlineKeyboardButton("✍️ Đóng góp ý kiến", callback_data="donggop_ykien"),
+        ],
+        [
+            InlineKeyboardButton("🏠 Quay lại menu", callback_data="main_menu"),
+        ]
+    ]
+    await update.callback_query.message.reply_text(
+        "<b>Bạn muốn ủng hộ hoặc đóng góp gì?</b>",
+        reply_markup=InlineKeyboardMarkup(keyboard),
+        parse_mode="HTML"
+    )
+
+async def ungho_ck_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    text = (
+        "💗 <b>Cảm ơn bạn đã quan tâm và ủng hộ XosoBot!</b>\n\n"
+        "Bạn có thể chuyển khoản qua ngân hàng:\n"
+        "<b>Ngân hàng:</b> Vietcombank\n"
+        "<b>Tên:</b> TRUONG ANH TU\n"
+        "<b>Số TK:</b> 0071003914986\n"
+        "Nội dung: <code>Ung ho phat trien - tên nick telegram của bạn</code>\n\n"
+        "Mỗi sự đóng góp của bạn là động lực lớn để phát triển bot miễn phí và chất lượng hơn! 🙏"
+    )
+    await update.callback_query.message.reply_text(text, parse_mode="HTML")
+
+async def donggop_ykien_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    context.user_data['wait_for_feedback'] = True
+    text = (
+        "✍️ <b>Hãy nhập góp ý hoặc ý tưởng của bạn!</b>\n"
+        "Bot sẽ gửi trực tiếp tới admin. Xin cảm ơn! 💡"
+    )
+    await update.callback_query.message.reply_text(text, parse_mode="HTML")
