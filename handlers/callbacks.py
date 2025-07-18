@@ -1,7 +1,7 @@
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
 from utils.phongthuy.phongthuy import get_can_chi_ngay, chuan_hoa_can_chi, sinh_so_hap_cho_ngay
-from utils.ai_rf import predict_rf_xsmb, predict_rf_lo_mb, train_rf_db, train_rf_lo, train_all_ai
+from utils.ai_rf import predict_rf_xsmb, predict_rf_lo_mb, train_rf_db, train_rf_lo_mb, train_all_ai
 from handlers.menu import ungho_menu_handler, ungho_ck_handler, donggop_ykien_handler
 from utils.crawl.crawl_xsmb import crawl_xsmb_Nngay_minhchinh_csv
 import os
