@@ -1,23 +1,14 @@
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
 from utils.phongthuy.phongthuy import get_can_chi_ngay, chuan_hoa_can_chi, sinh_so_hap_cho_ngay
-from utils.ai_rf import predict_rf_xsmb, predict_rf_lo_mb
+from utils.ai_rf import predict_rf_xsmb, predict_rf_lo_mb, train_rf_db, train_rf_lo, train_all_ai
 from handlers.menu import ungho_menu_handler, ungho_ck_handler, donggop_ykien_handler
 from utils.crawl.crawl_xsmb import crawl_xsmb_Nngay_minhchinh_csv
-from utils.upload_github import upload_file_to_github
 import os
 
-MY_ID = 892780229  # Thay bằng ID Telegram của bạn
 ADMIN_IDS = list(map(int, os.getenv("ADMIN_IDS", "12345678").split(',')))
 
 async def menu_callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    chat = update.effective_chat
-    user = update.effective_user
-
-    # Chỉ trả lời ở group/supergroup hoặc nếu là bạn trong chat riêng
-    if chat.type == "private" and user.id not in ADMIN_IDS and user.id != MY_ID:
-        return
-
     query = update.callback_query
     await query.answer()
     user_id = query.from_user.id
@@ -30,9 +21,7 @@ async def menu_callback_handler(update: Update, context: ContextTypes.DEFAULT_TY
                 InlineKeyboardButton("🟦 Xiên 3", callback_data="ghepxien_3"),
                 InlineKeyboardButton("🟣 Xiên 4", callback_data="ghepxien_4"),
             ],
-            [
-                InlineKeyboardButton("🏠 Quay lại menu", callback_data="main_menu"),
-            ]
+            [InlineKeyboardButton("🏠 Quay lại menu", callback_data="main_menu")],
         ]
         await query.edit_message_text(
             "<b>Chọn dạng ghép xiên:</b>",
@@ -57,9 +46,7 @@ async def menu_callback_handler(update: Update, context: ContextTypes.DEFAULT_TY
                 InlineKeyboardButton("🟢 Ghép càng 3D", callback_data="ghepcang_3d"),
                 InlineKeyboardButton("🟦 Ghép càng 4D", callback_data="ghepcang_4d"),
             ],
-            [
-                InlineKeyboardButton("🏠 Quay lại menu", callback_data="main_menu"),
-            ]
+            [InlineKeyboardButton("🏠 Quay lại menu", callback_data="main_menu")],
         ]
         await query.edit_message_text(
             "🎯 <b>Bạn muốn ghép càng kiểu nào?</b>",
@@ -168,6 +155,7 @@ async def menu_callback_handler(update: Update, context: ContextTypes.DEFAULT_TY
         keyboard = [
             [InlineKeyboardButton("⚙️ Train lại AI RF ĐB", callback_data="train_model_db")],
             [InlineKeyboardButton("⚙️ Train lại AI RF Lô", callback_data="train_model_lo")],
+            [InlineKeyboardButton("🤖 Train AI tổng hợp", callback_data="train_all_ai")],
             [InlineKeyboardButton("🔄 Cập nhật XSMB", callback_data="capnhat_xsmb")],
             [InlineKeyboardButton("🏠 Quay lại menu", callback_data="main_menu")],
         ]
@@ -176,6 +164,48 @@ async def menu_callback_handler(update: Update, context: ContextTypes.DEFAULT_TY
             reply_markup=InlineKeyboardMarkup(keyboard),
             parse_mode="HTML"
         )
+
+    elif query.data == "train_model_db":
+        if user_id not in ADMIN_IDS:
+            await query.edit_message_text("❌ Bạn không có quyền train AI ĐB!")
+            return
+        try:
+            await query.edit_message_text("⏳ Đang train AI RF ĐB...")
+            ok = train_rf_db()
+            if ok:
+                await query.message.reply_text("✅ Đã train xong model ĐB.")
+            else:
+                await query.message.reply_text("❌ Lỗi train AI ĐB. Kiểm tra lại dữ liệu hoặc log.")
+        except Exception as e:
+            await query.message.reply_text(f"❌ Lỗi train AI ĐB: {e}")
+
+    elif query.data == "train_model_lo":
+        if user_id not in ADMIN_IDS:
+            await query.edit_message_text("❌ Bạn không có quyền train AI lô!")
+            return
+        try:
+            await query.edit_message_text("⏳ Đang train AI RF lô MB...")
+            ok = train_rf_lo()
+            if ok:
+                await query.message.reply_text("✅ Đã train xong model lô MB.")
+            else:
+                await query.message.reply_text("❌ Lỗi train AI lô. Kiểm tra lại dữ liệu hoặc log.")
+        except Exception as e:
+            await query.message.reply_text(f"❌ Lỗi train AI lô: {e}")
+
+    elif query.data == "train_all_ai":
+        if user_id not in ADMIN_IDS:
+            await query.edit_message_text("❌ Bạn không có quyền train AI!")
+            return
+        try:
+            await query.edit_message_text("⏳ Đang train AI tổng hợp (ĐB & 27 lô)...")
+            ok = train_all_ai()
+            if ok:
+                await query.message.reply_text("✅ Đã train xong cả 2 model AI RF (ĐB & lô MB).")
+            else:
+                await query.message.reply_text("⚠️ Có lỗi khi train model. Kiểm tra lại dữ liệu hoặc log.")
+        except Exception as e:
+            await query.message.reply_text(f"❌ Lỗi train all AI: {e}")
 
     elif query.data == "capnhat_xsmb":
         if user_id not in ADMIN_IDS:
