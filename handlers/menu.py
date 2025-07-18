@@ -27,7 +27,7 @@ async def menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         ])
 
     welcome = (
-        "✨ <b>Chào mừng bạn đến với XosoBot!</b>\n"
+        "✨ <b>Chào mừng bạn đến với Thần tài!</b>\n"
         "Hãy chọn chức năng bên dưới 👇"
     )
 
