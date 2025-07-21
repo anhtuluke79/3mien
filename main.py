@@ -1,7 +1,7 @@
 import os
 import requests
 from bs4 import BeautifulSoup
-from telegram.ext import ApplicationBuilder, CommandHandler, CallbackQueryHandler, MessageHandler, filters
+from telegram.ext import ApplicationBuilder, CommandHandler, CallbackQueryHandler
 from handlers.menu import menu_handler
 from handlers.callbacks import menu_callback_handler
 from handlers.admin import admin_menu_handler, admin_callback_handler
@@ -10,7 +10,6 @@ TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
 if not TELEGRAM_TOKEN:
     raise ValueError("Chưa thiết lập TELEGRAM_TOKEN!")
 
-# ---- Hàm crawl kết quả xổ số ----
 def get_kqxs(region='mb'):
     url = {
         'mb': 'https://ketqua.net/xo-so-mien-bac',
@@ -31,7 +30,9 @@ def get_kqxs(region='mb'):
             result_lines.append(f"{label}: `{numbers}`")
     return '\n'.join(result_lines)
 
-# ---- Các lệnh xổ số ----
+async def start(update, context):
+    await menu_handler(update, context)
+
 async def ketqua_handler(update, context):
     msg = get_kqxs('mb')
     await update.message.reply_text(msg, parse_mode='Markdown')
@@ -44,30 +45,17 @@ async def mt_handler(update, context):
     msg = get_kqxs('mt')
     await update.message.reply_text(msg, parse_mode='Markdown')
 
-# ---- Lệnh /start ----
-async def start(update, context):
-    await update.message.reply_text(
-        "✨ Chào mừng bạn đến với XosoBot!\n"
-        "• /menu để chọn tính năng\n"
-        "• Hoặc chọn chức năng bằng nút phía dưới."
-    )
-
 def main():
     app = ApplicationBuilder().token(TELEGRAM_TOKEN).build()
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("menu", menu_handler))
     app.add_handler(CommandHandler("admin", admin_menu_handler))
-
-    # Đăng ký các lệnh xổ số
     app.add_handler(CommandHandler("ketqua", ketqua_handler))
     app.add_handler(CommandHandler("mb", ketqua_handler))
     app.add_handler(CommandHandler("mn", mn_handler))
     app.add_handler(CommandHandler("mt", mt_handler))
-
-    # Callback cho admin (bạn cần sửa pattern cho phù hợp, hoặc bỏ nếu không còn)
-    # app.add_handler(CallbackQueryHandler(admin_callback_handler, pattern="^admin_"))
     app.add_handler(CallbackQueryHandler(menu_callback_handler))
-
+    app.add_handler(CallbackQueryHandler(admin_callback_handler))
     app.run_polling()
 
 if __name__ == "__main__":
