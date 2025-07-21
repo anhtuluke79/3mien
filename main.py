@@ -1,33 +1,40 @@
-from telegram.ext import ApplicationBuilder, CommandHandler, CallbackQueryHandler, MessageHandler, filters
-from handlers.menu import menu, help_command, menu_callback_handler
-app.add_handler(CommandHandler("start", menu))
-app.add_handler(CommandHandler("help", help_command))
-app.add_handler(CommandHandler("reset", reset_command))
-app.add_handler(CallbackQueryHandler(menu_callback_handler))
+import asyncio
+from telegram.ext import (
+    ApplicationBuilder,
+    CommandHandler,
+    CallbackQueryHandler,
+    MessageHandler,
+    filters
+)
+
+from handlers.menu import (
+    menu,
+    help_command,
+    menu_callback_handler
+)
+
 from handlers.text_handlers import all_text_handler
-import os
 
-TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
-ADMIN_IDS = list(map(int, os.getenv("ADMIN_IDS", "12345678").split(',')))
+# 🔑 Thay bằng token bot thật của bạn
+TOKEN = "YOUR_TELEGRAM_BOT_TOKEN_HERE"
 
-def main():
-    app = ApplicationBuilder().token(TELEGRAM_TOKEN).build()
 
-    app.bot_data["ADMIN_IDS"] = ADMIN_IDS
+async def main():
+    app = ApplicationBuilder().token(TOKEN).build()
 
-    # Lệnh
+    # 🧭 Lệnh /start và /help
     app.add_handler(CommandHandler("start", menu))
-    app.add_handler(CommandHandler("menu", menu))
     app.add_handler(CommandHandler("help", help_command))
 
-    # Menu buttons
+    # 🎛 Xử lý các nút callback từ InlineKeyboard
     app.add_handler(CallbackQueryHandler(menu_callback_handler))
 
-    # Tin nhắn văn bản
+    # 💬 Xử lý tất cả tin nhắn văn bản không phải là lệnh
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, all_text_handler))
 
-    # KHÔNG DÙNG asyncio.run() nữa
-    app.run_polling()
+    print("🤖 Bot Telegram đã sẵn sàng!")
+    await app.run_polling()
+
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())
