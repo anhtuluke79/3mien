@@ -1,60 +1,44 @@
-import os
-import logging
-from telegram.ext import (
-    ApplicationBuilder,
-    CommandHandler,
-    MessageHandler,
-    CallbackQueryHandler,
-    ContextTypes,
-    filters
-)
-from telegram import Update
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram.ext import ContextTypes
 
-from handlers.menu import (
-    menu,
-    help_command,
-    menu_callback_handler,
-    reset_command
-)
-from handlers.text_handlers import all_text_handler
+async def menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    keyboard = [
+        [InlineKeyboardButton("🔢 Ghép xiên", callback_data="ghep_xien")],
+        [InlineKeyboardButton("🔁 Đảo số", callback_data="dao_so")],
+        [InlineKeyboardButton("🎯 Ghép càng 3D", callback_data="cang3d")],
+        [InlineKeyboardButton("🎯 Ghép càng 4D", callback_data="cang4d")],
+        [InlineKeyboardButton("ℹ️ Hướng dẫn", callback_data="help")],
+        [InlineKeyboardButton("🔄 Reset", callback_data="reset")]
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    await update.message.reply_text("🔘 Chọn chức năng:", reply_markup=reply_markup)
 
-# Cấu hình logger
-logging.basicConfig(
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO
-)
+async def menu_callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    data = query.data
+    user_data = context.user_data
 
-logger = logging.getLogger(__name__)
+    if data == "ghep_xien":
+        user_data["wait_for_xien_input"] = 2
+        await query.edit_message_text("📥 Nhập các số để ghép xiên 2:")
+    elif data == "dao_so":
+        user_data["wait_for_dao_input"] = True
+        await query.edit_message_text("📥 Nhập các số muốn đảo:")
+    elif data == "cang3d":
+        user_data["wait_cang3d_numbers"] = True
+        await query.edit_message_text("📥 Nhập dàn 2 số để ghép với càng:")
+    elif data == "cang4d":
+        user_data["wait_cang4d_numbers"] = True
+        await query.edit_message_text("📥 Nhập dàn 3 số để ghép với càng:")
+    elif data == "help":
+        await help_command(update, context)
+    elif data == "reset":
+        await reset_command(update, context)
 
-# Lấy token từ biến môi trường
-BOT_TOKEN = os.environ.get("BOT_TOKEN")
-if not BOT_TOKEN:
-    raise ValueError("❌ Biến môi trường BOT_TOKEN chưa được thiết lập.")
+async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.effective_message.reply_text("❓ Hướng dẫn sử dụng bot:\n- /start để bắt đầu\n- Chọn các chức năng qua menu")
 
-async def main():
-    app = ApplicationBuilder().token(BOT_TOKEN).build()
-
-    # Lệnh chính
-    app.add_handler(CommandHandler("start", menu))
-    app.add_handler(CommandHandler("help", help_command))
-    app.add_handler(CommandHandler("reset", reset_command))
-
-    # Callback từ nút bấm
-    app.add_handler(CallbackQueryHandler(menu_callback_handler))
-
-    # Xử lý nhập liệu văn bản tự do
-    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, all_text_handler))
-
-    print("✅ Bot đang chạy...")
-    await app.run_polling(close_loop=False)
-
-if __name__ == "__main__":
-    import asyncio
-    try:
-        asyncio.run(main())
-    except RuntimeError as e:
-        if "event loop is already running" in str(e):
-            import nest_asyncio
-            nest_asyncio.apply()
-            asyncio.get_event_loop().run_until_complete(main())
-        else:
-            raise e
+async def reset_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    context.user_data.clear()
+    await update.effective_message.reply_text("🔄 Đã reset trạng thái. Gõ /start để bắt đầu lại.")
