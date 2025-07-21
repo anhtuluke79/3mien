@@ -6,8 +6,7 @@ async def menu_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         [InlineKeyboardButton("🎯 KQXS Miền Bắc", callback_data='kqxs_mb')],
         [InlineKeyboardButton("🏵️ KQXS Miền Nam", callback_data='kqxs_mn')],
         [InlineKeyboardButton("🌄 KQXS Miền Trung", callback_data='kqxs_mt')],
-        # [InlineKeyboardButton("🔮 Phong thủy", callback_data='phongthuy')],
-        # [InlineKeyboardButton("ℹ️ Hỗ trợ", callback_data='hotro')],
+        # Thêm các nút khác nếu muốn
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
     menu_text = (
