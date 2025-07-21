@@ -1,9 +1,9 @@
 import os
 from telegram.ext import ApplicationBuilder, CommandHandler, CallbackQueryHandler
 from handlers.menu import menu_handler
-from handlers.callbacks import menu_callback_handler
-from handlers.admin import admin_menu_handler, admin_callback_handler
-from utils.get_kqxs import get_kqxs  # Hàm lấy kết quả xổ số, xem ở cuối hướng dẫn
+from handlers.callbacks import menu_callback_handler, admin_callback_handler
+from handlers.admin import admin_menu_handler
+from utils.get_kqxs import get_kqxs
 
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
 if not TELEGRAM_TOKEN:
