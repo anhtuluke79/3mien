@@ -4,7 +4,6 @@ from bs4 import BeautifulSoup
 from telegram.ext import ApplicationBuilder, CommandHandler, CallbackQueryHandler, MessageHandler, filters
 from handlers.menu import menu_handler
 from handlers.callbacks import menu_callback_handler
-from handlers.input_handler import all_text_handler
 from handlers.admin import admin_menu_handler, admin_callback_handler
 
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
@@ -68,9 +67,6 @@ def main():
     # Callback cho admin (bạn cần sửa pattern cho phù hợp, hoặc bỏ nếu không còn)
     # app.add_handler(CallbackQueryHandler(admin_callback_handler, pattern="^admin_"))
     app.add_handler(CallbackQueryHandler(menu_callback_handler))
-
-    # Xử lý nhập text theo ngữ cảnh thao tác (không trả lời tự do)
-    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, all_text_handler))
 
     app.run_polling()
 
