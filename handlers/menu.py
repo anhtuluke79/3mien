@@ -74,3 +74,9 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 📩 Mọi lỗi vui lòng báo admin."""
     await update.message.reply_text(text)
+from telegram import Update
+from telegram.ext import ContextTypes
+
+async def reset_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    context.user_data.clear()
+    await update.message.reply_text("🔄 Đã reset trạng thái bot.")
