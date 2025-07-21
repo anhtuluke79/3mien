@@ -6,21 +6,24 @@ async def all_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_data = context.user_data
     msg = update.message.text.strip()
 
-    # Ghép xiên
+    # ======= Ghép xiên =======
     if 'wait_for_xien_input' in user_data:
         do_dai = user_data['wait_for_xien_input']
         numbers = split_numbers(msg)
         xiens = ghep_xien(numbers, do_dai)
-        reply = f"{len(xiens)} bộ xiên {do_dai}:\n" + ', '.join(xiens[:50])
-        await update.message.reply_text(reply)
+        if not xiens:
+            await update.message.reply_text("⚠️ Không ghép được xiên, vui lòng nhập lại.")
+        else:
+            reply = f"{len(xiens)} bộ xiên {do_dai}:\n" + ', '.join(xiens[:50])
+            await update.message.reply_text(reply)
         user_data.clear()
         return
 
-    # Ghép càng 3D
+    # ======= Ghép càng 3D =======
     if user_data.get("wait_cang3d_numbers"):
         arr = split_numbers(msg)
-        if not all(len(n) == 2 for n in arr):
-            await update.message.reply_text("⚠️ Mỗi số cần đúng 2 chữ số!")
+        if not arr or not all(len(n) == 2 for n in arr):
+            await update.message.reply_text("⚠️ Mỗi số cần đúng 2 chữ số! (VD: 12 34 56)")
             return
         user_data["cang3d_numbers"] = arr
         user_data["wait_cang3d_numbers"] = False
@@ -28,11 +31,11 @@ async def all_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("📥 Nhập các càng muốn ghép (VD: 1 2 3):")
         return
 
-    # Ghép càng 4D
+    # ======= Ghép càng 4D =======
     if user_data.get("wait_cang4d_numbers"):
         arr = split_numbers(msg)
-        if not all(len(n) == 3 for n in arr):
-            await update.message.reply_text("⚠️ Mỗi số cần đúng 3 chữ số!")
+        if not arr or not all(len(n) == 3 for n in arr):
+            await update.message.reply_text("⚠️ Mỗi số cần đúng 3 chữ số! (VD: 123 456 789)")
             return
         user_data["cang4d_numbers"] = arr
         user_data["wait_cang4d_numbers"] = False
@@ -40,7 +43,7 @@ async def all_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("📥 Nhập các càng muốn ghép (VD: 1 2 3):")
         return
 
-    # Xử lý ghép càng sau khi có dãy & càng
+    # ======= Xử lý ghép càng sau khi đã có dàn =======
     if user_data.get("wait_cang_input"):
         kind = user_data["wait_cang_input"]
         numbers = user_data.get("cang3d_numbers" if kind == "3D" else "cang4d_numbers", [])
@@ -53,5 +56,21 @@ async def all_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         user_data.clear()
         return
 
-    # Nếu không có trạng thái nào
+    # ======= Đảo số =======
+    if user_data.get("wait_for_dao_input"):
+        arr = split_numbers(msg)
+        s_concat = ''.join(arr) if arr else msg.replace(' ', '')
+        if not s_concat.isdigit() or len(s_concat) < 2 or len(s_concat) > 6:
+            await update.message.reply_text("Nhập 1 số có từ 2 đến 6 chữ số (VD: 1234, 56789).")
+        else:
+            result = dao_so(s_concat)
+            if len(result) > 20:
+                text = '\n'.join([', '.join(result[i:i+10]) for i in range(0, len(result), 10)])
+            else:
+                text = ', '.join(result)
+            await update.message.reply_text(f"Tổng {len(result)} hoán vị:\n{text}")
+        user_data.clear()
+        return
+
+    # Không trả lời tin nhắn nếu không thuộc trạng thái nhập liệu nào!
     return
