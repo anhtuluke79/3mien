@@ -55,19 +55,34 @@ async def menu_callback_handler(update: Update, context: ContextTypes.DEFAULT_TY
 
     # === Ghép càng / Đảo số
     if query.data == "menu_ghepcang":
-        keyboard = [
-            [InlineKeyboardButton("Đảo số", callback_data="daoso")],
-            [InlineKeyboardButton("⬅️ Quay lại", callback_data="main_menu")],
-            [InlineKeyboardButton("🔄 Reset trạng thái", callback_data="reset_state")]
-        ]
+    keyboard = [
+        [InlineKeyboardButton("Càng 3D", callback_data="cang3d"),
+         InlineKeyboardButton("Càng 4D", callback_data="cang4d")],
+        [InlineKeyboardButton("Đảo số", callback_data="daoso")],
+        [InlineKeyboardButton("⬅️ Quay lại", callback_data="main_menu")],
+        [InlineKeyboardButton("🔄 Reset trạng thái", callback_data="reset_state")]
+    ]
         await query.edit_message_text("Chọn thao tác:", reply_markup=InlineKeyboardMarkup(keyboard))
+        return
+
+    if query.data == "cang3d":
+        context.user_data.clear()
+        context.user_data["wait_cang3d_numbers"] = True
+        await query.edit_message_text("📥 Nhập dãy 2 chữ số (VD: 23 45 67):")
+        return
+
+    if query.data == "cang4d":
+        context.user_data.clear()
+        context.user_data["wait_cang4d_numbers"] = True
+        await query.edit_message_text("📥 Nhập dãy 3 chữ số (VD: 123 234 345):")
         return
 
     if query.data == "daoso":
         context.user_data.clear()
-        context.user_data['wait_for_daoso'] = True
+        context.user_data["wait_for_daoso"] = True
         await query.edit_message_text("📥 Nhập một số từ 2 đến 6 chữ số để đảo:")
         return
+
 
     # === Quay lại menu chính
     if query.data == "main_menu":
