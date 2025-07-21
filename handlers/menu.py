@@ -2,7 +2,7 @@ from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
 from datetime import datetime
 from utils.can_chi_utils import get_can_chi_ngay, sinh_so_hap_cho_ngay, phong_thuy_format, chot_so_format
-from main import is_admin, main_menu_keyboard
+from utils.utils import is_admin, get_main_menu_keyboard
 
 async def menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
