@@ -1,7 +1,7 @@
 import os
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler, MessageHandler, filters
 from handlers.menu import menu, menu_callback_handler, help_command, reset_command
-from handlers.all_text import all_text_handler
+from handlers.text_handlers import all_text_handler
 
 TOKEN = os.getenv("BOT_TOKEN")
 
