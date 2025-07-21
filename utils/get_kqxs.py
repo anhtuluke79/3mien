@@ -3,7 +3,7 @@ from bs4 import BeautifulSoup
 
 def get_kqxs(region='mb'):
     urls = {
-        'mb': 'https://www.minhngoc.com.vn/kqxs/mien-bac.html',
+        'mb': 'https://xosoketqua.com/xsmb-xo-so-mien-bac.html',
         'mn': 'https://www.minhngoc.com.vn/ket-qua-xo-so/mien-nam.html',
         'mt': 'https://www.minhngoc.com.vn/ket-qua-xo-so/mien-trung.html'
     }
