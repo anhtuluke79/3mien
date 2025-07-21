@@ -8,7 +8,6 @@ from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 
 # ==== Import các handler đã viết sẵn từ các file module riêng ==== #
 from handlers.menu import menu, admin_menu, menu_callback_handler
-from handlers.text_handlers import all_text_handler
 
 # ==== Thiết lập logger ====
 logging.basicConfig(
