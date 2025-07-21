@@ -1,10 +1,26 @@
 from telegram import Update
 from telegram.ext import ContextTypes
+from main import get_kqxs  # Hoặc di chuyển get_kqxs vào utils rồi import ở đây
 
 async def menu_callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    # Xử lý các callback từ menu (nếu chưa có chức năng cụ thể, trả về như dưới)
-    await update.callback_query.answer("Tính năng đang cập nhật.")
+    query = update.callback_query
+    data = query.data
 
-async def admin_callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    # Xử lý các callback admin (nếu có)
-    await update.callback_query.answer("Admin callback đang cập nhật.")
+    if data == 'kqxs_mb':
+        msg = get_kqxs('mb')
+        await query.answer()
+        await query.edit_message_text(msg, parse_mode='Markdown')
+    elif data == 'kqxs_mn':
+        msg = get_kqxs('mn')
+        await query.answer()
+        await query.edit_message_text(msg, parse_mode='Markdown')
+    elif data == 'kqxs_mt':
+        msg = get_kqxs('mt')
+        await query.answer()
+        await query.edit_message_text(msg, parse_mode='Markdown')
+    elif data == 'phongthuy':
+        await query.answer("Chức năng đang cập nhật.")
+    elif data == 'hotro':
+        await query.answer("Liên hệ admin để được hỗ trợ.")
+    else:
+        await query.answer("Chức năng đang cập nhật.")
