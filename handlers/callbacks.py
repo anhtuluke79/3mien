@@ -1,6 +1,6 @@
 from telegram import Update
 from telegram.ext import ContextTypes
-from main import get_kqxs  # Hoặc di chuyển get_kqxs vào utils rồi import ở đây
+from utils.get_kqxs import get_kqxs
 
 async def menu_callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
