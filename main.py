@@ -49,9 +49,6 @@ async def main():
     # Các lệnh người dùng
     app.add_handler(CommandHandler("start", menu))
     app.add_handler(CommandHandler("menu", menu))
-    app.add_handler(CommandHandler("crawl", crawl_handler))
-    app.add_handler(CommandHandler("crawlmn", crawlmn_handler))
-    app.add_handler(CommandHandler("crawlt", crawlt_handler))
 
     # Inline menu và callback
     app.add_handler(CallbackQueryHandler(menu_callback_handler))
