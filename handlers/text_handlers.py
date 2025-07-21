@@ -1,74 +1,64 @@
-from telegram import Update
-from telegram.ext import ContextTypes
+import asyncio
+import os
+import logging
+from telegram.ext import (
+    ApplicationBuilder, CommandHandler, CallbackQueryHandler, MessageHandler, filters
+)
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 
-def extract_numbers(text):
-    return [n for n in text.replace(',', ' ').split() if n.isdigit()]
+# ==== Import các handler đã viết sẵn từ các file module riêng ==== #
+from handlers.menu import menu, admin_menu, menu_callback_handler
+from handlers.text_handlers import all_text_handler
 
-async def all_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    message = update.message
-    user_data = context.user_data
+# ==== Thiết lập logger ====
+logging.basicConfig(
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    level=logging.INFO
+)
+logger = logging.getLogger(__name__)
 
-    # ===== GHÉP XIÊN =====
-    if isinstance(user_data.get('wait_for_xien_input'), int):
-        numbers = extract_numbers(message.text)
-        do_dai = user_data['wait_for_xien_input']
-        from itertools import combinations
-        xiens = ['&'.join(comb) for comb in combinations(numbers, do_dai)]
+# ==== Đọc biến môi trường ====
+TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
+if not TELEGRAM_TOKEN:
+    raise ValueError("TELEGRAM_TOKEN chưa được thiết lập!")
 
-        reply = f"{len(xiens)} bộ xiên {do_dai}:\n" + ', '.join(xiens) if xiens else "Không tạo được bộ xiên."
-        await message.reply_text(reply)
-        user_data.clear()
-        return
+raw_admin_ids = os.getenv("ADMIN_IDS")
+if not raw_admin_ids:
+    raise ValueError("ADMIN_IDS chưa được thiết lập!")
+ADMIN_IDS = list(map(int, raw_admin_ids.split(',')))
 
-    # ===== GHÉP CÀNG 3D =====
-    if user_data.get('wait_for_cang3d_numbers'):
-        arr = extract_numbers(message.text)
-        if not arr:
-            await message.reply_text("Vui lòng nhập dãy số (VD: 23 32 28 ...)")
-            return
-        user_data['cang3d_numbers'] = arr
-        user_data['wait_for_cang3d_numbers'] = False
-        user_data['wait_for_cang3d_cangs'] = True
-        await message.reply_text("Nhập các càng muốn ghép (VD: 1 2 3):")
-        return
+def is_admin(user_id):
+    return int(user_id) in ADMIN_IDS
 
-    if user_data.get('wait_for_cang3d_cangs'):
-        cangs = extract_numbers(message.text)
-        result = [c + n for c in cangs for n in user_data.get('cang3d_numbers', [])]
-        await message.reply_text(f"Ghép càng 3D ({len(result)}):\n" + ', '.join(result))
-        user_data.clear()
-        return
+# ==== Giao diện chính ==== #
+def main_menu_keyboard(user_id):
+    keyboard = [
+        [InlineKeyboardButton("➕ Ghép xiên", callback_data="menu_ghepxien")],
+        [InlineKeyboardButton("🎯 Ghép càng/Đảo số", callback_data="menu_ghepcang")],
+        [InlineKeyboardButton("🔮 Phong thủy", callback_data="phongthuy_ngay")],
+        [InlineKeyboardButton("🎯 Chốt số", callback_data="menu_chotso")],
+        [InlineKeyboardButton("💗 Đóng góp", callback_data="donggop")],
+    ]
+    if is_admin(user_id):
+        keyboard.append([InlineKeyboardButton("⚙️ Quản trị", callback_data="admin_menu")])
+    return InlineKeyboardMarkup(keyboard)
 
-    # ===== GHÉP CÀNG 4D =====
-    if user_data.get('wait_for_cang4d_numbers'):
-        arr = extract_numbers(message.text)
-        if not arr or not all(len(n) == 3 for n in arr):
-            await message.reply_text("Nhập các số 3 chữ số (VD: 123 456 ...)")
-            return
-        user_data['cang4d_numbers'] = arr
-        user_data['wait_for_cang4d_numbers'] = False
-        user_data['wait_for_cang4d_cangs'] = True
-        await message.reply_text("Nhập các càng muốn ghép (VD: 1 2 3):")
-        return
+# ==== Hàm khởi chạy chính ==== #
+async def main():
+    app = ApplicationBuilder().token(TELEGRAM_TOKEN).build()
 
-    if user_data.get('wait_for_cang4d_cangs'):
-        cangs = extract_numbers(message.text)
-        result = [c + n for c in cangs for n in user_data.get('cang4d_numbers', [])]
-        await message.reply_text(f"Ghép càng 4D ({len(result)}):\n" + ', '.join(result))
-        user_data.clear()
-        return
+    # Các lệnh người dùng
+    app.add_handler(CommandHandler("start", menu))
+    app.add_handler(CommandHandler("menu", menu))
 
-    # ===== ĐẢO SỐ =====
-    if user_data.get('wait_for_daoso'):
-        s = ''.join(extract_numbers(message.text))
-        if not s.isdigit() or len(s) < 2 or len(s) > 6:
-            await message.reply_text("Nhập 1 số từ 2 đến 6 chữ số để đảo hoán vị (VD: 1234)")
-            return
-        from itertools import permutations
-        hoans = sorted(set([''.join(p) for p in permutations(s)]))
-        await message.reply_text(f"Tổng {len(hoans)} hoán vị:\n" + ', '.join(hoans))
-        user_data.clear()
-        return
+    # Inline menu và callback
+    app.add_handler(CallbackQueryHandler(menu_callback_handler))
 
-    # Nếu không phải đang chờ nhập, không phản hồi
-    return
+    # Tin nhắn dạng văn bản khi đang ở trạng thái nhập liệu
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, all_text_handler))
+
+    # Chạy bot
+    await app.run_polling()
+
+if __name__ == "__main__":
+    asyncio.run(main())
