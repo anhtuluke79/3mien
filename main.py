@@ -1,36 +1,13 @@
 import os
-import requests
-from bs4 import BeautifulSoup
 from telegram.ext import ApplicationBuilder, CommandHandler, CallbackQueryHandler
 from handlers.menu import menu_handler
 from handlers.callbacks import menu_callback_handler
 from handlers.admin import admin_menu_handler, admin_callback_handler
-from utils.get_kqxs import get_kqxs
-
+from utils.get_kqxs import get_kqxs  # Hàm lấy kết quả xổ số, xem ở cuối hướng dẫn
 
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
 if not TELEGRAM_TOKEN:
     raise ValueError("Chưa thiết lập TELEGRAM_TOKEN!")
-
-def get_kqxs(region='mb'):
-    url = {
-        'mb': 'https://ketqua.net/xo-so-mien-bac',
-        'mn': 'https://ketqua.net/xo-so-mien-nam',
-        'mt': 'https://ketqua.net/xo-so-mien-trung'
-    }.get(region, 'mb')
-    r = requests.get(url, timeout=10)
-    soup = BeautifulSoup(r.text, 'html.parser')
-    date = soup.find('td', class_='ngay').text.strip()
-    bang = soup.find('table', class_='kqmb' if region == 'mb' else 'kqmien')
-    rows = bang.find_all('tr')[1:]
-    result_lines = [f"*KQXS {'MB' if region == 'mb' else ('MN' if region == 'mn' else 'MT')} {date}*"]
-    for row in rows:
-        cells = row.find_all('td')
-        if len(cells) > 1:
-            label = cells[0].text.strip()
-            numbers = ' '.join(c.text.strip() for c in cells[1:])
-            result_lines.append(f"{label}: `{numbers}`")
-    return '\n'.join(result_lines)
 
 async def start(update, context):
     await menu_handler(update, context)
