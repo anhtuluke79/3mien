@@ -1,9 +1,13 @@
 from datetime import datetime
-from itertools import permutations
-from can_chi_dict import data as CAN_CHI_SO_HAP
-from thien_can import CAN_INFO
+from .thien_can import CAN_INFO
+from .can_chi_dict import data as CAN_CHI_SO_HAP
+
+def chuan_hoa_can_chi(s):
+    """Chuyển can chi về dạng chuẩn, hoa chữ cái đầu: Giáp Tý, Ất Mão,..."""
+    return ' '.join([w.capitalize() for w in s.strip().split()])
 
 def get_can_chi_ngay(year, month, day):
+    """Tính can chi ngày dương (dùng lịch Gregory, mặc định năm-tháng-ngày)"""
     if month < 3:
         month += 12
         year -= 1
@@ -17,6 +21,7 @@ def get_can_chi_ngay(year, month, day):
     return f"{can} {chi}"
 
 def sinh_so_hap_cho_ngay(can_chi_str):
+    """Sinh số hạp dựa vào can chi truyền vào"""
     code = CAN_CHI_SO_HAP.get(can_chi_str)
     if not code:
         return None
@@ -69,8 +74,17 @@ def chot_so_format(can_chi, sohap_info, today_str):
         return "Không đủ dữ liệu phong thủy để chốt số hôm nay!"
     d = [sohap_info['so_menh']] + sohap_info['so_hap_list']
     chams = ','.join(d)
-    dan_de = sorted(set([x + y for x in d for y in d]))
-    lo = sorted(set([x + y for x in d for y in d if x != y]))
+    dan_de = []
+    for x in d:
+        for y in d:
+            dan_de.append(x + y)
+    dan_de = sorted(set(dan_de))
+    lo = []
+    for x in d:
+        for y in d:
+            if x != y:
+                lo.append(x + y)
+    lo = sorted(set(lo))
     icons = "🎉🍀🥇"
     text = (
         f"{icons}\n"
