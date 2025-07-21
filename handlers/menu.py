@@ -1,90 +1,98 @@
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import ContextTypes
+from telegram.ext import ContextTypes, CallbackQueryHandler, CommandHandler
 from utils.utils import is_admin, get_main_menu_keyboard
 
-# Lệnh /start hoặc /menu
+# /start command
 async def menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_id = update.effective_user.id
-    keyboard = get_main_menu_keyboard(user_id, context.bot_data.get("ADMIN_IDS", []))
+    user = update.effective_user
+    keyboard = get_main_menu_keyboard(is_admin(user.id))
+    await update.message.reply_text("📋 Chọn một chức năng bên dưới:", reply_markup=InlineKeyboardMarkup(keyboard))
 
-    if update.message:
-        await update.message.reply_text("🔹 Chọn chức năng:", reply_markup=keyboard)
-    elif update.callback_query:
-        await update.callback_query.message.reply_text("🔹 Chọn chức năng:", reply_markup=keyboard)
-
-# Lệnh /help
+# /help command
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     help_text = (
-        "🤖 *Hướng dẫn sử dụng bot*\n\n"
-        "🔸 Chọn chức năng từ menu:\n"
-        "➕ Ghép xiên: nhập nhiều số để bot ghép thành xiên 2, 3, 4\n"
-        "🎯 Đảo số: nhập 1 số từ 2 đến 6 chữ số, bot sẽ đảo ra các hoán vị\n"
-        "🔄 Reset trạng thái: xóa trạng thái nhập liệu nếu bạn muốn làm lại\n\n"
-        "💬 Nếu bot không phản hồi, hãy nhập lại bằng cách nhấn Reset hoặc /menu"
+        "📚 *Hướng dẫn sử dụng bot:*\n\n"
+        "/start - Hiển thị menu chính\n"
+        "/help - Hướng dẫn sử dụng\n"
+        "/reset - Xoá trạng thái người dùng\n\n"
+        "*Các chức năng:* \n"
+        "• Tạo xiên (ghép số)\n"
+        "• Đảo số\n"
+        "• Ghép càng 3D/4D\n"
+        "• Phong thuỷ, chốt số\n"
     )
-    await update.message.reply_text(help_text, parse_mode="Markdown")
+    await update.message.reply_markdown_v2(help_text)
 
-# Xử lý các callback menu
+# /reset command
+async def reset_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    context.user_data.clear()
+    await update.message.reply_text("🔄 Đã xoá trạng thái người dùng.")
+
+# Callback handler cho inline menu
 async def menu_callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
 
-    # === Reset trạng thái
-    if query.data == "reset_state":
-        context.user_data.clear()
-        await query.edit_message_text("✅ Trạng thái đã được reset!")
+    user_data = context.user_data
+
+    if query.data == "main_menu":
+        keyboard = get_main_menu_keyboard(is_admin(query.from_user.id))
+        await query.edit_message_text("📋 Quay lại menu chính:", reply_markup=InlineKeyboardMarkup(keyboard))
         return
 
-    # === Xiên menu
     if query.data == "menu_ghepxien":
         keyboard = [
-            [InlineKeyboardButton("Xiên 2", callback_data="xi2"),
-             InlineKeyboardButton("Xiên 3", callback_data="xi3"),
-             InlineKeyboardButton("Xiên 4", callback_data="xi4")],
+            [InlineKeyboardButton("2 số", callback_data="xien2"),
+             InlineKeyboardButton("3 số", callback_data="xien3"),
+             InlineKeyboardButton("4 số", callback_data="xien4")],
             [InlineKeyboardButton("⬅️ Quay lại", callback_data="main_menu")],
             [InlineKeyboardButton("🔄 Reset trạng thái", callback_data="reset_state")]
         ]
-        await query.edit_message_text("Chọn loại xiên:", reply_markup=InlineKeyboardMarkup(keyboard))
+        await query.edit_message_text("📌 Chọn độ dài xiên muốn tạo:", reply_markup=InlineKeyboardMarkup(keyboard))
         return
 
-    if query.data in ["xi2", "xi3", "xi4"]:
-        do_dai = int(query.data[-1])
-        context.user_data['wait_for_xien_input'] = do_dai
-        await query.edit_message_text(f"Nhập dãy số để ghép xiên {do_dai} (cách nhau dấu cách hoặc phẩy):")
-        return
-
-    # === Ghép càng / Đảo số
     if query.data == "menu_ghepcang":
-    keyboard = [
-        [InlineKeyboardButton("Càng 3D", callback_data="cang3d"),
-         InlineKeyboardButton("Càng 4D", callback_data="cang4d")],
-        [InlineKeyboardButton("Đảo số", callback_data="daoso")],
-        [InlineKeyboardButton("⬅️ Quay lại", callback_data="main_menu")],
-        [InlineKeyboardButton("🔄 Reset trạng thái", callback_data="reset_state")]
-    ]
-        await query.edit_message_text("Chọn thao tác:", reply_markup=InlineKeyboardMarkup(keyboard))
+        keyboard = [
+            [InlineKeyboardButton("Càng 3D", callback_data="cang3d"),
+             InlineKeyboardButton("Càng 4D", callback_data="cang4d")],
+            [InlineKeyboardButton("Đảo số", callback_data="daoso")],
+            [InlineKeyboardButton("⬅️ Quay lại", callback_data="main_menu")],
+            [InlineKeyboardButton("🔄 Reset trạng thái", callback_data="reset_state")]
+        ]
+        await query.edit_message_text("📌 Chọn loại thao tác:", reply_markup=InlineKeyboardMarkup(keyboard))
+        return
+
+    if query.data == "xien2":
+        user_data["wait_for_xien_input"] = 2
+        await query.edit_message_text("📥 Nhập danh sách số để ghép xiên 2:")
+        return
+
+    if query.data == "xien3":
+        user_data["wait_for_xien_input"] = 3
+        await query.edit_message_text("📥 Nhập danh sách số để ghép xiên 3:")
+        return
+
+    if query.data == "xien4":
+        user_data["wait_for_xien_input"] = 4
+        await query.edit_message_text("📥 Nhập danh sách số để ghép xiên 4:")
         return
 
     if query.data == "cang3d":
-        context.user_data.clear()
-        context.user_data["wait_cang3d_numbers"] = True
-        await query.edit_message_text("📥 Nhập dãy 2 chữ số (VD: 23 45 67):")
+        user_data["wait_cang3d_numbers"] = True
+        await query.edit_message_text("📥 Nhập dãy số 2 chữ số để ghép với càng (3D):")
         return
 
     if query.data == "cang4d":
-        context.user_data.clear()
-        context.user_data["wait_cang4d_numbers"] = True
-        await query.edit_message_text("📥 Nhập dãy 3 chữ số (VD: 123 234 345):")
+        user_data["wait_cang4d_numbers"] = True
+        await query.edit_message_text("📥 Nhập dãy số 3 chữ số để ghép với càng (4D):")
         return
 
     if query.data == "daoso":
-        context.user_data.clear()
-        context.user_data["wait_for_daoso"] = True
-        await query.edit_message_text("📥 Nhập một số từ 2 đến 6 chữ số để đảo:")
+        user_data["wait_for_daoso_input"] = True
+        await query.edit_message_text("📥 Nhập danh sách số để đảo thứ tự:")
         return
 
-
-    # === Quay lại menu chính
-    if query.data == "main_menu":
-        await menu(update, context)
+    if query.data == "reset_state":
+        user_data.clear()
+        await query.edit_message_text("🔄 Đã xoá toàn bộ trạng thái người dùng.")
         return
