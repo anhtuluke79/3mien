@@ -2,7 +2,7 @@ import os
 import requests
 from bs4 import BeautifulSoup
 from telegram.ext import ApplicationBuilder, CommandHandler, CallbackQueryHandler, MessageHandler, filters
-from handlers.menu import menu
+from handlers.menu import menu_handler
 from handlers.callbacks import menu_callback_handler
 from handlers.input_handler import all_text_handler
 from handlers.admin import admin_menu_handler, admin_callback_handler
