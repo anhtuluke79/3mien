@@ -15,8 +15,7 @@ async def all_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         from itertools import combinations
         xiens = ['&'.join(comb) for comb in combinations(numbers, do_dai)]
 
-        reply = f"{len(xiens)} bộ xiên {do_dai}:
-" + ', '.join(xiens) if xiens else "Không tạo được bộ xiên."
+        reply = f"{len(xiens)} bộ xiên {do_dai}:\n" + ', '.join(xiens) if xiens else "Không tạo được bộ xiên."
         await message.reply_text(reply)
         user_data.clear()
         return
