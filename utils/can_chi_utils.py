@@ -1,6 +1,6 @@
 from datetime import datetime
-from .thien_can import CAN_INFO
-from .can_chi_dict import data as CAN_CHI_SO_HAP
+from utils.thien_can import CAN_INFO
+from utils.can_chi_dict import data as CAN_CHI_SO_HAP
 
 def chuan_hoa_can_chi(s):
     """Chuyển can chi về dạng chuẩn, hoa chữ cái đầu: Giáp Tý, Ất Mão,..."""
