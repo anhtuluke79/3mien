@@ -1,5 +1,13 @@
 import os
 import logging
+
+# Bổ sung nest_asyncio để fix lỗi event loop (cần cài pip install nest_asyncio)
+try:
+    import nest_asyncio
+    nest_asyncio.apply()
+except ImportError:
+    pass
+
 from telegram.ext import (
     ApplicationBuilder,
     CommandHandler,
@@ -43,16 +51,8 @@ async def main():
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, all_text_handler))
 
     print("🤖 Bot Telegram đã sẵn sàng!")
-    await app.run_polling(close_loop=False)
+    await app.run_polling(close_loop=False)  # Sử dụng close_loop=False để không tự đóng event loop
 
 if __name__ == "__main__":
     import asyncio
-    try:
-        asyncio.run(main())
-    except RuntimeError as e:
-        if "event loop is already running" in str(e):
-            import nest_asyncio
-            nest_asyncio.apply()
-            asyncio.get_event_loop().run_until_complete(main())
-        else:
-            raise e
+    asyncio.run(main())
