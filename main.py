@@ -1,5 +1,9 @@
 from telegram.ext import ApplicationBuilder, CommandHandler, CallbackQueryHandler, MessageHandler, filters
-from handlers.menu import menu, menu_callback_handler, help_command
+from handlers.menu import menu, help_command, menu_callback_handler, reset_command
+app.add_handler(CommandHandler("start", menu))
+app.add_handler(CommandHandler("help", help_command))
+app.add_handler(CommandHandler("reset", reset_command))
+app.add_handler(CallbackQueryHandler(menu_callback_handler))
 from handlers.text_handlers import all_text_handler
 import os
 
