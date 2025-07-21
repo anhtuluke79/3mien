@@ -1,8 +1,9 @@
 import os
-from telegram.ext import ApplicationBuilder, CommandHandler, CallbackQueryHandler
+from telegram.ext import ApplicationBuilder, CommandHandler, CallbackQueryHandler, MessageHandler, filters
 from handlers.menu import menu_handler
 from handlers.callbacks import menu_callback_handler, admin_callback_handler
 from handlers.admin import admin_menu_handler
+from handlers.input_handler import all_text_handler
 from utils.get_kqxs import get_kqxs
 
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
@@ -35,6 +36,8 @@ def main():
     app.add_handler(CommandHandler("mt", mt_handler))
     app.add_handler(CallbackQueryHandler(menu_callback_handler))
     app.add_handler(CallbackQueryHandler(admin_callback_handler))
+    # Tự động nhận input cho ghép/đảo, KHÔNG trả lời tự do nếu không có trạng thái
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, all_text_handler))
     app.run_polling()
 
 if __name__ == "__main__":
