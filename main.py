@@ -7,7 +7,7 @@ from telegram.ext import (
     filters
 )
 
-from handlers.menu import menu, help_command, menu_callback_handler, reset_command
+from handlers.menu import menu, help_command, menu_callback_handler
 from handlers.text_handlers import all_text_handler
 
 TOKEN = "YOUR_BOT_TOKEN"  # Thay bằng token thật
