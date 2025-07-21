@@ -1,6 +1,14 @@
 from telegram import Update
 from telegram.ext import ContextTypes
 from utils.utils import split_numbers, ghep_xien, dao_so
+from utils.can_chi_utils import (
+    get_can_chi_ngay,
+    sinh_so_hap_cho_ngay,
+    phong_thuy_format,
+    chot_so_format,
+    chuan_hoa_can_chi
+)
+from datetime import datetime
 
 async def all_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_data = context.user_data
@@ -72,5 +80,49 @@ async def all_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         user_data.clear()
         return
 
-    # Không trả lời tin nhắn nếu không thuộc trạng thái nhập liệu nào!
+    # ======= Phong thủy số theo ngày (nhiều định dạng) =======
+    if user_data.get('wait_phongthuy_ngay_duong'):
+        ngay = msg
+        try:
+            # Hỗ trợ nhiều loại phân cách
+            for sep in ["-", "/", "."]:
+                if sep in ngay:
+                    parts = [int(x) for x in ngay.split(sep)]
+                    break
+            else:
+                raise ValueError("Sai định dạng")
+            now = datetime.now()
+            if len(parts) == 3:
+                # Nếu năm ở đầu (yyyy-mm-dd) hay cuối (dd-mm-yyyy)
+                if parts[0] > 31:  # yyyy-mm-dd
+                    y, m, d = parts
+                else:
+                    d, m, y = parts
+            elif len(parts) == 2:
+                d, m = parts
+                y = now.year
+            else:
+                raise ValueError("Sai định dạng")
+            can_chi = get_can_chi_ngay(y, m, d)
+            sohap_info = sinh_so_hap_cho_ngay(can_chi)
+            text = phong_thuy_format(can_chi, sohap_info)
+            await update.message.reply_text(text, parse_mode="Markdown")
+        except Exception:
+            await update.message.reply_text("❗️ Nhập ngày không hợp lệ! Dùng dạng YYYY-MM-DD hoặc DD-MM, ví dụ: 2024-07-22 hoặc 22-07.")
+        user_data['wait_phongthuy_ngay_duong'] = False
+        return
+
+    # ======= Phong thủy số theo can chi =======
+    if user_data.get('wait_phongthuy_ngay_canchi'):
+        can_chi = chuan_hoa_can_chi(msg)
+        sohap_info = sinh_so_hap_cho_ngay(can_chi)
+        if sohap_info is None:
+            await update.message.reply_text("❗️ Không tìm thấy thông tin can chi hoặc số hạp với tên bạn nhập! Kiểm tra lại định dạng (VD: Giáp Tý).")
+        else:
+            text = phong_thuy_format(can_chi, sohap_info)
+            await update.message.reply_text(text, parse_mode="Markdown")
+        user_data['wait_phongthuy_ngay_canchi'] = False
+        return
+
+    # Không trả lời tin nhắn tự do!
     return
