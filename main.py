@@ -56,7 +56,7 @@ async def start(update, context):
 def main():
     app = ApplicationBuilder().token(TELEGRAM_TOKEN).build()
     app.add_handler(CommandHandler("start", start))
-    app.add_handler(CommandHandler("menu", menu))
+    app.add_handler(CommandHandler("menu", menu_handler))
     app.add_handler(CommandHandler("admin", admin_menu_handler))
 
     # Đăng ký các lệnh xổ số
@@ -65,9 +65,8 @@ def main():
     app.add_handler(CommandHandler("mn", mn_handler))
     app.add_handler(CommandHandler("mt", mt_handler))
 
-    # Callback cho admin (nếu còn dùng pattern thì cần hoàn chỉnh, hoặc bỏ nếu không dùng)
+    # Callback cho admin (bạn cần sửa pattern cho phù hợp, hoặc bỏ nếu không còn)
     # app.add_handler(CallbackQueryHandler(admin_callback_handler, pattern="^admin_"))
-    # Callback cho các menu bình thường
     app.add_handler(CallbackQueryHandler(menu_callback_handler))
 
     # Xử lý nhập text theo ngữ cảnh thao tác (không trả lời tự do)
