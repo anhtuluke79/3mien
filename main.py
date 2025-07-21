@@ -9,6 +9,7 @@ from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 # ==== Import các handler đã viết sẵn từ các file module riêng ==== #
 from handlers.menu import menu, admin_menu, menu_callback_handler
 from handlers.text_handlers import all_text_handler
+app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, all_text_handler))
 # ==== Thiết lập logger ====
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
