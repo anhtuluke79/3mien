@@ -12,7 +12,6 @@ def get_menu_keyboard():
     return InlineKeyboardMarkup(keyboard)
 
 async def menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    # Xóa trạng thái user_data để bắt đầu lại
     context.user_data.clear()
     text = "📋 Chọn chức năng:"
     if update.message:
@@ -21,7 +20,7 @@ async def menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.callback_query.edit_message_text(text, reply_markup=get_menu_keyboard())
 
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text(
+    text = (
         "🟣 HƯỚNG DẪN SỬ DỤNG:\n"
         "- Chọn 'Ghép xiên' để nhập số và chọn loại xiên.\n"
         "- Chọn 'Ghép càng/Đảo số' để ghép càng hoặc đảo số cho dàn đề/lô.\n"
@@ -29,16 +28,32 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "- Gõ /menu để hiện lại menu chức năng.\n"
         "- Gõ /reset để xóa trạng thái và bắt đầu lại."
     )
+    if update.message:
+        await update.message.reply_text(text)
+    elif update.callback_query:
+        await update.callback_query.edit_message_text(text)
 
 async def reset_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data.clear()
-    await update.message.reply_text("🔄 Đã reset trạng thái. Bạn có thể bắt đầu lại bằng lệnh /menu hoặc chọn lại chức năng!")
+    text = "🔄 Đã reset trạng thái. Bạn có thể bắt đầu lại bằng lệnh /menu hoặc chọn lại chức năng!"
+    if update.message:
+        await update.message.reply_text(text)
+    elif update.callback_query:
+        await update.callback_query.edit_message_text(text)
 
 async def phongthuy_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data.clear()
-    text = "🔮 PHONG THỦY SỐ\nBạn muốn tra cứu số hợp theo:\n- Ngày dương lịch (VD: 2024-07-21 hoặc 21-07)\n- Can chi (VD: Giáp Tý, Ất Mão, ...)\n\nNhập 1 trong 2 tuỳ chọn phía trên:"
-    await update.message.reply_text(text)
-    # Đặt trạng thái chờ nhập cho phong thủy
+    text = (
+        "🔮 PHONG THỦY SỐ\n"
+        "Bạn muốn tra cứu số hợp theo:\n"
+        "- Ngày dương lịch (VD: 2024-07-21 hoặc 21-07)\n"
+        "- Can chi (VD: Giáp Tý, Ất Mão, ...)\n\n"
+        "Nhập 1 trong 2 tuỳ chọn phía trên:"
+    )
+    if update.message:
+        await update.message.reply_text(text)
+    elif update.callback_query:
+        await update.callback_query.edit_message_text(text)
     context.user_data["wait_phongthuy_ngay_duong"] = True
     context.user_data["wait_phongthuy_ngay_canchi"] = True
 
@@ -48,7 +63,7 @@ async def menu_callback_handler(update: Update, context: ContextTypes.DEFAULT_TY
     context.user_data.clear()
     if data == "ghep_xien":
         await query.edit_message_text("🔢 Nhập dàn số (cách nhau bằng dấu cách, xuống dòng, hoặc dấu phẩy):")
-        context.user_data['wait_for_xien_input'] = 2  # Mặc định hỏi loại xiên, có thể thay đổi logic nếu muốn hỏi tiếp
+        context.user_data['wait_for_xien_input'] = 2  # hoặc cho chọn loại xiên nếu bạn muốn
     elif data == "ghep_cang_dao":
         await query.edit_message_text("🎯 Nhập dàn đề hoặc lô (2 hoặc 3 chữ số, cách nhau bằng dấu cách):")
         context.user_data['wait_cang3d_numbers'] = True
@@ -60,4 +75,3 @@ async def menu_callback_handler(update: Update, context: ContextTypes.DEFAULT_TY
         await reset_command(update, context)
     else:
         await query.edit_message_text("❓ Không xác định chức năng.")
-
