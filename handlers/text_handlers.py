@@ -18,9 +18,9 @@ from datetime import datetime
 async def all_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_data = context.user_data
     msg = update.message.text.strip()
-
-    # Xử lý các lệnh gọi nhanh bằng tên (gõ "hướng dẫn", "reset", ...)
     lower_msg = msg.lower()
+
+    # Các lệnh đặc biệt luôn cho phép gọi
     if lower_msg in ["menu", "/menu"]:
         await update.message.reply_text("📋 Chọn chức năng:", reply_markup=get_menu_keyboard())
         user_data.clear()
@@ -44,6 +44,7 @@ async def all_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         return
 
+    # ======= Chỉ trả lời nếu user đang ở trạng thái nhập liệu =======
     # ======= GHÉP XIÊN =======
     if user_data.get("wait_for_xien_input"):
         do_dai = user_data.pop('wait_for_xien_input')
@@ -136,7 +137,6 @@ async def all_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if user_data.get("wait_phongthuy_ngay_duong"):
         ngay = msg
         try:
-            # Hỗ trợ nhiều loại phân cách
             for sep in ["-", "/", "."]:
                 if sep in ngay:
                     parts = [int(x) for x in ngay.split(sep)]
@@ -181,8 +181,5 @@ async def all_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         user_data.pop("wait_phongthuy_ngay_canchi", None)
         return
 
-    # Nếu không trúng trạng thái nào, hiện lại menu
-    await update.message.reply_text(
-        "❓ Không rõ bạn muốn thao tác gì. Vui lòng chọn lại chức năng.",
-        reply_markup=get_menu_keyboard()
-    )
+    # ======= Nếu không nằm trong trạng thái, bot sẽ im lặng =======
+    return
