@@ -1,9 +1,5 @@
 import os
 import logging
-import nest_asyncio
-
-nest_asyncio.apply()
-
 from telegram.ext import (
     ApplicationBuilder,
     CommandHandler,
@@ -20,6 +16,7 @@ from handlers.menu import (
 )
 from handlers.text_handlers import all_text_handler
 
+# Cấu hình logger
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO
 )
@@ -31,17 +28,24 @@ if not BOT_TOKEN:
 
 async def main():
     app = ApplicationBuilder().token(BOT_TOKEN).build()
-
+    app.add_handler(CommandHandler("start", menu))
     app.add_handler(CommandHandler("menu", menu))
     app.add_handler(CommandHandler("help", help_command))
     app.add_handler(CommandHandler("reset", reset_command))
     app.add_handler(CommandHandler("phongthuy", phongthuy_command))
     app.add_handler(CallbackQueryHandler(menu_callback_handler))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, all_text_handler))
-
     print("🤖 Bot Telegram đã sẵn sàng!")
     await app.run_polling(close_loop=False)
 
 if __name__ == "__main__":
     import asyncio
-    asyncio.run(main())
+    try:
+        asyncio.run(main())
+    except RuntimeError as e:
+        if "event loop is already running" in str(e):
+            import nest_asyncio
+            nest_asyncio.apply()
+            asyncio.get_event_loop().run_until_complete(main())
+        else:
+            raise e
