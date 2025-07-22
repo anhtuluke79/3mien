@@ -1,45 +1,6 @@
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
 
-# ===== MENU PHỤ =====
-def get_xien_keyboard():
-    keyboard = [
-        [
-            InlineKeyboardButton("Xiên 2", callback_data="xien_2"),
-            InlineKeyboardButton("Xiên 3", callback_data="xien_3"),
-            InlineKeyboardButton("Xiên 4", callback_data="xien_4"),
-        ],
-        [
-            InlineKeyboardButton("⬅️ Quay lại menu", callback_data="menu"),
-            InlineKeyboardButton("🔄 Reset", callback_data="reset"),
-        ]
-    ]
-    return InlineKeyboardMarkup(keyboard)
-
-def get_cang_dao_keyboard():
-    keyboard = [
-        [
-            InlineKeyboardButton("Ghép càng 3D", callback_data="cang_3d"),
-            InlineKeyboardButton("Ghép càng 4D", callback_data="cang_4d"),
-            InlineKeyboardButton("Đảo số", callback_data="dao_so"),
-        ],
-        [
-            InlineKeyboardButton("⬅️ Quay lại menu", callback_data="menu"),
-            InlineKeyboardButton("🔄 Reset", callback_data="reset"),
-        ]
-    ]
-    return InlineKeyboardMarkup(keyboard)
-
-def get_back_reset_keyboard():
-    keyboard = [
-        [
-            InlineKeyboardButton("⬅️ Quay lại menu", callback_data="menu"),
-            InlineKeyboardButton("🔄 Reset", callback_data="reset"),
-        ]
-    ]
-    return InlineKeyboardMarkup(keyboard)
-
-# ===== MENU CHÍNH =====
 def get_menu_keyboard():
     keyboard = [
         [InlineKeyboardButton("🔢 Ghép xiên", callback_data="ghep_xien")],
@@ -50,7 +11,27 @@ def get_menu_keyboard():
     ]
     return InlineKeyboardMarkup(keyboard)
 
-# ===== CÁC LỆNH XỬ LÝ MENU =====
+def get_xien_keyboard():
+    keyboard = [
+        [
+            InlineKeyboardButton("Xiên 2", callback_data="xien2"),
+            InlineKeyboardButton("Xiên 3", callback_data="xien3"),
+            InlineKeyboardButton("Xiên 4", callback_data="xien4")
+        ],
+        [
+            InlineKeyboardButton("⬅️ Quay lại", callback_data="menu"),
+            InlineKeyboardButton("🔄 Reset", callback_data="reset")
+        ]
+    ]
+    return InlineKeyboardMarkup(keyboard)
+
+def get_back_reset_keyboard():
+    keyboard = [
+        [InlineKeyboardButton("⬅️ Quay lại", callback_data="menu")],
+        [InlineKeyboardButton("🔄 Reset", callback_data="reset")]
+    ]
+    return InlineKeyboardMarkup(keyboard)
+
 async def menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data.clear()
     text = "📋 Chọn chức năng:"
@@ -60,100 +41,62 @@ async def menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.callback_query.edit_message_text(text, reply_markup=get_menu_keyboard())
 
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text(
-        "🟣 HƯỚNG DẪN SỬ DỤNG:\n"
-        "- Chọn 'Ghép xiên' để nhập số và chọn loại xiên.\n"
-        "- Chọn 'Ghép càng/Đảo số' để ghép càng hoặc đảo số cho dàn đề/lô.\n"
-        "- Chọn 'Phong thủy số' để tra cứu số hợp theo ngày hoặc can chi.\n"
-        "- Gõ /menu để hiện lại menu chức năng.\n"
-        "- Gõ /reset để xóa trạng thái và bắt đầu lại."
+    text = (
+        "🟣 *HƯỚNG DẪN SỬ DỤNG:*\n"
+        "- *Ghép xiên*: Nhập số, chọn loại xiên 2-3-4.\n"
+        "- *Ghép càng/Đảo số*: Ghép càng cho dàn lô/đề, đảo số, đảo 2-6 số.\n"
+        "- *Phong thủy số*: Tra số hợp theo ngày hoặc can chi.\n"
+        "- Gõ /menu để trở lại menu, /reset để xóa trạng thái và bắt đầu lại."
     )
+    if update.message:
+        await update.message.reply_text(text, parse_mode="Markdown", reply_markup=get_menu_keyboard())
+    elif update.callback_query:
+        await update.callback_query.edit_message_text(text, parse_mode="Markdown", reply_markup=get_menu_keyboard())
 
 async def reset_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data.clear()
-    await update.message.reply_text(
-        "🔄 Đã reset trạng thái. Bạn có thể bắt đầu lại bằng lệnh /menu hoặc chọn lại chức năng!",
-        reply_markup=get_menu_keyboard()
-    )
+    text = "🔄 Đã reset trạng thái. Gõ /menu hoặc nhấn để bắt đầu lại."
+    if update.message:
+        await update.message.reply_text(text, reply_markup=get_menu_keyboard())
+    elif update.callback_query:
+        await update.callback_query.edit_message_text(text, reply_markup=get_menu_keyboard())
 
 async def phongthuy_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data.clear()
     text = (
-        "🔮 PHONG THỦY SỐ\nBạn muốn tra cứu số hợp theo:\n"
+        "🔮 *PHONG THỦY SỐ*\n"
+        "Bạn muốn tra cứu số hợp theo:\n"
         "- Ngày dương lịch (VD: 2024-07-21 hoặc 21-07)\n"
-        "- Can chi (VD: Giáp Tý, Ất Mão, ...)\n\n"
-        "Nhập 1 trong 2 tuỳ chọn phía trên:"
+        "- Can chi (VD: Giáp Tý, Ất Mão, ...)\n"
+        "Nhập ngày dương hoặc can chi:"
     )
-    await update.message.reply_text(text, reply_markup=get_back_reset_keyboard())
-    context.user_data["wait_phongthuy_ngay_duong"] = True
-    context.user_data["wait_phongthuy_ngay_canchi"] = True
+    if update.message:
+        await update.message.reply_text(text, parse_mode="Markdown", reply_markup=get_back_reset_keyboard())
+    elif update.callback_query:
+        await update.callback_query.edit_message_text(text, parse_mode="Markdown", reply_markup=get_back_reset_keyboard())
+    context.user_data["wait_phongthuy"] = True
 
-# ===== XỬ LÝ CALLBACK MENU =====
 async def menu_callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     data = query.data
     context.user_data.clear()
-
-    if data == "ghep_xien":
-        await query.edit_message_text(
-            "🔢 Chọn loại xiên:",
-            reply_markup=get_xien_keyboard()
-        )
-    elif data.startswith("xien_"):
-        do_dai = int(data.split("_")[1])
-        await query.edit_message_text(
-            f"🔢 Nhập dàn số để ghép xiên {do_dai} (cách nhau bằng dấu cách, xuống dòng, hoặc dấu phẩy):",
-            reply_markup=get_back_reset_keyboard()
-        )
-        context.user_data['wait_for_xien_input'] = do_dai
-
+    if data == "menu":
+        await menu(update, context)
+    elif data == "ghep_xien":
+        await query.edit_message_text("🔢 Nhập dàn số (cách nhau bởi dấu cách, dấu phẩy hoặc xuống dòng):", reply_markup=get_xien_keyboard())
+        context.user_data['wait_for_xien_input'] = None
+    elif data in ["xien2", "xien3", "xien4"]:
+        n = int(data[-1])
+        context.user_data['wait_for_xien_input'] = n
+        await query.edit_message_text(f"🔢 Nhập dàn số để ghép xiên {n} (cách nhau bởi dấu cách, dấu phẩy hoặc xuống dòng):", reply_markup=get_back_reset_keyboard())
     elif data == "ghep_cang_dao":
-        await query.edit_message_text(
-            "🎯 Chọn chức năng:",
-            reply_markup=get_cang_dao_keyboard()
-        )
-    elif data == "cang_3d":
-        await query.edit_message_text(
-            "📥 Nhập dàn số 2 chữ số (VD: 12 23 45):",
-            reply_markup=get_back_reset_keyboard()
-        )
+        await query.edit_message_text("🎯 Nhập dàn đề/lô (2 hoặc 3 chữ số, cách nhau bằng dấu cách):", reply_markup=get_back_reset_keyboard())
         context.user_data['wait_cang3d_numbers'] = True
-    elif data == "cang_4d":
-        await query.edit_message_text(
-            "📥 Nhập dàn số 3 chữ số (VD: 123 456 789):",
-            reply_markup=get_back_reset_keyboard()
-        )
-        context.user_data['wait_cang4d_numbers'] = True
-    elif data == "dao_so":
-        await query.edit_message_text(
-            "🔄 Nhập số muốn đảo (tối đa 6 số):",
-            reply_markup=get_back_reset_keyboard()
-        )
-        context.user_data['wait_for_dao_input'] = True
-
     elif data == "phongthuy":
         await phongthuy_command(update, context)
     elif data == "huongdan":
-        if query.message:
-            await query.edit_message_text(
-                "🟣 HƯỚNG DẪN SỬ DỤNG:\n"
-                "- Chọn 'Ghép xiên' để nhập số và chọn loại xiên.\n"
-                "- Chọn 'Ghép càng/Đảo số' để ghép càng hoặc đảo số cho dàn đề/lô.\n"
-                "- Chọn 'Phong thủy số' để tra cứu số hợp theo ngày hoặc can chi.\n"
-                "- Gõ /menu để hiện lại menu chức năng.\n"
-                "- Gõ /reset để xóa trạng thái và bắt đầu lại.",
-                reply_markup=get_back_reset_keyboard()
-            )
+        await help_command(update, context)
     elif data == "reset":
-        context.user_data.clear()
-        await query.edit_message_text(
-            "🔄 Đã reset trạng thái. Bạn có thể bắt đầu lại bằng lệnh /menu hoặc chọn lại chức năng!",
-            reply_markup=get_menu_keyboard()
-        )
-    elif data == "menu":
-        await query.edit_message_text(
-            "📋 Chọn chức năng:",
-            reply_markup=get_menu_keyboard()
-        )
+        await reset_command(update, context)
     else:
         await query.edit_message_text("❓ Không xác định chức năng.", reply_markup=get_menu_keyboard())
