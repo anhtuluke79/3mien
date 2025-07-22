@@ -12,12 +12,25 @@ from datetime import datetime
 
 async def all_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_data = context.user_data
-    msg = update.message.text.strip()
+    msg_raw = update.message.text.strip()
+    msg = msg_raw.lower()
+
+    # Xử lý nút Hướng dẫn
+    if msg in ["hướng dẫn", "huong dan", "ℹ️ hướng dẫn"]:
+        await update.message.reply_text(
+            "🟣 HƯỚNG DẪN SỬ DỤNG:\n"
+            "- Chọn 'Ghép xiên' để nhập số và chọn loại xiên.\n"
+            "- Chọn 'Ghép càng/Đảo số' để ghép càng hoặc đảo số cho dàn đề/lô.\n"
+            "- Chọn 'Phong thủy số' để tra cứu số hợp theo ngày hoặc can chi.\n"
+            "- Gõ /menu để hiện lại menu chức năng.\n"
+            "- Gõ /reset để xóa trạng thái và bắt đầu lại."
+        )
+        return
 
     # ======= Ghép xiên =======
     if 'wait_for_xien_input' in user_data:
         do_dai = user_data['wait_for_xien_input']
-        numbers = split_numbers(msg)
+        numbers = split_numbers(msg_raw)
         xiens = ghep_xien(numbers, do_dai)
         if not xiens:
             await update.message.reply_text("⚠️ Không ghép được xiên, vui lòng nhập lại.")
@@ -29,7 +42,7 @@ async def all_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # ======= Ghép càng 3D =======
     if user_data.get("wait_cang3d_numbers"):
-        arr = split_numbers(msg)
+        arr = split_numbers(msg_raw)
         if not arr or not all(len(n) == 2 for n in arr):
             await update.message.reply_text("⚠️ Mỗi số cần đúng 2 chữ số! (VD: 12 34 56)")
             return
@@ -41,7 +54,7 @@ async def all_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # ======= Ghép càng 4D =======
     if user_data.get("wait_cang4d_numbers"):
-        arr = split_numbers(msg)
+        arr = split_numbers(msg_raw)
         if not arr or not all(len(n) == 3 for n in arr):
             await update.message.reply_text("⚠️ Mỗi số cần đúng 3 chữ số! (VD: 123 456 789)")
             return
@@ -55,7 +68,7 @@ async def all_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if user_data.get("wait_cang_input"):
         kind = user_data["wait_cang_input"]
         numbers = user_data.get("cang3d_numbers" if kind == "3D" else "cang4d_numbers", [])
-        cangs = split_numbers(msg)
+        cangs = split_numbers(msg_raw)
         if not cangs:
             await update.message.reply_text("⚠️ Vui lòng nhập ít nhất 1 càng.")
             return
@@ -66,8 +79,8 @@ async def all_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # ======= Đảo số =======
     if user_data.get("wait_for_dao_input"):
-        arr = split_numbers(msg)
-        s_concat = ''.join(arr) if arr else msg.replace(' ', '')
+        arr = split_numbers(msg_raw)
+        s_concat = ''.join(arr) if arr else msg_raw.replace(' ', '')
         if not s_concat.isdigit() or len(s_concat) < 2 or len(s_concat) > 6:
             await update.message.reply_text("Nhập 1 số có từ 2 đến 6 chữ số (VD: 1234, 56789).")
         else:
@@ -82,7 +95,7 @@ async def all_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # ======= Phong thủy số theo ngày (nhiều định dạng) =======
     if user_data.get('wait_phongthuy_ngay_duong'):
-        ngay = msg
+        ngay = msg_raw
         try:
             # Hỗ trợ nhiều loại phân cách
             for sep in ["-", "/", "."]:
@@ -114,7 +127,7 @@ async def all_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # ======= Phong thủy số theo can chi =======
     if user_data.get('wait_phongthuy_ngay_canchi'):
-        can_chi = chuan_hoa_can_chi(msg)
+        can_chi = chuan_hoa_can_chi(msg_raw)
         sohap_info = sinh_so_hap_cho_ngay(can_chi)
         if sohap_info is None:
             await update.message.reply_text("❗️ Không tìm thấy thông tin can chi hoặc số hạp với tên bạn nhập! Kiểm tra lại định dạng (VD: Giáp Tý).")
