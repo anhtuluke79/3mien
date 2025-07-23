@@ -1,9 +1,9 @@
+import os
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
-import os
-ADMIN_IDS = [int(x) for x in os.getenv("ADMIN_IDS", "123456789").split(",") if x.strip().isdigit()]
 
-# Thêm danh sách admin ID (sửa lại theo bạn)
+ADMIN_IDS = [int(x.strip()) for x in os.getenv("ADMIN_IDS", "123456789").split(",") if x.strip().isdigit()]
+
 def get_menu_keyboard(is_admin=False):
     keyboard = [
         [InlineKeyboardButton("🔢 Ghép xiên (Tổ hợp số)", callback_data="ghep_xien")],
@@ -181,6 +181,35 @@ async def menu_callback_handler(update: Update, context: ContextTypes.DEFAULT_TY
                 reply_markup=get_admin_keyboard(),
                 parse_mode="Markdown"
             )
+    elif data == "admin_stats":
+        try:
+            with open("user_list.txt") as f:
+                sl = len(set(line.strip() for line in f if line.strip()))
+        except Exception:
+            sl = 0
+        await query.edit_message_text(
+            f"👤 Tổng số user từng sử dụng bot: *{sl}*",
+            parse_mode="Markdown",
+            reply_markup=get_admin_keyboard()
+        )
+    elif data == "admin_broadcast":
+        await query.edit_message_text(
+            "📢 Nhập nội dung cần gửi broadcast tới toàn bộ user:",
+            reply_markup=get_admin_keyboard()
+        )
+        context.user_data["wait_for_broadcast"] = True
+    elif data == "admin_gopy":
+        try:
+            with open("gopy_log.txt", encoding="utf-8") as f:
+                lines = f.readlines()[-10:]
+            msg = "".join(lines) or "Không có góp ý nào!"
+        except Exception:
+            msg = "Không có góp ý nào!"
+        await query.edit_message_text(
+            f"🗂 *Lịch sử góp ý gần nhất:*\n" + msg,
+            parse_mode="Markdown",
+            reply_markup=get_admin_keyboard()
+        )
     elif data == "reset":
         await reset_command(update, context)
     else:
