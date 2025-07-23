@@ -30,30 +30,36 @@ def thongke_so_ve_nhieu_nhat(df, n=30, top=10, bot_only=False):
     res += "\n".join([f"{i+1}. `{num}` — {cnt} lần" for i, (num, cnt) in enumerate(counts.items())])
     return res
 
-def thongke_dau_cuoi(df, n=30):
-    all_numbers = lay_tat_ca_2so_cuoi(df, n)
-    dau = [s[0] for s in all_numbers]
-    duoi = [s[1] for s in all_numbers]
-    thongke_dau = Counter(dau)
-    thongke_duoi = Counter(duoi)
-    res = f"*Thống kê ĐẦU/ĐUÔI tất cả các giải {n} ngày:*\n"
-    res += "Đầu: " + ', '.join([f"{i}: {thongke_dau.get(str(i),0)}" for i in range(10)]) + "\n"
-    res += "Đuôi: " + ', '.join([f"{i}: {thongke_duoi.get(str(i),0)}" for i in range(10)]) + "\n"
-    return res
-
-def thongke_chan_le(df, n=30):
-    all_numbers = lay_tat_ca_2so_cuoi(df, n)
-    chan = sum(int(x[-1]) % 2 == 0 for x in all_numbers)
-    le = len(all_numbers) - chan
-    res = f"*Thống kê chẵn/lẻ tất cả các giải {n} ngày:*\nChẵn: {chan}, Lẻ: {le}"
-    return res
-
 def thongke_lo_gan(df, n=30):
     all_numbers = set(lay_tat_ca_2so_cuoi(df, n))
     all_2digit = {f"{i:02d}" for i in range(100)}
     gan = sorted(all_2digit - all_numbers)
     res = f"*Dàn lô gan (lâu chưa ra trong {n} ngày):*\n"
     res += ", ".join(gan) if gan else "Không có số nào!"
+    return res
+
+def thongke_dau_cuoi(df, n=30):
+    """Chỉ thống kê đầu/đuôi của giải ĐB, theo 2 số cuối của mỗi ngày."""
+    df = df.sort_values("date", ascending=False).head(n)
+    db_numbers = df["DB"].astype(str)
+    numbers = [num[-2:].zfill(2) for num in db_numbers]
+    dau = [s[0] for s in numbers]
+    duoi = [s[1] for s in numbers]
+    thongke_dau = Counter(dau)
+    thongke_duoi = Counter(duoi)
+    res = f"*Thống kê ĐẦU/ĐUÔI giải ĐB {n} ngày (2 số cuối mỗi ngày):*\n"
+    res += "Đầu: " + ', '.join([f"{i}: {thongke_dau.get(str(i),0)}" for i in range(10)]) + "\n"
+    res += "Đuôi: " + ', '.join([f"{i}: {thongke_duoi.get(str(i),0)}" for i in range(10)]) + "\n"
+    return res
+
+def thongke_chan_le(df, n=30):
+    """Chỉ thống kê chẵn/lẻ cho giải ĐB, theo 2 số cuối mỗi ngày."""
+    df = df.sort_values("date", ascending=False).head(n)
+    db_numbers = df["DB"].astype(str)
+    numbers = [num[-2:].zfill(2) for num in db_numbers]
+    chan = sum(int(s[-1]) % 2 == 0 for s in numbers)
+    le = len(numbers) - chan
+    res = f"*Thống kê chẵn/lẻ giải ĐB {n} ngày (2 số cuối mỗi ngày):*\nChẵn: {chan}, Lẻ: {le}"
     return res
 
 def goi_y_du_doan(df, n=30):
