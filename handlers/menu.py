@@ -4,7 +4,7 @@ from handlers.kq import tra_ketqua_theo_ngay, tra_ketqua_moi_nhat, format_xsmb_k
 from handlers.xien import clean_numbers_input, gen_xien, format_xien_result
 from handlers.cang_dao import ghep_cang, dao_so
 from handlers.phongthuy import phongthuy_tudong
-from ungho import get_ungho_text, get_ungho_keyboard, get_qr_image_path
+from handlers.ungho import get_ungho_text, get_ungho_keyboard, get_qr_image_path, ung_ho_gop_y
 from system.admin import ADMIN_IDS, log_user_action, admin_callback_handler, admin_menu, get_admin_menu_keyboard
 from utils.thongkemb import *
 import datetime
