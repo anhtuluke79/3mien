@@ -5,7 +5,7 @@ from collections import Counter
 def read_xsmb(filename="xsmb.csv"):
     return pd.read_csv(filename)
 
-def lay_tat_ca_2so_cuoi(df, n=60):
+def lay_tat_ca_2so_cuoi(df, n=30):
     """Lấy toàn bộ 2 số cuối của tất cả giải trong n ngày gần nhất"""
     df = df.sort_values("date", ascending=False).head(n)
     numbers = []
@@ -17,7 +17,7 @@ def lay_tat_ca_2so_cuoi(df, n=60):
                 numbers.append(last2)
     return numbers
 
-def thongke_so_ve_nhieu_nhat(df, n=60, top=10, bot_only=False):
+def thongke_so_ve_nhieu_nhat(df, n=30, top=10, bot_only=False):
     all_numbers = lay_tat_ca_2so_cuoi(df, n)
     counts = pd.Series(all_numbers).value_counts()
     if bot_only:
@@ -30,7 +30,7 @@ def thongke_so_ve_nhieu_nhat(df, n=60, top=10, bot_only=False):
     res += "\n".join([f"{i+1}. `{num}` — {cnt} lần" for i, (num, cnt) in enumerate(counts.items())])
     return res
 
-def thongke_lo_gan(df, n=60):
+def thongke_lo_gan(df, n=30):
     all_numbers = set(lay_tat_ca_2so_cuoi(df, n))
     all_2digit = {f"{i:02d}" for i in range(100)}
     gan = sorted(all_2digit - all_numbers)
@@ -38,8 +38,8 @@ def thongke_lo_gan(df, n=60):
     res += ", ".join(gan) if gan else "Không có số nào!"
     return res
 
-def thongke_dau_cuoi(df, n=60):
-    """Chỉ thống kê đầu/đuôi của giải ĐB, theo 2 số cuối của mỗi ngày."""
+def thongke_dau_cuoi(df, n=30):
+    """Chỉ thống kê đầu/đuôi của giải ĐB, theo 2 số cuối mỗi ngày."""
     df = df.sort_values("date", ascending=False).head(n)
     db_numbers = df["DB"].astype(str)
     numbers = [num[-2:].zfill(2) for num in db_numbers]
@@ -52,7 +52,7 @@ def thongke_dau_cuoi(df, n=60):
     res += "Đuôi: " + ', '.join([f"{i}: {thongke_duoi.get(str(i),0)}" for i in range(10)]) + "\n"
     return res
 
-def thongke_chan_le(df, n=60):
+def thongke_chan_le(df, n=30):
     """Chỉ thống kê chẵn/lẻ cho giải ĐB, theo 2 số cuối mỗi ngày."""
     df = df.sort_values("date", ascending=False).head(n)
     db_numbers = df["DB"].astype(str)
@@ -62,7 +62,7 @@ def thongke_chan_le(df, n=60):
     res = f"*Thống kê chẵn/lẻ giải ĐB {n} ngày (2 số cuối mỗi ngày):*\nChẵn: {chan}, Lẻ: {le}"
     return res
 
-def goi_y_du_doan(df, n=60):
+def goi_y_du_doan(df, n=30):
     top = thongke_so_ve_nhieu_nhat(df, n=n, top=10, bot_only=False)
     lo_gan = thongke_lo_gan(df, n=n)
     dau_cuoi = thongke_dau_cuoi(df, n=n)
