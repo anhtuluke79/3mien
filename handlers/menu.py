@@ -60,6 +60,33 @@ def get_back_reset_keyboard(menu_callback="menu"):
     ]
     return InlineKeyboardMarkup(keyboard)
 
+# ====== FORMAT KQ XSMB ĐẸP ======
+
+def format_xsmb_ketqua(r, ngay_str):
+    text = f"🎉 *KQ XSMB {ngay_str}* 🎉\n\n"
+    text += f"*Đặc biệt*:   `{r['DB']}`\n"
+    text += f"*Giải nhất*:  `{r['G1']}`\n"
+    # Các giải còn lại: tách ra các số nhỏ, tự xuống dòng nếu nhiều số
+    for label, col in [
+        ("*Giải nhì*", "G2"),
+        ("*Giải ba*", "G3"),
+        ("*Giải tư*", "G4"),
+        ("*Giải năm*", "G5"),
+        ("*Giải sáu*", "G6"),
+        ("*Giải bảy*", "G7"),
+    ]:
+        # Chuyển về chuỗi, tách các số
+        nums = str(r[col]).replace(",", " ").split()
+        # 4 số trở xuống: 1 dòng, nhiều hơn thì xuống dòng giữa chừng
+        if len(nums) <= 4:
+            text += f"{label}:  " + "  ".join(f"`{n}`" for n in nums) + "\n"
+        else:
+            n_half = (len(nums)+1)//2
+            text += f"{label}:\n"
+            text += "  ".join(f"`{n}`" for n in nums[:n_half]) + "\n"
+            text += "  ".join(f"`{n}`" for n in nums[n_half:]) + "\n"
+    return text
+
 # ====== MENU HANDLERS ======
 
 async def menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -144,9 +171,8 @@ def tra_ketqua_theo_ngay(ngay_str):
         if row.empty:
             return f"⛔ Không có kết quả cho ngày {ngay_input.strftime('%d-%m-%Y')}."
         r = row.iloc[0]
-        text = f"*KQ XSMB {ngay_input.strftime('%d-%m-%Y')}*\n"
-        text += f"ĐB: `{r['DB']}`\nG1: `{r['G1']}`\nG2: `{r['G2']}`\nG3: `{r['G3']}`\nG4: `{r['G4']}`\nG5: `{r['G5']}`\nG6: `{r['G6']}`\nG7: `{r['G7']}`"
-        return text
+        ngay_str = ngay_input.strftime('%d-%m-%Y')
+        return format_xsmb_ketqua(r, ngay_str)
     except Exception as e:
         return f"❗ Lỗi tra cứu: {e}"
 
@@ -155,9 +181,8 @@ async def tra_ketqua_moi_nhat():
         df = pd.read_csv('xsmb.csv')
         df['date'] = pd.to_datetime(df['date'], dayfirst=True, errors='coerce')
         row = df.sort_values('date', ascending=False).iloc[0]
-        text = f"*KQ XSMB {row['date'].strftime('%d-%m-%Y')}*\n"
-        text += f"ĐB: `{row['DB']}`\nG1: `{row['G1']}`\nG2: `{row['G2']}`\nG3: `{row['G3']}`\nG4: `{row['G4']}`\nG5: `{row['G5']}`\nG6: `{row['G6']}`\nG7: `{row['G7']}`"
-        return text
+        ngay_str = row['date'].strftime('%d-%m-%Y')
+        return format_xsmb_ketqua(row, ngay_str)
     except Exception as e:
         return f"❗ Lỗi tra cứu: {e}"
 
