@@ -1,85 +1,58 @@
-import os
-import csv
-from datetime import datetime
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram import InlineKeyboardMarkup, InlineKeyboardButton, Update
 from telegram.ext import ContextTypes
 
-# === Lấy ADMIN_IDS từ biến môi trường ===
-def get_admin_ids():
-    raw = os.getenv("ADMIN_IDS", "")
-    return [int(x.strip()) for x in raw.split(",") if x.strip().isdigit()]
+# Đặt ID admin tại đây hoặc import từ biến môi trường nếu muốn bảo mật hơn
+ADMIN_IDS = {123456789, 987654321}  # Sửa thành các user_id thực tế của bạn
 
-ADMIN_IDS = get_admin_ids()
+def get_admin_menu_keyboard():
+    keyboard = [
+        [InlineKeyboardButton("📋 Xem log sử dụng", callback_data="admin_view_log")],
+        # Thêm nút quản trị khác tại đây
+        [InlineKeyboardButton("⬅️ Trở về menu", callback_data="menu")]
+    ]
+    return InlineKeyboardMarkup(keyboard)
 
-# === Hàm ghi log hoạt động bot ===
-def write_user_log(update, action):
-    user = update.effective_user
-    chat = update.effective_chat
-    with open("bot_usage.log", "a", encoding="utf-8", newline="") as f:
-        writer = csv.writer(f)
-        writer.writerow([
-            datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-            chat.id,
-            getattr(chat, "title", ""),
-            getattr(user, "id", ""),
-            getattr(user, "username", ""),
-            getattr(user, "full_name", ""),
-            action
-        ])
-
-# === Decorator log tự động cho handler ===
-def log_user_action(action_desc):
+# Simple log (dùng file hoặc database tuỳ bạn)
+def log_user_action(action):
     def decorator(func):
-        async def wrapper(update, context, *args, **kwargs):
-            write_user_log(update, action_desc)
+        async def wrapper(update: Update, context: ContextTypes.DEFAULT_TYPE, *args, **kwargs):
+            user = update.effective_user
+            with open("user_log.txt", "a", encoding="utf-8") as f:
+                f.write(f"{user.id}|{user.username}|{user.first_name}|{action}\n")
             return await func(update, context, *args, **kwargs)
         return wrapper
     return decorator
 
-# === Menu quản trị chỉ cho admin ===
-def get_admin_menu_keyboard():
-    keyboard = [
-        [InlineKeyboardButton("📜 Xem log sử dụng", callback_data="admin_log")],
-        [InlineKeyboardButton("⬅️ Trở về", callback_data="menu")]
-    ]
-    return InlineKeyboardMarkup(keyboard)
-
-# === Callback handler cho menu admin ===
-async def admin_callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    user_id = update.effective_user.id
-    if user_id not in ADMIN_IDS:
-        await query.edit_message_text("⛔ Bạn không có quyền truy cập menu quản trị!", reply_markup=None)
-        return
-
-    data = query.data
-    if data == "admin_log":
-        # Đọc file log, chỉ trả về 50 dòng gần nhất để tránh dài
-        log_text = ""
-        try:
-            with open("bot_usage.log", encoding="utf-8") as f:
-                lines = f.readlines()[-50:]
-                log_text = "*50 hoạt động gần nhất:*\n" + "".join(lines)
-            if len(log_text) > 3800:
-                log_text = log_text[-3800:]
-        except Exception as e:
-            log_text = f"Không đọc được log: {e}"
-        await query.edit_message_text(
-            f"<pre>{log_text}</pre>",
-            parse_mode="HTML",
-            reply_markup=get_admin_menu_keyboard()
-        )
-    else:
-        await query.edit_message_text("⛔ Lệnh quản trị không hợp lệ!", reply_markup=get_admin_menu_keyboard())
-
-# === Command mở menu admin (chỉ admin mới dùng) ===
 async def admin_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
+    text = "🛡️ *Menu quản trị* (dành cho admin):\n- Xem log sử dụng\n- Quản lý menu khác (nâng cấp sau)"
     if user_id not in ADMIN_IDS:
-        await update.message.reply_text("⛔ Bạn không có quyền truy cập menu quản trị!")
+        text = "⛔ Bạn không có quyền truy cập menu quản trị!"
+        if getattr(update, "message", None):
+            await update.message.reply_text(text, parse_mode="Markdown")
+        elif getattr(update, "callback_query", None):
+            await update.callback_query.edit_message_text(text, parse_mode="Markdown")
         return
-    await update.message.reply_text(
-        "🛡️ *MENU QUẢN TRỊ BOT*\nChỉ admin mới thấy được menu này.",
-        reply_markup=get_admin_menu_keyboard(),
-        parse_mode="Markdown"
-    )
+
+    if getattr(update, "message", None):
+        await update.message.reply_text(text, parse_mode="Markdown", reply_markup=get_admin_menu_keyboard())
+    elif getattr(update, "callback_query", None):
+        await update.callback_query.edit_message_text(text, parse_mode="Markdown", reply_markup=get_admin_menu_keyboard())
+
+async def admin_callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    data = query.data
+    user_id = update.effective_user.id
+    if user_id not in ADMIN_IDS:
+        await query.edit_message_text("⛔ Bạn không có quyền truy cập!", parse_mode="Markdown")
+        return
+    if data == "admin_view_log":
+        try:
+            with open("user_log.txt", "r", encoding="utf-8") as f:
+                log_lines = f.readlines()[-30:]  # Hiển thị 30 dòng cuối cùng
+            log_text = "*Log sử dụng gần nhất:*\n" + "".join([f"- {line}" for line in log_lines])
+        except Exception:
+            log_text = "Không có log nào."
+        await query.edit_message_text(log_text[:4096], parse_mode="Markdown", reply_markup=get_admin_menu_keyboard())
+    else:
+        await query.edit_message_text("❓ Chức năng quản trị chưa hỗ trợ.", reply_markup=get_admin_menu_keyboard())
