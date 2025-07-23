@@ -21,10 +21,6 @@ def get_can_chi_ngay(year, month, day):
     return f"{can} {chi}"
 
 def sinh_so_hap_cho_ngay(can_chi_str):
-    """
-    Sinh số hạp, số mệnh, các bộ số từ can chi truyền vào.
-    Trả về dict: can, âm dương, ngũ hành, số hạp can, danh sách số mệnh, các bộ số ghép
-    """
     code = CAN_CHI_SO_HAP.get(can_chi_str)
     if not code:
         return None
@@ -32,7 +28,6 @@ def sinh_so_hap_cho_ngay(can_chi_str):
     so_hap_list = rest.split(',') if rest else []
     can = can_chi_str.split()[0]
     info = CAN_INFO.get(can, {})
-    # Tạo các bộ số ghép từ các số mệnh và số hạp
     so_list = [so_hap_can] + so_hap_list
     ket_qua = set()
     for i in range(len(so_list)):
@@ -49,9 +44,6 @@ def sinh_so_hap_cho_ngay(can_chi_str):
     }
 
 def phong_thuy_format(can_chi, sohap_info, is_today=False, today_str=None):
-    """
-    Trả về text phong thủy số dạng đẹp, đồng nhất cho cả ngày/can chi.
-    """
     can = can_chi.split()[0]
     can_info = CAN_INFO.get(can, {})
     am_duong = can_info.get("am_duong", "?")
@@ -72,9 +64,6 @@ def phong_thuy_format(can_chi, sohap_info, is_today=False, today_str=None):
     return text
 
 def chot_so_format(can_chi, sohap_info, today_str):
-    """
-    Trả về text chốt số miền Bắc (phong thủy) cho ngày hiện tại
-    """
     if not sohap_info or not sohap_info.get("so_hap_list"):
         return "Không đủ dữ liệu phong thủy để chốt số hôm nay!"
     d = [sohap_info['so_hap_can']] + sohap_info['so_hap_list']
@@ -99,3 +88,63 @@ def chot_so_format(can_chi, sohap_info, today_str):
         f"Lô: {', '.join(lo)}"
     )
     return text
+
+# === Hàm xử lý text input tự do của người dùng ===
+
+def phongthuy_tudong(text):
+    """
+    Cho phép người dùng nhập tự do (ngày dương hoặc can chi), bot tự nhận diện và trả kết quả phong thủy.
+    """
+    import re
+    text = text.strip()
+    # 1. Nhận diện kiểu ngày dương (VD: 2024-07-25, 25/07/2024, ...)
+    date_patterns = [
+        r"(\d{4})[^\d]?(\d{1,2})[^\d]?(\d{1,2})",   # 2024-07-25, 2024/7/25, 2024.7.25
+        r"(\d{1,2})[^\d]?(\d{1,2})[^\d]?(\d{4})",   # 25-07-2024, 25/7/2024
+        r"(\d{1,2})[^\d]?(\d{1,2})",                # 25-07, 25/7 (mặc định năm nay)
+    ]
+    for pat in date_patterns:
+        m = re.fullmatch(pat, text)
+        if m:
+            try:
+                if len(m.groups()) == 3:
+                    if len(m.group(1)) == 4:
+                        # 2024-07-25
+                        year, month, day = int(m.group(1)), int(m.group(2)), int(m.group(3))
+                    elif len(m.group(3)) == 4:
+                        # 25-07-2024
+                        day, month, year = int(m.group(1)), int(m.group(2)), int(m.group(3))
+                    else:
+                        # 25-07, mặc định năm nay
+                        year = datetime.now().year
+                        day, month = int(m.group(1)), int(m.group(2))
+                    can_chi = get_can_chi_ngay(year, month, day)
+                    can_chi = chuan_hoa_can_chi(can_chi)
+                    sohap_info = sinh_so_hap_cho_ngay(can_chi)
+                    today_str = f"{day:02d}-{month:02d}-{year}"
+                    return phong_thuy_format(can_chi, sohap_info, today_str=today_str)
+                elif len(m.groups()) == 2:
+                    year = datetime.now().year
+                    day, month = int(m.group(1)), int(m.group(2))
+                    can_chi = get_can_chi_ngay(year, month, day)
+                    can_chi = chuan_hoa_can_chi(can_chi)
+                    sohap_info = sinh_so_hap_cho_ngay(can_chi)
+                    today_str = f"{day:02d}-{month:02d}-{year}"
+                    return phong_thuy_format(can_chi, sohap_info, today_str=today_str)
+            except Exception:
+                return "❗ Định dạng ngày không hợp lệ!"
+    # 2. Nhận diện kiểu can chi
+    parts = text.split()
+    if len(parts) == 2:
+        can_chi_input = chuan_hoa_can_chi(text)
+        sohap_info = sinh_so_hap_cho_ngay(can_chi_input)
+        if sohap_info:
+            return phong_thuy_format(can_chi_input, sohap_info)
+        else:
+            return f"Không tìm thấy thông tin số hạp cho can chi {can_chi_input}."
+    # 3. Không khớp gì cả
+    return (
+        "❓ Bạn có thể nhập:\n"
+        "- Ngày dương lịch (VD: 2024-07-25, 25/07, 25-07-2024)\n"
+        "- Hoặc nhập trực tiếp can chi (VD: Giáp Tý, Quý Hợi)"
+    )
