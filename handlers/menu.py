@@ -1,14 +1,28 @@
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
 
+import pandas as pd
+from datetime import datetime
+
+# ===== MENU UI =====
+
 def get_menu_keyboard():
     keyboard = [
         [InlineKeyboardButton("🔢 Ghép xiên (Tổ hợp số)", callback_data="ghep_xien")],
         [InlineKeyboardButton("🎯 Ghép càng/Đảo số", callback_data="ghep_cang_dao")],
         [InlineKeyboardButton("🔮 Phong thủy số (Ngày/Can chi)", callback_data="phongthuy")],
-        [InlineKeyboardButton("💖 Ủng hộ / Góp ý", callback_data="ung_ho_gop_y")],  # Nút mới
+        [InlineKeyboardButton("🎲 Kết quả", callback_data="ketqua")],
+        [InlineKeyboardButton("💖 Ủng hộ / Góp ý", callback_data="ung_ho_gop_y")],
         [InlineKeyboardButton("ℹ️ Hướng dẫn & FAQ", callback_data="huongdan")],
         [InlineKeyboardButton("🔄 Reset trạng thái", callback_data="reset")]
+    ]
+    return InlineKeyboardMarkup(keyboard)
+
+def get_ketqua_keyboard():
+    keyboard = [
+        [InlineKeyboardButton("📅 Kết quả theo ngày", callback_data="kq_theo_ngay")],
+        [InlineKeyboardButton("🔥 Kết quả mới nhất", callback_data="kq_moi_nhat")],
+        [InlineKeyboardButton("⬅️ Trở về", callback_data="menu")]
     ]
     return InlineKeyboardMarkup(keyboard)
 
@@ -40,10 +54,12 @@ def get_cang_dao_keyboard():
 
 def get_back_reset_keyboard(menu_callback="menu"):
     keyboard = [
-        [InlineKeyboardButton("⬅️ Quay lại", callback_data=menu_callback),
+        [InlineKeyboardButton("⬅️ Trở về", callback_data=menu_callback),
          InlineKeyboardButton("🔄 Reset", callback_data="reset")]
     ]
     return InlineKeyboardMarkup(keyboard)
+
+# ====== MENU HANDLERS ======
 
 async def menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data.clear()
@@ -59,6 +75,7 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "— *Ghép xiên*: Nhập dàn số bất kỳ, chọn loại xiên 2-3-4, bot sẽ trả mọi tổ hợp xiên.\n"
         "— *Ghép càng/Đảo số*: Nhập dàn số 2 hoặc 3 chữ số, nhập càng muốn ghép, hoặc đảo số từ 2-6 chữ số.\n"
         "— *Phong thủy số*: Tra cứu số hợp theo ngày dương hoặc can chi (VD: 2025-07-23 hoặc Giáp Tý).\n"
+        "— *Kết quả*: Xem xổ số miền Bắc mới nhất hoặc theo ngày.\n"
         "— Luôn có nút menu trở lại, reset trạng thái, hoặc gõ /menu để quay về ban đầu."
     )
     if update.message:
@@ -99,7 +116,7 @@ async def ung_ho_gop_y(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "🌟 *Góp ý/đề xuất tính năng*: nhắn trực tiếp qua Telegram hoặc email: tutruong19790519@gmail.com\n"
         "Rất mong nhận được ý kiến của bạn! 😊"
     )
-    qr_path = "qr_ung_ho.png"  # Đảm bảo file QR ở đúng vị trí
+    qr_path = "qr_ung_ho.png"
     await update.callback_query.message.reply_photo(
         photo=open(qr_path, "rb"),
         caption=text,
@@ -107,12 +124,73 @@ async def ung_ho_gop_y(update: Update, context: ContextTypes.DEFAULT_TYPE):
         reply_markup=get_menu_keyboard()
     )
 
+# ====== TRA KẾT QUẢ XSMB ======
+
+def tra_ketqua_theo_ngay(ngay_str):
+    try:
+        df = pd.read_csv('xsmb.csv')
+        df['ngay'] = pd.to_datetime(df['ngay'], dayfirst=True, errors='coerce')
+        if "-" in ngay_str:
+            if len(ngay_str) == 5:  # dd-mm
+                year = datetime.now().year
+                ngay_input = datetime.strptime(f"{ngay_str}-{year}", "%d-%m-%Y")
+            else:
+                try:
+                    ngay_input = datetime.strptime(ngay_str, "%Y-%m-%d")
+                except:
+                    ngay_input = datetime.strptime(ngay_str, "%d-%m-%Y")
+        else:
+            return "❗ Định dạng ngày không hợp lệ!"
+
+        row = df[df['ngay'] == ngay_input]
+        if row.empty:
+            return f"⛔ Không có kết quả cho ngày {ngay_input.strftime('%d-%m-%Y')}."
+        r = row.iloc[0]
+        text = f"*KQ XSMB {ngay_input.strftime('%d-%m-%Y')}*\n"
+        text += f"ĐB: `{r['db']}`\nG1: `{r['g1']}`\nG2: `{r['g2']}`\nG3: `{r['g3']}`\nG4: `{r['g4']}`\nG5: `{r['g5']}`\nG6: `{r['g6']}`\nG7: `{r['g7']}`"
+        return text
+    except Exception as e:
+        return f"❗ Lỗi tra cứu: {e}"
+
+async def tra_ketqua_moi_nhat():
+    try:
+        df = pd.read_csv('xsmb.csv')
+        df['ngay'] = pd.to_datetime(df['ngay'], dayfirst=True, errors='coerce')
+        row = df.sort_values('ngay', ascending=False).iloc[0]
+        text = f"*KQ XSMB {row['ngay'].strftime('%d-%m-%Y')}*\n"
+        text += f"ĐB: `{row['db']}`\nG1: `{row['g1']}`\nG2: `{row['g2']}`\nG3: `{row['g3']}`\nG4: `{row['g4']}`\nG5: `{row['g5']}`\nG6: `{row['g6']}`\nG7: `{row['g7']}`"
+        return text
+    except Exception as e:
+        return f"❗ Lỗi tra cứu: {e}"
+
+# ====== MENU CALLBACK HANDLER ======
+
 async def menu_callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     data = query.data
     context.user_data.clear()
     if data == "menu":
         await menu(update, context)
+    elif data == "ketqua":
+        await query.edit_message_text(
+            "*🎲 Truy xuất kết quả XSMB*\nChọn chức năng bên dưới:",
+            reply_markup=get_ketqua_keyboard(),
+            parse_mode="Markdown"
+        )
+    elif data == "kq_theo_ngay":
+        await query.edit_message_text(
+            "Nhập ngày bạn muốn tra (dd-mm hoặc yyyy-mm-dd):",
+            reply_markup=get_back_reset_keyboard("ketqua"),
+            parse_mode="Markdown"
+        )
+        context.user_data["wait_kq_theo_ngay"] = True
+    elif data == "kq_moi_nhat":
+        text = await tra_ketqua_moi_nhat()
+        await query.edit_message_text(
+            text,
+            reply_markup=get_back_reset_keyboard("ketqua"),
+            parse_mode="Markdown"
+        )
     elif data == "ghep_xien":
         await query.edit_message_text(
             "*🔢 Ghép xiên* — Chọn loại xiên muốn ghép:",
