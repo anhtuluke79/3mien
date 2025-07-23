@@ -3,6 +3,7 @@ from telegram.ext import ContextTypes
 
 import pandas as pd
 from datetime import datetime
+from dateutil import parser
 
 # ===== MENU UI =====
 
@@ -124,23 +125,20 @@ async def ung_ho_gop_y(update: Update, context: ContextTypes.DEFAULT_TYPE):
         reply_markup=get_menu_keyboard()
     )
 
-# ====== TRA KẾT QUẢ XSMB ======
+# ====== TRA KẾT QUẢ XSMB (hỗ trợ nhiều định dạng ngày) ======
 
 def tra_ketqua_theo_ngay(ngay_str):
     try:
         df = pd.read_csv('xsmb.csv')
         df['date'] = pd.to_datetime(df['date'], dayfirst=True, errors='coerce')
-        if "-" in ngay_str:
-            if len(ngay_str) == 5:  # dd-mm
-                year = datetime.now().year
-                ngay_input = datetime.strptime(f"{ngay_str}-{year}", "%d-%m-%Y")
-            else:
-                try:
-                    ngay_input = datetime.strptime(ngay_str, "%Y-%m-%d")
-                except:
-                    ngay_input = datetime.strptime(ngay_str, "%d-%m-%Y")
-        else:
-            return "❗ Định dạng ngày không hợp lệ!"
+
+        # Chuẩn hóa, tự động nhận nhiều định dạng ngày
+        day_now = datetime.now()
+        try:
+            parsed = parser.parse(ngay_str, dayfirst=True, yearfirst=False, default=day_now)
+        except Exception:
+            return "❗ Định dạng ngày không hợp lệ! Hãy nhập ngày dạng 23-07 hoặc 2025-07-23."
+        ngay_input = parsed.replace(hour=0, minute=0, second=0, microsecond=0)
 
         row = df[df['date'] == ngay_input]
         if row.empty:
@@ -179,7 +177,7 @@ async def menu_callback_handler(update: Update, context: ContextTypes.DEFAULT_TY
         )
     elif data == "kq_theo_ngay":
         await query.edit_message_text(
-            "Nhập ngày bạn muốn tra (dd-mm hoặc yyyy-mm-dd):",
+            "Nhập ngày bạn muốn tra (có thể nhập: 23-07, 23/07, 2025-07-23, 23.07.2025, 2025/07/23...):",
             reply_markup=get_back_reset_keyboard("ketqua"),
             parse_mode="Markdown"
         )
