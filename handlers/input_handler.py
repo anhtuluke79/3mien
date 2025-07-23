@@ -20,7 +20,7 @@ async def handle_user_free_input(update: Update, context: ContextTypes.DEFAULT_T
         context.user_data["wait_for_xien_input"] = None
         return
 
-    # ---- GHÉP CÀNG 3D ----
+    # # Ghép càng 3D
     if context.user_data.get("wait_cang3d_numbers"):
         numbers = clean_numbers_input(text)
         result = ghep_cang(numbers, "3")
@@ -29,7 +29,7 @@ async def handle_user_free_input(update: Update, context: ContextTypes.DEFAULT_T
         context.user_data["wait_cang3d_numbers"] = None
         return
 
-    # ---- GHÉP CÀNG 4D ----
+# Ghép càng 4D
     if context.user_data.get("wait_cang4d_numbers"):
         numbers = clean_numbers_input(text)
         result = ghep_cang(numbers, "4")
