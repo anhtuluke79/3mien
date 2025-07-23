@@ -65,5 +65,4 @@ async def handle_user_free_input(update: Update, context: ContextTypes.DEFAULT_T
         return
 
     # ---- Không khớp gì, bỏ qua ----
-    # Bạn có thể thêm dòng dưới nếu muốn nhắc lại:
-    # await update.message.reply_text("Vui lòng chọn lại từ menu!", reply_markup=get_back_reset_keyboard("menu"))
+    # (hoặc bạn có thể gửi tin nhắn "Vui lòng chọn lại từ menu..." nếu muốn)
