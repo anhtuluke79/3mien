@@ -3,6 +3,8 @@ from telegram.ext import (
     Application, CommandHandler, CallbackQueryHandler, MessageHandler, filters
 )
 from handlers.menu import menu, menu_callback_handler, handle_user_free_input
+from handlers.input_handler import handle_user_free_input
+
 from handlers.ungho import ung_ho_gop_y
 from system.admin import admin_menu
 
