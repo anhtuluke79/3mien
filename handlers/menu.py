@@ -4,7 +4,6 @@ from handlers.xien import clean_numbers_input, gen_xien, format_xien_result
 from handlers.cang_dao import ghep_cang, dao_so
 from handlers.kq import tra_ketqua_theo_ngay
 from handlers.phongthuy import phongthuy_tudong
-from handlers.menu import get_back_reset_keyboard
 
 @log_user_action("Xử lý nhập tự do")
 async def handle_user_free_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
