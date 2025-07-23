@@ -1,51 +1,26 @@
-import os
-import logging
-from telegram.ext import (
-    ApplicationBuilder,
-    CommandHandler,
-    MessageHandler,
-    CallbackQueryHandler,
-    filters
-)
-from handlers.menu import (
-    menu,
-    help_command,
-    reset_command,
-    phongthuy_command,
-    menu_callback_handler
-)
-from handlers.text_handlers import all_text_handler
+from telegram.ext import Application, CommandHandler, CallbackQueryHandler, MessageHandler, filters
+from handlers.menu import menu, menu_callback_handler
+# Import thêm các handler command khác nếu muốn (ví dụ help, reset...)
 
-# Cấu hình logger
-logging.basicConfig(
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO
-)
-logger = logging.getLogger(__name__)
+def main():
+    # Đặt token vào biến môi trường, hoặc thay trực tiếp cho demo
+    import os
+    TOKEN = os.getenv("BOT_TOKEN", "YOUR_BOT_TOKEN")
+    app = Application.builder().token(TOKEN).build()
 
-BOT_TOKEN = os.environ.get("BOT_TOKEN")
-if not BOT_TOKEN:
-    raise ValueError("❌ Biến môi trường BOT_TOKEN chưa được thiết lập.")
-
-async def main():
-    app = ApplicationBuilder().token(BOT_TOKEN).build()
-    app.add_handler(CommandHandler("start", menu))
+    # /menu: mở menu chính
     app.add_handler(CommandHandler("menu", menu))
-    app.add_handler(CommandHandler("help", help_command))
-    app.add_handler(CommandHandler("reset", reset_command))
-    app.add_handler(CommandHandler("phongthuy", phongthuy_command))
+
+    # Callback nút bấm menu
     app.add_handler(CallbackQueryHandler(menu_callback_handler))
-    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, all_text_handler))
-    print("🤖 Bot Telegram đã sẵn sàng!")
-    await app.run_polling(close_loop=False)
+
+    # Có thể add thêm các handler message/text, ví dụ:
+    # from handlers.menu import handle_text_input
+    # app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text_input))
+
+    # Khởi chạy bot
+    print("Bot is running...")
+    app.run_polling()
 
 if __name__ == "__main__":
-    import asyncio
-    try:
-        asyncio.run(main())
-    except RuntimeError as e:
-        if "event loop is already running" in str(e):
-            import nest_asyncio
-            nest_asyncio.apply()
-            asyncio.get_event_loop().run_until_complete(main())
-        else:
-            raise e
+    main()
