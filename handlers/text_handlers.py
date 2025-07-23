@@ -7,12 +7,29 @@ from utils.can_chi_utils import (
     phong_thuy_format,
     chuan_hoa_can_chi
 )
-from handlers.menu import get_menu_keyboard, get_xien_keyboard, get_cang_dao_keyboard, get_back_reset_keyboard
+from handlers.menu import (
+    get_menu_keyboard,
+    get_xien_keyboard,
+    get_cang_dao_keyboard,
+    get_back_reset_keyboard,
+    tra_ketqua_theo_ngay   # Quan trọng: import hàm này để tra cứu kết quả
+)
 from datetime import datetime
 
 async def all_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_data = context.user_data
     msg = update.message.text.strip()
+
+    # ======= TRA CỨU KẾT QUẢ XSMB THEO NGÀY =======
+    if user_data.get("wait_kq_theo_ngay"):
+        result = tra_ketqua_theo_ngay(msg)
+        await update.message.reply_text(
+            result,
+            parse_mode="Markdown",
+            reply_markup=get_back_reset_keyboard("ketqua")
+        )
+        user_data.clear()
+        return
 
     # ======= GHÉP XIÊN =======
     if 'wait_for_xien_input' in user_data:
@@ -99,69 +116,50 @@ async def all_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # ======= ĐẢO SỐ =======
     if user_data.get("wait_for_dao_input"):
         arr = split_numbers(msg)
-        s_concat = ''.join(arr) if arr else msg.replace(' ', '')
-        if not s_concat.isdigit() or len(s_concat) < 2 or len(s_concat) > 6:
+        if not arr or not all(2 <= len(x) <= 6 for x in arr):
             await update.message.reply_text(
-                "⚠️ Nhập 1 số từ 2 đến 6 chữ số. VD: 1234",
+                "⚠️ Nhập từng số có 2-6 chữ số, cách nhau bằng dấu cách. VD: 123 4567",
                 reply_markup=get_back_reset_keyboard("ghep_cang_dao")
             )
-        else:
-            result = dao_so(s_concat)
-            if len(result) > 20:
-                text = '\n'.join([', '.join(result[i:i+10]) for i in range(0, len(result), 10)])
-            else:
-                text = ', '.join(result)
-            await update.message.reply_text(
-                f"*Tổng {len(result)} hoán vị:*\n{text}",
-                reply_markup=get_menu_keyboard(),
-                parse_mode="Markdown"
-            )
+            return
+        daos = [dao_so(s) for s in arr]
+        text = []
+        for a, b in zip(arr, daos):
+            text.append(f"{a}: {', '.join(b)}")
+        await update.message.reply_text(
+            "*ĐẢO SỐ:*\n" + '\n'.join(text),
+            reply_markup=get_menu_keyboard(),
+            parse_mode="Markdown"
+        )
         user_data.clear()
         return
 
     # ======= PHONG THỦY SỐ =======
-    if user_data.get('wait_phongthuy'):
+    if user_data.get("wait_phongthuy"):
+        # Nhận ngày hoặc can chi
         try:
-            ngay = msg
-            for sep in ["-", "/", "."]:
-                if sep in ngay:
-                    parts = [int(x) for x in ngay.split(sep)]
-                    break
+            ngay, canchi = chuan_hoa_can_chi(msg)
+            if ngay:
+                can, chi = get_can_chi_ngay(ngay)
+                so_hap = sinh_so_hap_cho_ngay(ngay)
+                res = phong_thuy_format(can, chi, so_hap, ngay=ngay)
+            elif canchi:
+                so_hap = sinh_so_hap_cho_ngay(canchi=canchi)
+                res = phong_thuy_format(canchi[0], canchi[1], so_hap)
             else:
-                raise ValueError
-            now = datetime.now()
-            if len(parts) == 3:
-                if parts[0] > 31:
-                    y, m, d = parts
-                else:
-                    d, m, y = parts
-            elif len(parts) == 2:
-                d, m = parts
-                y = now.year
-            else:
-                raise ValueError
-            can_chi = get_can_chi_ngay(y, m, d)
-            sohap_info = sinh_so_hap_cho_ngay(can_chi)
-            text = phong_thuy_format(can_chi, sohap_info)
-            await update.message.reply_text(
-                text, parse_mode="Markdown", reply_markup=get_menu_keyboard()
-            )
-        except Exception:
-            can_chi = chuan_hoa_can_chi(msg)
-            sohap_info = sinh_so_hap_cho_ngay(can_chi)
-            if sohap_info is None:
-                await update.message.reply_text(
-                    "❗️ Không tìm thấy thông tin ngày/can chi hoặc sai định dạng!\n"
-                    "Hãy nhập lại (VD: 2024-07-23 hoặc Giáp Tý).",
-                    reply_markup=get_back_reset_keyboard("menu")
-                )
-                return
-            text = phong_thuy_format(can_chi, sohap_info)
-            await update.message.reply_text(
-                text, parse_mode="Markdown", reply_markup=get_menu_keyboard()
-            )
-        user_data["wait_phongthuy"] = False
+                res = "❗ Nhập ngày (yyyy-mm-dd hoặc dd-mm) hoặc can chi (VD: Giáp Tý)"
+        except Exception as e:
+            res = f"Lỗi tra cứu: {e}"
+        await update.message.reply_text(
+            res,
+            parse_mode="Markdown",
+            reply_markup=get_menu_keyboard()
+        )
+        user_data.clear()
         return
 
-    # Không ở trạng thái nào, không trả lời
-    return
+    # ======= Nếu không rơi vào luồng nào =======
+    await update.message.reply_text(
+        "❓ Không xác định yêu cầu của bạn. Hãy chọn lại chức năng từ menu hoặc dùng /menu.",
+        reply_markup=get_menu_keyboard()
+    )
