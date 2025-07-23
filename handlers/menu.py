@@ -6,6 +6,7 @@ def get_menu_keyboard():
         [InlineKeyboardButton("🔢 Ghép xiên (Tổ hợp số)", callback_data="ghep_xien")],
         [InlineKeyboardButton("🎯 Ghép càng/Đảo số", callback_data="ghep_cang_dao")],
         [InlineKeyboardButton("🔮 Phong thủy số (Ngày/Can chi)", callback_data="phongthuy")],
+        [InlineKeyboardButton("💖 Ủng hộ / Góp ý", callback_data="ung_ho_gop_y")],  # Nút mới
         [InlineKeyboardButton("ℹ️ Hướng dẫn & FAQ", callback_data="huongdan")],
         [InlineKeyboardButton("🔄 Reset trạng thái", callback_data="reset")]
     ]
@@ -87,6 +88,25 @@ async def phongthuy_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.callback_query.edit_message_text(text, parse_mode="Markdown", reply_markup=get_back_reset_keyboard("menu"))
     context.user_data["wait_phongthuy"] = True
 
+async def ung_ho_gop_y(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    text = (
+        "💖 *ỦNG HỘ & GÓP Ý CHO BOT*\n"
+        "Cảm ơn bạn đã sử dụng bot! Nếu thấy hữu ích, bạn có thể ủng hộ để mình duy trì và phát triển thêm tính năng.\n\n"
+        "🔗 *Chuyển khoản Vietcombank:*\n"
+        "`0071003914986`\n"
+        "_TRUONG ANH TU_\n\n"
+        "Hoặc quét mã QR bên dưới.\n\n"
+        "🌟 *Góp ý/đề xuất tính năng*: nhắn trực tiếp qua Telegram hoặc email: tutruong19790519@gmail.com\n"
+        "Rất mong nhận được ý kiến của bạn! 😊"
+    )
+    qr_path = "qr_ung_ho.png"  # Đảm bảo file QR ở đúng vị trí
+    await update.callback_query.message.reply_photo(
+        photo=open(qr_path, "rb"),
+        caption=text,
+        parse_mode="Markdown",
+        reply_markup=get_menu_keyboard()
+    )
+
 async def menu_callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     data = query.data
@@ -136,5 +156,7 @@ async def menu_callback_handler(update: Update, context: ContextTypes.DEFAULT_TY
         await help_command(update, context)
     elif data == "reset":
         await reset_command(update, context)
+    elif data == "ung_ho_gop_y":
+        await ung_ho_gop_y(update, context)
     else:
         await query.edit_message_text("❓ Không xác định chức năng.", reply_markup=get_menu_keyboard())
