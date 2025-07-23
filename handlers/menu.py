@@ -1,9 +1,9 @@
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
+import os
+ADMIN_IDS = [int(x) for x in os.getenv("ADMIN_IDS", "123456789").split(",") if x.strip().isdigit()]
 
 # Thêm danh sách admin ID (sửa lại theo bạn)
-ADMIN_IDS = [123456789, 987654321]  # Thay bằng ID admin thực tế
-
 def get_menu_keyboard(is_admin=False):
     keyboard = [
         [InlineKeyboardButton("🔢 Ghép xiên (Tổ hợp số)", callback_data="ghep_xien")],
