@@ -5,7 +5,7 @@ from handlers.cang_dao import ghep_cang, dao_so
 from handlers.kq import tra_ketqua_theo_ngay
 from handlers.phongthuy import phongthuy_tudong
 from system.admin import log_user_action
-from handlers.menu import get_back_reset_keyboard
+from handlers.keyboards import get_back_reset_keyboard
 
 
 @log_user_action("Xử lý nhập tự do")
