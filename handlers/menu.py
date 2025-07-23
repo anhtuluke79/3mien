@@ -1,6 +1,10 @@
 import os
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
+from utils.thongke_utils import (
+    thongke_so_ve_nhieu_nhat, thongke_dau_cuoi,
+    thongke_chan_le, thongke_lo_gan, read_xsmb
+)
 
 ADMIN_IDS = [int(x.strip()) for x in os.getenv("ADMIN_IDS", "123456789").split(",") if x.strip().isdigit()]
 
@@ -8,7 +12,9 @@ def get_menu_keyboard(is_admin=False):
     keyboard = [
         [InlineKeyboardButton("🔢 Ghép xiên (Tổ hợp số)", callback_data="ghep_xien")],
         [InlineKeyboardButton("🎯 Ghép càng/Đảo số", callback_data="ghep_cang_dao")],
+        [InlineKeyboardButton("🎰 Kết quả", callback_data="ketqua")],
         [InlineKeyboardButton("🔮 Phong thủy số (Ngày/Can chi)", callback_data="phongthuy")],
+        [InlineKeyboardButton("📊 Thống kê", callback_data="thongke")],
         [InlineKeyboardButton("ℹ️ Hướng dẫn & FAQ", callback_data="huongdan")],
         [InlineKeyboardButton("💬 Góp ý & Phản hồi", callback_data="gopy")],
         [InlineKeyboardButton("☕ Ủng hộ tác giả", callback_data="ung_ho")],
@@ -40,6 +46,31 @@ def get_cang_dao_keyboard():
         [
             InlineKeyboardButton("⬅️ Menu chính", callback_data="menu"),
             InlineKeyboardButton("🔄 Reset", callback_data="reset")
+        ]
+    ]
+    return InlineKeyboardMarkup(keyboard)
+
+def get_ketqua_keyboard():
+    keyboard = [
+        [InlineKeyboardButton("🆕 Kết quả mới nhất", callback_data="ketqua_moinhat")],
+        [InlineKeyboardButton("📅 Kết quả theo ngày", callback_data="ketqua_theongay")],
+        [InlineKeyboardButton("⬅️ Menu", callback_data="menu")]
+    ]
+    return InlineKeyboardMarkup(keyboard)
+
+def get_thongke_keyboard():
+    keyboard = [
+        [
+            InlineKeyboardButton("Top về nhiều nhất", callback_data="tk_top"),
+            InlineKeyboardButton("Số về ít nhất", callback_data="tk_bot"),
+        ],
+        [
+            InlineKeyboardButton("Đầu - Đuôi", callback_data="tk_dauduoi"),
+            InlineKeyboardButton("Chẵn/Lẻ", callback_data="tk_chanle"),
+        ],
+        [
+            InlineKeyboardButton("Lô gan", callback_data="tk_gan"),
+            InlineKeyboardButton("⬅️ Menu", callback_data="menu")
         ]
     ]
     return InlineKeyboardMarkup(keyboard)
@@ -78,6 +109,8 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "— *Ghép xiên*: Nhập dàn số bất kỳ, chọn loại xiên 2-3-4, bot sẽ trả mọi tổ hợp xiên.\n"
         "— *Ghép càng/Đảo số*: Nhập dàn số 2 hoặc 3 chữ số, nhập càng muốn ghép, hoặc đảo số từ 2-6 chữ số.\n"
         "— *Phong thủy số*: Tra cứu số hợp theo ngày dương hoặc can chi (VD: 2025-07-23 hoặc Giáp Tý).\n"
+        "— *Thống kê*: Thống kê tần suất, đầu đuôi, lô gan… của 30 ngày gần nhất.\n"
+        "— *Kết quả*: Xem kết quả mới nhất hoặc theo ngày, trong 60 ngày gần nhất.\n"
         "— Luôn có nút menu trở lại, reset trạng thái, hoặc gõ /menu để quay về ban đầu."
     )
     if update.message:
@@ -115,6 +148,7 @@ async def menu_callback_handler(update: Update, context: ContextTypes.DEFAULT_TY
     user_id = update.effective_user.id if update.effective_user else None
     is_admin = user_id in ADMIN_IDS
     context.user_data.clear()
+
     if data == "menu":
         await menu(update, context)
     elif data == "ghep_xien":
@@ -154,6 +188,39 @@ async def menu_callback_handler(update: Update, context: ContextTypes.DEFAULT_TY
             reply_markup=get_back_reset_keyboard("ghep_cang_dao")
         )
         context.user_data['wait_for_dao_input'] = True
+    elif data == "ketqua":
+        text = (
+            "🎰 *TRA CỨU KẾT QUẢ XỔ SỐ MIỀN BẮC*\n"
+            "_Bạn có thể tra cứu kết quả trong vòng 60 ngày gần nhất:_"
+        )
+        await query.edit_message_text(
+            text,
+            parse_mode="Markdown",
+            reply_markup=get_ketqua_keyboard()
+        )
+    elif data == "ketqua_moinhat":
+        df = read_xsmb("xsmb.csv")
+        row = df.sort_values("date", ascending=False).iloc[0]
+        txt = "*🎰 Kết quả xổ số miền Bắc mới nhất:*\n"
+        txt += f"Ngày: *{row['date']}*\n"
+        txt += f"Đặc biệt: `{row['DB']}`\n"
+        txt += f"G1: `{row['G1']}`\n"
+        txt += f"G2: `{row['G2']}`\n"
+        txt += f"G3: `{row['G3']}`\n"
+        txt += f"G4: `{row['G4']}`\n"
+        txt += f"G5: `{row['G5']}`\n"
+        txt += f"G6: `{row['G6']}`\n"
+        txt += f"G7: `{row['G7']}`\n"
+        await query.edit_message_text(
+            txt, parse_mode="Markdown", reply_markup=get_ketqua_keyboard()
+        )
+    elif data == "ketqua_theongay":
+        await query.edit_message_text(
+            "📅 Nhập ngày muốn tra cứu kết quả (định dạng: YYYY-MM-DD hoặc DD-MM):",
+            parse_mode="Markdown",
+            reply_markup=get_ketqua_keyboard()
+        )
+        context.user_data["wait_ketqua_ngay"] = True
     elif data == "phongthuy":
         await phongthuy_command(update, context)
     elif data == "huongdan":
@@ -172,6 +239,33 @@ async def menu_callback_handler(update: Update, context: ContextTypes.DEFAULT_TY
             parse_mode="Markdown",
             reply_markup=get_back_reset_keyboard("menu")
         )
+    # ----------- THỐNG KÊ -----------
+    elif data == "thongke":
+        await query.edit_message_text(
+            "🔢 Chọn loại thống kê:",
+            reply_markup=get_thongke_keyboard()
+        )
+    elif data == "tk_top":
+        df = read_xsmb("xsmb.csv")
+        res = thongke_so_ve_nhieu_nhat(df)
+        await query.edit_message_text(res, parse_mode="Markdown", reply_markup=get_thongke_keyboard())
+    elif data == "tk_bot":
+        df = read_xsmb("xsmb.csv")
+        res = thongke_so_ve_nhieu_nhat(df, top=10, bot_only=True)
+        await query.edit_message_text(res, parse_mode="Markdown", reply_markup=get_thongke_keyboard())
+    elif data == "tk_dauduoi":
+        df = read_xsmb("xsmb.csv")
+        res = thongke_dau_cuoi(df)
+        await query.edit_message_text(res, parse_mode="Markdown", reply_markup=get_thongke_keyboard())
+    elif data == "tk_chanle":
+        df = read_xsmb("xsmb.csv")
+        res = thongke_chan_le(df)
+        await query.edit_message_text(res, parse_mode="Markdown", reply_markup=get_thongke_keyboard())
+    elif data == "tk_gan":
+        df = read_xsmb("xsmb.csv")
+        res = thongke_lo_gan(df)
+        await query.edit_message_text(res, parse_mode="Markdown", reply_markup=get_thongke_keyboard())
+    # ----------- ADMIN -----------
     elif data == "admin_tool":
         if not is_admin:
             await query.edit_message_text("❌ Bạn không có quyền admin.", reply_markup=get_menu_keyboard(False))
