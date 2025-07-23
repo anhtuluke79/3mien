@@ -1,25 +1,41 @@
-from telegram.ext import Application, CommandHandler, CallbackQueryHandler, MessageHandler, filters
+import os
+from telegram.ext import (
+    Application, CommandHandler, CallbackQueryHandler, MessageHandler, filters
+)
 from handlers.menu import menu, menu_callback_handler
-# Import thêm các handler command khác nếu muốn (ví dụ help, reset...)
+from handlers.ungho import ung_ho_gop_y
+from system.admin import admin_menu
+
+# ===== Đọc token từ biến môi trường =====
+TOKEN = os.getenv("BOT_TOKEN", "YOUR_TELEGRAM_BOT_TOKEN")
+
+def only_command(update, context):
+    """Đây là handler 'rỗng' để bot không trả lời tin nhắn thường"""
+    return
 
 def main():
-    # Đặt token vào biến môi trường, hoặc thay trực tiếp cho demo
-    import os
-    TOKEN = os.getenv("BOT_TOKEN", "YOUR_BOT_TOKEN")
     app = Application.builder().token(TOKEN).build()
 
-    # /menu: mở menu chính
+    # Menu chính
     app.add_handler(CommandHandler("menu", menu))
 
-    # Callback nút bấm menu
+    # Hướng dẫn
+    # from handlers.menu import help_command
+    # app.add_handler(CommandHandler("help", help_command))
+
+    # Ủng hộ/góp ý (nếu muốn /ungho riêng)
+    app.add_handler(CommandHandler("ungho", ung_ho_gop_y))
+
+    # Menu admin (nếu muốn /admin riêng)
+    app.add_handler(CommandHandler("admin", admin_menu))
+
+    # Toàn bộ callback menu
     app.add_handler(CallbackQueryHandler(menu_callback_handler))
 
-    # Có thể add thêm các handler message/text, ví dụ:
-    # from handlers.menu import handle_text_input
-    # app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text_input))
+    # Đảm bảo không trả lời mọi text thường (chỉ cho phép text khi context đang chờ input đặc biệt)
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, only_command))
 
-    # Khởi chạy bot
-    print("Bot is running...")
+    print("🤖 Bot is running...")
     app.run_polling()
 
 if __name__ == "__main__":
