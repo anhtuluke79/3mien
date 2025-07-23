@@ -21,6 +21,8 @@ def main():
     app.add_handler(CommandHandler("menu", menu))
     app.add_handler(CommandHandler("ungho", ung_ho_gop_y))
     app.add_handler(CommandHandler("admin", admin_menu))
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_user_free_input))
+
     # Callback menu
     app.add_handler(CallbackQueryHandler(menu_callback_handler))
     # Xử lý nhập tự do cho mọi chức năng đặc biệt (xiên, càng, phong thủy, kết quả...)
