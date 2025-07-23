@@ -129,7 +129,7 @@ async def ung_ho_gop_y(update: Update, context: ContextTypes.DEFAULT_TYPE):
 def tra_ketqua_theo_ngay(ngay_str):
     try:
         df = pd.read_csv('xsmb.csv')
-        df['ngay'] = pd.to_datetime(df['ngay'], dayfirst=True, errors='coerce')
+        df['date'] = pd.to_datetime(df['date'], dayfirst=True, errors='coerce')
         if "-" in ngay_str:
             if len(ngay_str) == 5:  # dd-mm
                 year = datetime.now().year
@@ -142,12 +142,12 @@ def tra_ketqua_theo_ngay(ngay_str):
         else:
             return "❗ Định dạng ngày không hợp lệ!"
 
-        row = df[df['ngay'] == ngay_input]
+        row = df[df['date'] == ngay_input]
         if row.empty:
             return f"⛔ Không có kết quả cho ngày {ngay_input.strftime('%d-%m-%Y')}."
         r = row.iloc[0]
         text = f"*KQ XSMB {ngay_input.strftime('%d-%m-%Y')}*\n"
-        text += f"ĐB: `{r['db']}`\nG1: `{r['g1']}`\nG2: `{r['g2']}`\nG3: `{r['g3']}`\nG4: `{r['g4']}`\nG5: `{r['g5']}`\nG6: `{r['g6']}`\nG7: `{r['g7']}`"
+        text += f"ĐB: `{r['DB']}`\nG1: `{r['G1']}`\nG2: `{r['G2']}`\nG3: `{r['G3']}`\nG4: `{r['G4']}`\nG5: `{r['G5']}`\nG6: `{r['G6']}`\nG7: `{r['G7']}`"
         return text
     except Exception as e:
         return f"❗ Lỗi tra cứu: {e}"
@@ -155,10 +155,10 @@ def tra_ketqua_theo_ngay(ngay_str):
 async def tra_ketqua_moi_nhat():
     try:
         df = pd.read_csv('xsmb.csv')
-        df['ngay'] = pd.to_datetime(df['ngay'], dayfirst=True, errors='coerce')
-        row = df.sort_values('ngay', ascending=False).iloc[0]
-        text = f"*KQ XSMB {row['ngay'].strftime('%d-%m-%Y')}*\n"
-        text += f"ĐB: `{row['db']}`\nG1: `{row['g1']}`\nG2: `{row['g2']}`\nG3: `{row['g3']}`\nG4: `{row['g4']}`\nG5: `{row['g5']}`\nG6: `{row['g6']}`\nG7: `{row['g7']}`"
+        df['date'] = pd.to_datetime(df['date'], dayfirst=True, errors='coerce')
+        row = df.sort_values('date', ascending=False).iloc[0]
+        text = f"*KQ XSMB {row['date'].strftime('%d-%m-%Y')}*\n"
+        text += f"ĐB: `{row['DB']}`\nG1: `{row['G1']}`\nG2: `{row['G2']}`\nG3: `{row['G3']}`\nG4: `{row['G4']}`\nG5: `{row['G5']}`\nG6: `{row['G6']}`\nG7: `{row['G7']}`"
         return text
     except Exception as e:
         return f"❗ Lỗi tra cứu: {e}"
