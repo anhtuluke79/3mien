@@ -238,23 +238,23 @@ async def menu_callback_handler(update: Update, context: ContextTypes.DEFAULT_TY
         )
     elif data == "topve":
         df = tk.read_xsmb()
-        res = tk.thongke_so_ve_nhieu_nhat(df, n=30, top=10, bot_only=False)
+        res = tk.thongke_so_ve_nhieu_nhat(df, n=60, top=10, bot_only=False)
         await query.edit_message_text(res, reply_markup=get_thongke_keyboard(), parse_mode="Markdown")
     elif data == "topkhan":
         df = tk.read_xsmb()
-        res = tk.thongke_so_ve_nhieu_nhat(df, n=30, top=10, bot_only=True)
+        res = tk.thongke_so_ve_nhieu_nhat(df, n=60, top=10, bot_only=True)
         await query.edit_message_text(res, reply_markup=get_thongke_keyboard(), parse_mode="Markdown")
     elif data == "dau_cuoi":
         df = tk.read_xsmb()
-        res = tk.thongke_dau_cuoi(df, n=30)
+        res = tk.thongke_dau_cuoi(df, n=60)
         await query.edit_message_text(res, reply_markup=get_thongke_keyboard(), parse_mode="Markdown")
     elif data == "chanle":
         df = tk.read_xsmb()
-        res = tk.thongke_chan_le(df, n=30)
+        res = tk.thongke_chan_le(df, n=60)
         await query.edit_message_text(res, reply_markup=get_thongke_keyboard(), parse_mode="Markdown")
     elif data == "logan":
         df = tk.read_xsmb()
-        res = tk.thongke_lo_gan(df, n=30)
+        res = tk.thongke_lo_gan(df, n=60)
         await query.edit_message_text(res, reply_markup=get_thongke_keyboard(), parse_mode="Markdown")
     elif data == "goiy":
         df = tk.read_xsmb()
