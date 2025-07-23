@@ -1,5 +1,6 @@
 from telegram import Update
 from telegram.ext import ContextTypes
+import os
 from utils.utils import split_numbers, ghep_xien, dao_so
 from utils.can_chi_utils import (
     get_can_chi_ngay,
@@ -7,14 +8,52 @@ from utils.can_chi_utils import (
     phong_thuy_format,
     chuan_hoa_can_chi
 )
-from handlers.menu import get_menu_keyboard, get_xien_keyboard, get_cang_dao_keyboard, get_back_reset_keyboard
+from handlers.menu import (
+    get_menu_keyboard, get_admin_keyboard, get_xien_keyboard,
+    get_cang_dao_keyboard, get_back_reset_keyboard, ADMIN_IDS
+)
 from datetime import datetime
 
 async def all_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_data = context.user_data
     msg = update.message.text.strip()
+    user_id = update.effective_user.id
 
-    # ======= GHÉP XIÊN =======
+    # ====== GÓP Ý ======
+    if user_data.get("wait_for_gopy"):
+        username = update.effective_user.username or update.effective_user.full_name or update.effective_user.id
+        with open("gopy_log.txt", "a", encoding="utf-8") as f:
+            f.write(f"{datetime.now()} | {username}: {msg}\n")
+        await update.message.reply_text(
+            "💗 Cảm ơn bạn đã góp ý/ủng hộ bot!\nBạn có thể tiếp tục sử dụng các chức năng khác.",
+            reply_markup=get_menu_keyboard(user_id in ADMIN_IDS)
+        )
+        user_data.clear()
+        return
+
+    # ====== ADMIN BROADCAST ======
+    if user_data.get("wait_for_broadcast"):
+        if user_id not in ADMIN_IDS:
+            await update.message.reply_text("❌ Bạn không có quyền gửi broadcast.", reply_markup=get_menu_keyboard(False))
+            user_data.clear()
+            return
+        try:
+            with open("user_list.txt") as f:
+                ids = [int(line.strip()) for line in f if line.strip()]
+        except Exception:
+            ids = []
+        sent = 0
+        for uid in ids:
+            try:
+                await context.bot.send_message(chat_id=uid, text=f"[BROADCAST]\n{msg}")
+                sent += 1
+            except Exception as e:
+                print(f"Lỗi gửi tới {uid}: {e}")
+        await update.message.reply_text(f"Đã gửi broadcast tới {sent} user.", reply_markup=get_admin_keyboard())
+        user_data.clear()
+        return
+
+    # ====== GHÉP XIÊN ======
     if 'wait_for_xien_input' in user_data:
         n = user_data['wait_for_xien_input']
         if n is None:
@@ -34,13 +73,13 @@ async def all_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             reply = f"*{len(xiens)} bộ xiên {n}:*\n" + ', '.join(xiens[:50])
             await update.message.reply_text(
                 reply,
-                reply_markup=get_menu_keyboard(),
+                reply_markup=get_menu_keyboard(user_id in ADMIN_IDS),
                 parse_mode="Markdown"
             )
         user_data.clear()
         return
 
-    # ======= GHÉP CÀNG 3D =======
+    # ====== GHÉP CÀNG 3D ======
     if user_data.get("wait_cang3d_numbers"):
         arr = split_numbers(msg)
         if not arr or not all(len(n) == 2 for n in arr):
@@ -58,7 +97,7 @@ async def all_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         return
 
-    # ======= GHÉP CÀNG 4D =======
+    # ====== GHÉP CÀNG 4D ======
     if user_data.get("wait_cang4d_numbers"):
         arr = split_numbers(msg)
         if not arr or not all(len(n) == 3 for n in arr):
@@ -76,7 +115,7 @@ async def all_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         return
 
-    # ======= XỬ LÝ GHÉP CÀNG SAU KHI ĐÃ CÓ DÀN =======
+    # ====== XỬ LÝ GHÉP CÀNG SAU KHI ĐÃ CÓ DÀN ======
     if user_data.get("wait_cang_input"):
         kind = user_data["wait_cang_input"]
         numbers = user_data.get("cang3d_numbers", []) if kind == "3D" else user_data.get("cang4d_numbers", [])
@@ -90,13 +129,13 @@ async def all_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         result = [c + n for c in cangs for n in numbers]
         await update.message.reply_text(
             f"*✅ Ghép {kind}:* Tổng {len(result)} số\n" + ', '.join(result),
-            reply_markup=get_menu_keyboard(),
+            reply_markup=get_menu_keyboard(user_id in ADMIN_IDS),
             parse_mode="Markdown"
         )
         user_data.clear()
         return
 
-    # ======= ĐẢO SỐ =======
+    # ====== ĐẢO SỐ ======
     if user_data.get("wait_for_dao_input"):
         arr = split_numbers(msg)
         s_concat = ''.join(arr) if arr else msg.replace(' ', '')
@@ -113,13 +152,13 @@ async def all_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 text = ', '.join(result)
             await update.message.reply_text(
                 f"*Tổng {len(result)} hoán vị:*\n{text}",
-                reply_markup=get_menu_keyboard(),
+                reply_markup=get_menu_keyboard(user_id in ADMIN_IDS),
                 parse_mode="Markdown"
             )
         user_data.clear()
         return
 
-    # ======= PHONG THỦY SỐ =======
+    # ====== PHONG THỦY SỐ ======
     if user_data.get('wait_phongthuy'):
         try:
             ngay = msg
@@ -144,7 +183,7 @@ async def all_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             sohap_info = sinh_so_hap_cho_ngay(can_chi)
             text = phong_thuy_format(can_chi, sohap_info)
             await update.message.reply_text(
-                text, parse_mode="Markdown", reply_markup=get_menu_keyboard()
+                text, parse_mode="Markdown", reply_markup=get_menu_keyboard(user_id in ADMIN_IDS)
             )
         except Exception:
             can_chi = chuan_hoa_can_chi(msg)
@@ -158,10 +197,10 @@ async def all_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 return
             text = phong_thuy_format(can_chi, sohap_info)
             await update.message.reply_text(
-                text, parse_mode="Markdown", reply_markup=get_menu_keyboard()
+                text, parse_mode="Markdown", reply_markup=get_menu_keyboard(user_id in ADMIN_IDS)
             )
         user_data["wait_phongthuy"] = False
         return
 
-    # Không ở trạng thái nào, không trả lời
+    # Nếu không ở trạng thái nào, không trả lời!
     return
