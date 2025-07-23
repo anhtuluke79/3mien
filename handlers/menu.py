@@ -6,7 +6,7 @@ from dateutil import parser
 
 # ===== IMPORT MODULE THỐNG KÊ VÀ ADMIN =====
 import utils.thongkemb as tk
-from admin import ADMIN_IDS, log_user_action, write_user_log, admin_callback_handler, admin_menu, get_admin_menu_keyboard
+from .admin import ADMIN_IDS, log_user_action, write_user_log, admin_callback_handler, admin_menu, get_admin_menu_keyboard
 
 # ===== MENU UI =====
 
