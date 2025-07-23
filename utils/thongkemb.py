@@ -1,36 +1,24 @@
 import pandas as pd
 import random
+from collections import Counter
 
 def read_xsmb(filename="xsmb.csv"):
     return pd.read_csv(filename)
 
-def tach_dan_so(series):
-    """
-    Tách các số 2 chữ số từ một Series, dù là dính liền hay cách bằng dấu phẩy, dấu cách.
-    """
-    all_numbers = []
-    for val in series.dropna():
-        s_raw = str(val).replace(" ", ",")
-        for s in s_raw.split(","):
-            s = s.strip()
-            # Nếu là số dài, cắt thành các số 2 chữ số
-            while len(s) >= 2:
-                all_numbers.append(s[:2])
-                s = s[2:]
-    return all_numbers
+def lay_tat_ca_2so_cuoi(df, n=30):
+    """Lấy toàn bộ 2 số cuối của tất cả giải trong n ngày gần nhất"""
+    df = df.sort_values("date", ascending=False).head(n)
+    numbers = []
+    for col in ["DB", "G1", "G2", "G3", "G4", "G5", "G6", "G7"]:
+        for value in df[col]:
+            nums = str(value).replace(",", " ").split()
+            for num in nums:
+                last2 = num[-2:].zfill(2)
+                numbers.append(last2)
+    return numbers
 
 def thongke_so_ve_nhieu_nhat(df, n=30, top=10, bot_only=False):
-    df = df.sort_values("date", ascending=False).head(n)
-    all_numbers = (
-        df["DB"].astype(str).tolist()
-        + df["G1"].astype(str).tolist()
-        + tach_dan_so(df["G2"])
-        + tach_dan_so(df["G3"])
-        + tach_dan_so(df["G4"])
-        + tach_dan_so(df["G5"])
-        + tach_dan_so(df["G6"])
-        + tach_dan_so(df["G7"])
-    )
+    all_numbers = lay_tat_ca_2so_cuoi(df, n)
     counts = pd.Series(all_numbers).value_counts()
     if bot_only:
         counts = counts.tail(top)
@@ -43,39 +31,27 @@ def thongke_so_ve_nhieu_nhat(df, n=30, top=10, bot_only=False):
     return res
 
 def thongke_dau_cuoi(df, n=30):
-    df = df.sort_values("date", ascending=False).head(n)
-    db = df["DB"].astype(str)
-    dau = db.str[0]
-    duoi = db.str[-1]
-    thongke_dau = dau.value_counts().sort_index()
-    thongke_duoi = duoi.value_counts().sort_index()
-    res = f"*Thống kê ĐẦU/ĐUÔI giải ĐB {n} ngày:*\n"
+    all_numbers = lay_tat_ca_2so_cuoi(df, n)
+    dau = [s[0] for s in all_numbers]
+    duoi = [s[1] for s in all_numbers]
+    thongke_dau = Counter(dau)
+    thongke_duoi = Counter(duoi)
+    res = f"*Thống kê ĐẦU/ĐUÔI tất cả các giải {n} ngày:*\n"
     res += "Đầu: " + ', '.join([f"{i}: {thongke_dau.get(str(i),0)}" for i in range(10)]) + "\n"
     res += "Đuôi: " + ', '.join([f"{i}: {thongke_duoi.get(str(i),0)}" for i in range(10)]) + "\n"
     return res
 
 def thongke_chan_le(df, n=30):
-    df = df.sort_values("date", ascending=False).head(n)
-    db = df["DB"].astype(str)
-    chan = sum(int(x[-1]) % 2 == 0 for x in db)
-    le = len(db) - chan
-    res = f"*Thống kê chẵn/lẻ giải ĐB {n} ngày:*\nChẵn: {chan}, Lẻ: {le}"
+    all_numbers = lay_tat_ca_2so_cuoi(df, n)
+    chan = sum(int(x[-1]) % 2 == 0 for x in all_numbers)
+    le = len(all_numbers) - chan
+    res = f"*Thống kê chẵn/lẻ tất cả các giải {n} ngày:*\nChẵn: {chan}, Lẻ: {le}"
     return res
 
 def thongke_lo_gan(df, n=30):
-    df = df.sort_values("date", ascending=False).head(n)
-    appeared = set(
-        df["DB"].astype(str).tolist()
-        + df["G1"].astype(str).tolist()
-        + tach_dan_so(df["G2"])
-        + tach_dan_so(df["G3"])
-        + tach_dan_so(df["G4"])
-        + tach_dan_so(df["G5"])
-        + tach_dan_so(df["G6"])
-        + tach_dan_so(df["G7"])
-    )
+    all_numbers = set(lay_tat_ca_2so_cuoi(df, n))
     all_2digit = {f"{i:02d}" for i in range(100)}
-    gan = sorted(all_2digit - appeared)
+    gan = sorted(all_2digit - all_numbers)
     res = f"*Dàn lô gan (lâu chưa ra trong {n} ngày):*\n"
     res += ", ".join(gan) if gan else "Không có số nào!"
     return res
