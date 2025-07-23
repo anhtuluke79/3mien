@@ -1,18 +1,19 @@
 from telegram import InlineKeyboardMarkup, InlineKeyboardButton, Update
 from telegram.ext import ContextTypes
+import os
 
-# Đặt ID admin tại đây hoặc import từ biến môi trường nếu muốn bảo mật hơn
-ADMIN_IDS = {123456789, 987654321}  # Sửa thành các user_id thực tế của bạn
+# Đặt danh sách admin tại đây hoặc lấy từ biến môi trường
+ADMIN_IDS = set(
+    int(x) for x in os.getenv("ADMIN_IDS", "123456789").split(",")
+)
 
 def get_admin_menu_keyboard():
     keyboard = [
         [InlineKeyboardButton("📋 Xem log sử dụng", callback_data="admin_view_log")],
-        # Thêm nút quản trị khác tại đây
         [InlineKeyboardButton("⬅️ Trở về menu", callback_data="menu")]
     ]
     return InlineKeyboardMarkup(keyboard)
 
-# Simple log (dùng file hoặc database tuỳ bạn)
 def log_user_action(action):
     def decorator(func):
         async def wrapper(update: Update, context: ContextTypes.DEFAULT_TYPE, *args, **kwargs):
@@ -35,9 +36,11 @@ async def admin_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     if getattr(update, "message", None):
-        await update.message.reply_text(text, parse_mode="Markdown", reply_markup=get_admin_menu_keyboard())
+        await update.message.reply_text(
+            text, parse_mode="Markdown", reply_markup=get_admin_menu_keyboard())
     elif getattr(update, "callback_query", None):
-        await update.callback_query.edit_message_text(text, parse_mode="Markdown", reply_markup=get_admin_menu_keyboard())
+        await update.callback_query.edit_message_text(
+            text, parse_mode="Markdown", reply_markup=get_admin_menu_keyboard())
 
 async def admin_callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -49,7 +52,7 @@ async def admin_callback_handler(update: Update, context: ContextTypes.DEFAULT_T
     if data == "admin_view_log":
         try:
             with open("user_log.txt", "r", encoding="utf-8") as f:
-                log_lines = f.readlines()[-30:]  # Hiển thị 30 dòng cuối cùng
+                log_lines = f.readlines()[-30:]  # Hiển thị 30 dòng cuối
             log_text = "*Log sử dụng gần nhất:*\n" + "".join([f"- {line}" for line in log_lines])
         except Exception:
             log_text = "Không có log nào."
