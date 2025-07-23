@@ -1,15 +1,19 @@
 from itertools import permutations
 
-def ghep_cang(dan_so, cang):
-    """
-    Ghép càng vào dàn số.
-    - dan_so: list các chuỗi số (2 hoặc 3 số)
-    - cang: chuỗi càng muốn ghép (1 hoặc nhiều số, ví dụ: "1", "01", "123")
-    Trả về list số mới đã ghép càng.
-    """
-    cang = str(cang).strip()
-    result = [cang + so.zfill(len(so)) for so in dan_so]
+def ghep_cang(numbers, cang_type="3"):
+    """Ghép càng cho dàn số. cang_type='3' (ghép càng 3D), '4' (ghép càng 4D)"""
+    numbers = [str(n).zfill(2 if cang_type=='3' else 3) for n in numbers]
+    result = []
+    if cang_type == "3":  # Ghép càng 3D: càng + số 2 chữ số thành 3 chữ số
+        for so in numbers:
+            for cang in range(10):
+                result.append(f"{cang}{so}")
+    elif cang_type == "4":  # Ghép càng 4D: càng + số 3 chữ số thành 4 chữ số
+        for so in numbers:
+            for cang in range(10):
+                result.append(f"{cang}{so}")
     return result
+
 
 def dao_so(so):
     """
