@@ -4,7 +4,13 @@ from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
 
 # ---- Danh sách admin Telegram user_id ----
-ADMIN_IDS = [123456789]   # Thay số này bằng Telegram user_id thật của bạn
+import os
+
+def get_admin_ids():
+    raw = os.getenv("ADMIN_IDS", "")
+    return [int(x.strip()) for x in raw.split(",") if x.strip().isdigit()]
+
+ADMIN_IDS = get_admin_ids()
 
 # ---- Ghi log mọi thao tác user ----
 def write_user_log(update, action):
