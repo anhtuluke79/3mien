@@ -5,6 +5,9 @@ import pandas as pd
 from datetime import datetime
 from dateutil import parser
 
+# ===== IMPORT MODULE THỐNG KÊ =====
+import utils.thongkemb as tk
+
 # ===== MENU UI =====
 
 def get_menu_keyboard():
@@ -13,6 +16,7 @@ def get_menu_keyboard():
         [InlineKeyboardButton("🎯 Ghép càng/Đảo số", callback_data="ghep_cang_dao")],
         [InlineKeyboardButton("🔮 Phong thủy số (Ngày/Can chi)", callback_data="phongthuy")],
         [InlineKeyboardButton("🎲 Kết quả", callback_data="ketqua")],
+        [InlineKeyboardButton("📊 Thống kê", callback_data="thongke_menu")],
         [InlineKeyboardButton("💖 Ủng hộ / Góp ý", callback_data="ung_ho_gop_y")],
         [InlineKeyboardButton("ℹ️ Hướng dẫn & FAQ", callback_data="huongdan")],
         [InlineKeyboardButton("🔄 Reset trạng thái", callback_data="reset")]
@@ -53,6 +57,18 @@ def get_cang_dao_keyboard():
     ]
     return InlineKeyboardMarkup(keyboard)
 
+def get_thongke_keyboard():
+    keyboard = [
+        [InlineKeyboardButton("📈 Top số về nhiều nhất", callback_data="topve")],
+        [InlineKeyboardButton("📉 Top số về ít nhất", callback_data="topkhan")],
+        [InlineKeyboardButton("🔢 Thống kê đầu/đuôi ĐB", callback_data="dau_cuoi")],
+        [InlineKeyboardButton("♻️ Chẵn/lẻ ĐB", callback_data="chanle")],
+        [InlineKeyboardButton("🚨 Dàn lô gan", callback_data="logan")],
+        [InlineKeyboardButton("🎯 Gợi ý dự đoán", callback_data="goiy")],
+        [InlineKeyboardButton("⬅️ Trở về", callback_data="menu")]
+    ]
+    return InlineKeyboardMarkup(keyboard)
+
 def get_back_reset_keyboard(menu_callback="menu"):
     keyboard = [
         [InlineKeyboardButton("⬅️ Trở về", callback_data=menu_callback),
@@ -63,18 +79,17 @@ def get_back_reset_keyboard(menu_callback="menu"):
 # ====== FORMAT KQ XSMB ĐẸP (ĐB luôn đủ 5 số) ======
 
 def format_xsmb_ketqua(r, ngay_str):
-    # Đảm bảo giải ĐB luôn 5 số, thêm số 0 đầu nếu thiếu
     db = str(r['DB']).strip().zfill(5)
     text = f"🎉 *KQ XSMB {ngay_str}* 🎉\n\n"
     text += f"*Đặc biệt*:   `{db}`\n"
-    text += f"*G1*:  `{str(r['G1']).strip()}`\n"
+    text += f"*Giải nhất*:  `{str(r['G1']).strip()}`\n"
     for label, col in [
-        ("*G2*", "G2"),
-        ("*G3*", "G3"),
-        ("*G4*", "G4"),
-        ("*G5*", "G5"),
-        ("*G6*", "G6"),
-        ("*G7*", "G7"),
+        ("*Giải nhì*", "G2"),
+        ("*Giải ba*", "G3"),
+        ("*Giải tư*", "G4"),
+        ("*Giải năm*", "G5"),
+        ("*Giải sáu*", "G6"),
+        ("*Giải bảy*", "G7"),
     ]:
         nums = str(r[col]).replace(",", " ").split()
         if len(nums) <= 4:
@@ -103,6 +118,7 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "— *Ghép càng/Đảo số*: Nhập dàn số 2 hoặc 3 chữ số, nhập càng muốn ghép, hoặc đảo số từ 2-6 chữ số.\n"
         "— *Phong thủy số*: Tra cứu số hợp theo ngày dương hoặc can chi (VD: 2025-07-23 hoặc Giáp Tý).\n"
         "— *Kết quả*: Xem xổ số miền Bắc mới nhất hoặc theo ngày.\n"
+        "— *Thống kê*: Xem các số nổi bật, lô gan, đầu đuôi, chẵn lẻ, dự đoán vui...\n"
         "— Luôn có nút menu trở lại, reset trạng thái, hoặc gõ /menu để quay về ban đầu."
     )
     if update.message:
@@ -159,7 +175,6 @@ def tra_ketqua_theo_ngay(ngay_str):
         df['DB'] = df['DB'].astype(str).str.zfill(5)
         df['date'] = pd.to_datetime(df['date'], dayfirst=True, errors='coerce')
 
-        # Chuẩn hóa, tự động nhận nhiều định dạng ngày
         day_now = datetime.now()
         try:
             parsed = parser.parse(ngay_str, dayfirst=True, yearfirst=False, default=day_now)
@@ -215,6 +230,36 @@ async def menu_callback_handler(update: Update, context: ContextTypes.DEFAULT_TY
             reply_markup=get_back_reset_keyboard("ketqua"),
             parse_mode="Markdown"
         )
+    elif data == "thongke_menu":
+        await query.edit_message_text(
+            "*📊 Chọn một thống kê bên dưới:*",
+            reply_markup=get_thongke_keyboard(),
+            parse_mode="Markdown"
+        )
+    elif data == "topve":
+        df = tk.read_xsmb()
+        res = tk.thongke_so_ve_nhieu_nhat(df, n=30, top=10, bot_only=False)
+        await query.edit_message_text(res, reply_markup=get_thongke_keyboard(), parse_mode="Markdown")
+    elif data == "topkhan":
+        df = tk.read_xsmb()
+        res = tk.thongke_so_ve_nhieu_nhat(df, n=30, top=10, bot_only=True)
+        await query.edit_message_text(res, reply_markup=get_thongke_keyboard(), parse_mode="Markdown")
+    elif data == "dau_cuoi":
+        df = tk.read_xsmb()
+        res = tk.thongke_dau_cuoi(df, n=30)
+        await query.edit_message_text(res, reply_markup=get_thongke_keyboard(), parse_mode="Markdown")
+    elif data == "chanle":
+        df = tk.read_xsmb()
+        res = tk.thongke_chan_le(df, n=30)
+        await query.edit_message_text(res, reply_markup=get_thongke_keyboard(), parse_mode="Markdown")
+    elif data == "logan":
+        df = tk.read_xsmb()
+        res = tk.thongke_lo_gan(df, n=30)
+        await query.edit_message_text(res, reply_markup=get_thongke_keyboard(), parse_mode="Markdown")
+    elif data == "goiy":
+        df = tk.read_xsmb()
+        res = tk.goi_y_du_doan(df, n=30)
+        await query.edit_message_text(res, reply_markup=get_thongke_keyboard(), parse_mode="Markdown")
     elif data == "ghep_xien":
         await query.edit_message_text(
             "*🔢 Ghép xiên* — Chọn loại xiên muốn ghép:",
