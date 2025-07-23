@@ -6,7 +6,7 @@ from dateutil import parser
 
 # ===== IMPORT MODULE THỐNG KÊ VÀ ADMIN =====
 import utils.thongkemb as tk
-from .admin import ADMIN_IDS, log_user_action, write_user_log, admin_callback_handler, admin_menu, get_admin_menu_keyboard
+from admin import ADMIN_IDS, log_user_action, write_user_log, admin_callback_handler, admin_menu, get_admin_menu_keyboard
 
 # ===== MENU UI =====
 
@@ -103,7 +103,43 @@ def format_xsmb_ketqua(r, ngay_str):
             text += "  ".join(f"`{n.strip()}`" for n in nums[n_half:]) + "\n"
     return text
 
-# ====== MENU HANDLERS ======
+# ====== TRA KẾT QUẢ XSMB (CHUẨN HÓA XỬ LÝ NGÀY, KHÔNG LỖI UNPACK) ======
+
+def tra_ketqua_theo_ngay(ngay_str):
+    try:
+        df = pd.read_csv('xsmb.csv')
+        df['DB'] = df['DB'].astype(str).str.zfill(5)
+        df['date'] = pd.to_datetime(df['date'], dayfirst=True, errors='coerce')
+
+        day_now = datetime.now()
+        try:
+            parsed = parser.parse(ngay_str, dayfirst=True, yearfirst=False, default=day_now)
+        except Exception:
+            return "❗ Định dạng ngày không hợp lệ! Hãy nhập ngày dạng 23-07 hoặc 2025-07-23."
+        ngay_input = parsed.replace(hour=0, minute=0, second=0, microsecond=0).date()
+
+        df['date_only'] = df['date'].dt.date
+        row = df[df['date_only'] == ngay_input]
+        if row.empty:
+            return f"⛔ Không có kết quả cho ngày {ngay_input.strftime('%d-%m-%Y')}."
+        r = row.iloc[0]
+        ngay_str = ngay_input.strftime('%d-%m-%Y')
+        return format_xsmb_ketqua(r, ngay_str)
+    except Exception as e:
+        return f"❗ Lỗi tra cứu: {e}"
+
+async def tra_ketqua_moi_nhat():
+    try:
+        df = pd.read_csv('xsmb.csv')
+        df['DB'] = df['DB'].astype(str).str.zfill(5)
+        df['date'] = pd.to_datetime(df['date'], dayfirst=True, errors='coerce')
+        row = df.sort_values('date', ascending=False).iloc[0]
+        ngay_str = row['date'].strftime('%d-%m-%Y')
+        return format_xsmb_ketqua(row, ngay_str)
+    except Exception as e:
+        return f"❗ Lỗi tra cứu: {e}"
+
+# ====== MENU HANDLERS VÀ CALLBACK ======
 
 @log_user_action("Mở menu chính")
 async def menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -177,40 +213,7 @@ async def ung_ho_gop_y(update: Update, context: ContextTypes.DEFAULT_TYPE):
         reply_markup=get_menu_keyboard(update.effective_user.id)
     )
 
-# ====== TRA KẾT QUẢ XSMB (hỗ trợ nhiều định dạng ngày, ép DB 5 số) ======
-
-def tra_ketqua_theo_ngay(ngay_str):
-    try:
-        df = pd.read_csv('xsmb.csv')
-        df['DB'] = df['DB'].astype(str).str.zfill(5)
-        df['date'] = pd.to_datetime(df['date'], dayfirst=True, errors='coerce')
-        day_now = datetime.now()
-        try:
-            parsed = parser.parse(ngay_str, dayfirst=True, yearfirst=False, default=day_now)
-        except Exception:
-            return "❗ Định dạng ngày không hợp lệ! Hãy nhập ngày dạng 23-07 hoặc 2025-07-23."
-        ngay_input = parsed.replace(hour=0, minute=0, second=0, microsecond=0)
-        row = df[df['date'] == ngay_input]
-        if row.empty:
-            return f"⛔ Không có kết quả cho ngày {ngay_input.strftime('%d-%m-%Y')}."
-        r = row.iloc[0]
-        ngay_str = ngay_input.strftime('%d-%m-%Y')
-        return format_xsmb_ketqua(r, ngay_str)
-    except Exception as e:
-        return f"❗ Lỗi tra cứu: {e}"
-
-async def tra_ketqua_moi_nhat():
-    try:
-        df = pd.read_csv('xsmb.csv')
-        df['DB'] = df['DB'].astype(str).str.zfill(5)
-        df['date'] = pd.to_datetime(df['date'], dayfirst=True, errors='coerce')
-        row = df.sort_values('date', ascending=False).iloc[0]
-        ngay_str = row['date'].strftime('%d-%m-%Y')
-        return format_xsmb_ketqua(row, ngay_str)
-    except Exception as e:
-        return f"❗ Lỗi tra cứu: {e}"
-
-# ====== MENU CALLBACK HANDLER ======
+# ===================== MENU CALLBACK HANDLER ======================
 
 async def menu_callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
