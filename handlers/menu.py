@@ -8,7 +8,7 @@ from handlers.keyboards import (
     get_xien_keyboard,
     get_cang_dao_keyboard
 )
-from system.admin import admin_menu, admin_callback_handler, ADMIN_IDS, log_user_action, get_admin_menu_keyboard
+from system.admin import admin_callback_handler, admin_menu, ADMIN_IDS
 from handlers.ungho import ung_ho_gop_y
 from handlers.kq import tra_ketqua_theo_ngay, tra_ketqua_moi_nhat
 
@@ -59,6 +59,20 @@ async def menu_callback_handler(update: Update, context: ContextTypes.DEFAULT_TY
         await query.edit_message_text(
             "*🎲 Truy xuất kết quả XSMB*\nChọn chức năng bên dưới:",
             reply_markup=get_ketqua_keyboard(),
+            parse_mode="Markdown"
+        )
+    elif data == "kq_theo_ngay":
+        await query.edit_message_text(
+            "Nhập ngày bạn muốn tra (có thể nhập: 23-07, 23/07, 2025-07-23, 23.07.2025, 2025/07/23...):",
+            reply_markup=get_back_reset_keyboard("ketqua"),
+            parse_mode="Markdown"
+        )
+        context.user_data["wait_kq_theo_ngay"] = True
+    elif data == "kq_moi_nhat":
+        text = await tra_ketqua_moi_nhat()
+        await query.edit_message_text(
+            text,
+            reply_markup=get_back_reset_keyboard("ketqua"),
             parse_mode="Markdown"
         )
 
@@ -150,14 +164,14 @@ async def menu_callback_handler(update: Update, context: ContextTypes.DEFAULT_TY
             reply_markup=get_menu_keyboard(user_id)
         )
 
-    # --- THỐNG KÊ (BỔ SUNG TÙY MODULE THỰC TẾ) ---
+    # --- THỐNG KÊ ---
     elif data == "thongke_menu":
         await query.edit_message_text(
             "*📊 Chọn một thống kê bên dưới:*",
             reply_markup=get_thongke_keyboard(),
             parse_mode="Markdown"
         )
-    # ... Thêm các callback cho các menu thống kê, kết quả,... tại đây ...
+    # ... Bổ sung các callback thống kê, dự đoán, v.v. tại đây nếu cần ...
 
     # --- DỰ PHÒNG: Không xác định ---
     else:
