@@ -67,14 +67,14 @@ def format_xsmb_ketqua(r, ngay_str):
     db = str(r['DB']).strip().zfill(5)
     text = f"🎉 *KQ XSMB {ngay_str}* 🎉\n\n"
     text += f"*Đặc biệt*:   `{db}`\n"
-    text += f"*Giải nhất*:  `{str(r['G1']).strip()}`\n"
+    text += f"*G1*:  `{str(r['G1']).strip()}`\n"
     for label, col in [
-        ("*Giải nhì*", "G2"),
-        ("*Giải ba*", "G3"),
-        ("*Giải tư*", "G4"),
-        ("*Giải năm*", "G5"),
-        ("*Giải sáu*", "G6"),
-        ("*Giải bảy*", "G7"),
+        ("*G2*", "G2"),
+        ("*G3*", "G3"),
+        ("*G4*", "G4"),
+        ("*G5*", "G5"),
+        ("*G6*", "G6"),
+        ("*G7*", "G7"),
     ]:
         nums = str(r[col]).replace(",", " ").split()
         if len(nums) <= 4:
