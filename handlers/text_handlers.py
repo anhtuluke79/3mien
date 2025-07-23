@@ -12,7 +12,7 @@ from handlers.menu import (
     get_xien_keyboard,
     get_cang_dao_keyboard,
     get_back_reset_keyboard,
-    tra_ketqua_theo_ngay   # Quan trọng: import hàm này để tra cứu kết quả
+    tra_ketqua_theo_ngay
 )
 from datetime import datetime
 
@@ -136,7 +136,6 @@ async def all_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # ======= PHONG THỦY SỐ =======
     if user_data.get("wait_phongthuy"):
-        # Nhận ngày hoặc can chi
         try:
             ngay, canchi = chuan_hoa_can_chi(msg)
             if ngay:
@@ -158,8 +157,5 @@ async def all_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         user_data.clear()
         return
 
-    # ======= Nếu không rơi vào luồng nào =======
-    await update.message.reply_text(
-        "❓ Không xác định yêu cầu của bạn. Hãy chọn lại chức năng từ menu hoặc dùng /menu.",
-        reply_markup=get_menu_keyboard()
-    )
+    # ======= Ngoài luồng: KHÔNG trả lời =======
+    return
