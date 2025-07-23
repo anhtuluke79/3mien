@@ -60,13 +60,14 @@ def get_back_reset_keyboard(menu_callback="menu"):
     ]
     return InlineKeyboardMarkup(keyboard)
 
-# ====== FORMAT KQ XSMB ĐẸP ======
+# ====== FORMAT KQ XSMB ĐẸP (ĐB luôn đủ 5 số) ======
 
 def format_xsmb_ketqua(r, ngay_str):
+    # Đảm bảo giải ĐB luôn 5 số, thêm số 0 đầu nếu thiếu
+    db = str(r['DB']).strip().zfill(5)
     text = f"🎉 *KQ XSMB {ngay_str}* 🎉\n\n"
-    text += f"*Đặc biệt*:   `{r['DB']}`\n"
-    text += f"*Giải nhất*:  `{r['G1']}`\n"
-    # Các giải còn lại: tách ra các số nhỏ, tự xuống dòng nếu nhiều số
+    text += f"*Đặc biệt*:   `{db}`\n"
+    text += f"*Giải nhất*:  `{str(r['G1']).strip()}`\n"
     for label, col in [
         ("*Giải nhì*", "G2"),
         ("*Giải ba*", "G3"),
@@ -75,16 +76,14 @@ def format_xsmb_ketqua(r, ngay_str):
         ("*Giải sáu*", "G6"),
         ("*Giải bảy*", "G7"),
     ]:
-        # Chuyển về chuỗi, tách các số
         nums = str(r[col]).replace(",", " ").split()
-        # 4 số trở xuống: 1 dòng, nhiều hơn thì xuống dòng giữa chừng
         if len(nums) <= 4:
-            text += f"{label}:  " + "  ".join(f"`{n}`" for n in nums) + "\n"
+            text += f"{label}:  " + "  ".join(f"`{n.strip()}`" for n in nums) + "\n"
         else:
             n_half = (len(nums)+1)//2
             text += f"{label}:\n"
-            text += "  ".join(f"`{n}`" for n in nums[:n_half]) + "\n"
-            text += "  ".join(f"`{n}`" for n in nums[n_half:]) + "\n"
+            text += "  ".join(f"`{n.strip()}`" for n in nums[:n_half]) + "\n"
+            text += "  ".join(f"`{n.strip()}`" for n in nums[n_half:]) + "\n"
     return text
 
 # ====== MENU HANDLERS ======
@@ -152,11 +151,12 @@ async def ung_ho_gop_y(update: Update, context: ContextTypes.DEFAULT_TYPE):
         reply_markup=get_menu_keyboard()
     )
 
-# ====== TRA KẾT QUẢ XSMB (hỗ trợ nhiều định dạng ngày) ======
+# ====== TRA KẾT QUẢ XSMB (hỗ trợ nhiều định dạng ngày, ép DB 5 số) ======
 
 def tra_ketqua_theo_ngay(ngay_str):
     try:
         df = pd.read_csv('xsmb.csv')
+        df['DB'] = df['DB'].astype(str).str.zfill(5)
         df['date'] = pd.to_datetime(df['date'], dayfirst=True, errors='coerce')
 
         # Chuẩn hóa, tự động nhận nhiều định dạng ngày
@@ -179,6 +179,7 @@ def tra_ketqua_theo_ngay(ngay_str):
 async def tra_ketqua_moi_nhat():
     try:
         df = pd.read_csv('xsmb.csv')
+        df['DB'] = df['DB'].astype(str).str.zfill(5)
         df['date'] = pd.to_datetime(df['date'], dayfirst=True, errors='coerce')
         row = df.sort_values('date', ascending=False).iloc[0]
         ngay_str = row['date'].strftime('%d-%m-%Y')
