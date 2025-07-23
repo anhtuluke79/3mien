@@ -1,16 +1,16 @@
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
-from admin import ADMIN_IDS, log_user_action, write_user_log, admin_callback_handler, admin_menu
 import pandas as pd
 from datetime import datetime
 from dateutil import parser
 
-# ===== IMPORT MODULE THỐNG KÊ =====
+# ===== IMPORT MODULE THỐNG KÊ VÀ ADMIN =====
 import utils.thongkemb as tk
+from admin import ADMIN_IDS, log_user_action, write_user_log, admin_callback_handler, admin_menu, get_admin_menu_keyboard
 
 # ===== MENU UI =====
 
-def get_menu_keyboard():
+def get_menu_keyboard(user_id=None):
     keyboard = [
         [InlineKeyboardButton("🔢 Ghép xiên (Tổ hợp số)", callback_data="ghep_xien")],
         [InlineKeyboardButton("🎯 Ghép càng/Đảo số", callback_data="ghep_cang_dao")],
@@ -21,6 +21,8 @@ def get_menu_keyboard():
         [InlineKeyboardButton("ℹ️ Hướng dẫn & FAQ", callback_data="huongdan")],
         [InlineKeyboardButton("🔄 Reset trạng thái", callback_data="reset")]
     ]
+    if user_id in ADMIN_IDS:
+        keyboard.append([InlineKeyboardButton("🛡️ Quản trị", callback_data="admin_menu")])
     return InlineKeyboardMarkup(keyboard)
 
 def get_ketqua_keyboard():
@@ -103,15 +105,18 @@ def format_xsmb_ketqua(r, ngay_str):
 
 # ====== MENU HANDLERS ======
 
+@log_user_action("Mở menu chính")
 async def menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    context.user_data.clear()
+    user_id = update.effective_user.id
     text = "📋 *Chào mừng bạn đến với Trợ lý Xổ số & Phong thủy!*"
     if update.message:
-        await update.message.reply_text(text, reply_markup=get_menu_keyboard(), parse_mode="Markdown")
+        await update.message.reply_text(text, reply_markup=get_menu_keyboard(user_id), parse_mode="Markdown")
     elif update.callback_query:
-        await update.callback_query.edit_message_text(text, reply_markup=get_menu_keyboard(), parse_mode="Markdown")
+        await update.callback_query.edit_message_text(text, reply_markup=get_menu_keyboard(user_id), parse_mode="Markdown")
 
+@log_user_action("Xem hướng dẫn")
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.effective_user.id
     text = (
         "🟣 *HƯỚNG DẪN NHANH:*\n"
         "— *Ghép xiên*: Nhập dàn số bất kỳ, chọn loại xiên 2-3-4, bot sẽ trả mọi tổ hợp xiên.\n"
@@ -122,19 +127,23 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "— Luôn có nút menu trở lại, reset trạng thái, hoặc gõ /menu để quay về ban đầu."
     )
     if update.message:
-        await update.message.reply_text(text, parse_mode="Markdown", reply_markup=get_menu_keyboard())
+        await update.message.reply_text(text, parse_mode="Markdown", reply_markup=get_menu_keyboard(user_id))
     elif update.callback_query:
-        await update.callback_query.edit_message_text(text, parse_mode="Markdown", reply_markup=get_menu_keyboard())
+        await update.callback_query.edit_message_text(text, parse_mode="Markdown", reply_markup=get_menu_keyboard(user_id))
 
+@log_user_action("Reset trạng thái")
 async def reset_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.effective_user.id
     context.user_data.clear()
     text = "🔄 *Đã reset trạng thái.*\nQuay lại menu chính để bắt đầu mới!"
     if update.message:
-        await update.message.reply_text(text, reply_markup=get_menu_keyboard(), parse_mode="Markdown")
+        await update.message.reply_text(text, reply_markup=get_menu_keyboard(user_id), parse_mode="Markdown")
     elif update.callback_query:
-        await update.callback_query.edit_message_text(text, reply_markup=get_menu_keyboard(), parse_mode="Markdown")
+        await update.callback_query.edit_message_text(text, reply_markup=get_menu_keyboard(user_id), parse_mode="Markdown")
 
+@log_user_action("Xem phong thủy số")
 async def phongthuy_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.effective_user.id
     context.user_data.clear()
     text = (
         "🔮 *PHONG THỦY SỐ*\n"
@@ -148,6 +157,7 @@ async def phongthuy_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.callback_query.edit_message_text(text, parse_mode="Markdown", reply_markup=get_back_reset_keyboard("menu"))
     context.user_data["wait_phongthuy"] = True
 
+@log_user_action("Ủng hộ / Góp ý")
 async def ung_ho_gop_y(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = (
         "💖 *ỦNG HỘ & GÓP Ý CHO BOT*\n"
@@ -164,7 +174,7 @@ async def ung_ho_gop_y(update: Update, context: ContextTypes.DEFAULT_TYPE):
         photo=open(qr_path, "rb"),
         caption=text,
         parse_mode="Markdown",
-        reply_markup=get_menu_keyboard()
+        reply_markup=get_menu_keyboard(update.effective_user.id)
     )
 
 # ====== TRA KẾT QUẢ XSMB (hỗ trợ nhiều định dạng ngày, ép DB 5 số) ======
@@ -174,14 +184,12 @@ def tra_ketqua_theo_ngay(ngay_str):
         df = pd.read_csv('xsmb.csv')
         df['DB'] = df['DB'].astype(str).str.zfill(5)
         df['date'] = pd.to_datetime(df['date'], dayfirst=True, errors='coerce')
-
         day_now = datetime.now()
         try:
             parsed = parser.parse(ngay_str, dayfirst=True, yearfirst=False, default=day_now)
         except Exception:
             return "❗ Định dạng ngày không hợp lệ! Hãy nhập ngày dạng 23-07 hoặc 2025-07-23."
         ngay_input = parsed.replace(hour=0, minute=0, second=0, microsecond=0)
-
         row = df[df['date'] == ngay_input]
         if row.empty:
             return f"⛔ Không có kết quả cho ngày {ngay_input.strftime('%d-%m-%Y')}."
@@ -207,7 +215,19 @@ async def tra_ketqua_moi_nhat():
 async def menu_callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     data = query.data
+    user_id = update.effective_user.id
     context.user_data.clear()
+    # --- ADMIN MENU HANDLER ---
+    if data == "admin_menu":
+        if user_id not in ADMIN_IDS:
+            await query.edit_message_text("⛔ Bạn không có quyền truy cập menu quản trị!", reply_markup=get_menu_keyboard(user_id))
+        else:
+            await admin_menu(update, context)
+        return
+    if data.startswith("admin_"):
+        await admin_callback_handler(update, context)
+        return
+    # --- BOT MENU HANDLER ---
     if data == "menu":
         await menu(update, context)
     elif data == "ketqua":
@@ -258,7 +278,7 @@ async def menu_callback_handler(update: Update, context: ContextTypes.DEFAULT_TY
         await query.edit_message_text(res, reply_markup=get_thongke_keyboard(), parse_mode="Markdown")
     elif data == "goiy":
         df = tk.read_xsmb()
-        res = tk.goi_y_du_doan(df, n=30)
+        res = tk.goi_y_du_doan(df, n=60)
         await query.edit_message_text(res, reply_markup=get_thongke_keyboard(), parse_mode="Markdown")
     elif data == "ghep_xien":
         await query.edit_message_text(
@@ -306,4 +326,4 @@ async def menu_callback_handler(update: Update, context: ContextTypes.DEFAULT_TY
     elif data == "ung_ho_gop_y":
         await ung_ho_gop_y(update, context)
     else:
-        await query.edit_message_text("❓ Không xác định chức năng.", reply_markup=get_menu_keyboard())
+        await query.edit_message_text("❓ Không xác định chức năng.", reply_markup=get_menu_keyboard(user_id))
