@@ -1,23 +1,40 @@
-from itertools import combinations
+import itertools
 
-def clean_numbers_input(input_str):
+def clean_numbers_input(text):
     """
-    Chuẩn hóa chuỗi input: tách các số bằng dấu cách, phẩy hoặc xuống dòng.
-    Trả về list các số (chuỗi 2 chữ số).
+    Chuẩn hóa chuỗi số nhập vào, bỏ ký tự thừa, chỉ lấy số có 2 chữ số trở lên,
+    tách bằng khoảng trắng, phẩy, xuống dòng.
     """
-    items = input_str.replace(",", " ").replace("\n", " ").split()
-    return [s.zfill(2) for s in items if s.strip().isdigit()]
+    raw = text.replace(",", " ").replace("\n", " ")
+    nums = [x.strip() for x in raw.split() if x.strip().isdigit() and len(x.strip()) >= 2]
+    return nums
 
 def gen_xien(numbers, n):
-    """Sinh tổ hợp xiên n từ dàn numbers (danh sách chuỗi số)."""
+    """
+    Sinh tất cả tổ hợp xiên n từ dàn số.
+    Trả về list tổ hợp (tuple), mỗi tổ hợp có n số, không trùng nhau.
+    """
+    numbers = list(dict.fromkeys(numbers))  # Loại bỏ trùng
     if len(numbers) < n:
         return []
-    combos = list(combinations(numbers, n))
+    combos = list(itertools.combinations(numbers, n))
     return combos
 
 def format_xien_result(combos):
-    """Định dạng kết quả ghép xiên trả về Telegram."""
-    lines = [", ".join(combo) for combo in combos]
-    if not lines:
+    """
+    Định dạng kết quả ghép xiên:
+    - Các số trong tổ hợp ngăn cách bằng &
+    - Các tổ hợp ngăn cách bằng dấu phẩy ,
+    - Sau mỗi 20 tổ hợp thì xuống dòng
+    """
+    if not combos:
         return "❗ Không đủ số để ghép xiên."
-    return "*Kết quả tổ hợp xiên:*\n" + "\n".join(f"{i+1}. {line}" for i, line in enumerate(lines))
+    # Định dạng từng tổ hợp: 22&33&44,...
+    formatted = ["&".join(combo) for combo in combos]
+    # Ngắt dòng sau mỗi 20 tổ hợp
+    lines = []
+    for i in range(0, len(formatted), 20):
+        chunk = formatted[i:i+20]
+        lines.append(", ".join(chunk))
+    result = "*Kết quả tổ hợp xiên:*\n" + "\n".join(lines)
+    return result
