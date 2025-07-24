@@ -11,6 +11,14 @@ from handlers.keyboards import (
 from system.admin import admin_callback_handler, admin_menu, ADMIN_IDS
 from handlers.ungho import ung_ho_gop_y
 from handlers.kq import tra_ketqua_theo_ngay, tra_ketqua_moi_nhat
+from utils.thongkemb import (
+    read_xsmb,
+    thongke_so_ve_nhieu_nhat,
+    thongke_lo_gan,
+    thongke_dau_cuoi,
+    thongke_chan_le,
+    goi_y_du_doan
+)
 
 async def menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
@@ -171,7 +179,42 @@ async def menu_callback_handler(update: Update, context: ContextTypes.DEFAULT_TY
             reply_markup=get_thongke_keyboard(),
             parse_mode="Markdown"
         )
-    # ... Bổ sung các callback thống kê, dự đoán, v.v. tại đây nếu cần ...
+    elif data == "topve":
+        df = read_xsmb()
+        res = thongke_so_ve_nhieu_nhat(df, n=30, top=10, bot_only=False)
+        await query.edit_message_text(
+            res, reply_markup=get_thongke_keyboard(), parse_mode="Markdown"
+        )
+    elif data == "topkhan":
+        df = read_xsmb()
+        res = thongke_so_ve_nhieu_nhat(df, n=30, top=10, bot_only=True)
+        await query.edit_message_text(
+            res, reply_markup=get_thongke_keyboard(), parse_mode="Markdown"
+        )
+    elif data == "dau_cuoi":
+        df = read_xsmb()
+        res = thongke_dau_cuoi(df, n=30)
+        await query.edit_message_text(
+            res, reply_markup=get_thongke_keyboard(), parse_mode="Markdown"
+        )
+    elif data == "chanle":
+        df = read_xsmb()
+        res = thongke_chan_le(df, n=30)
+        await query.edit_message_text(
+            res, reply_markup=get_thongke_keyboard(), parse_mode="Markdown"
+        )
+    elif data == "logan":
+        df = read_xsmb()
+        res = thongke_lo_gan(df, n=30)
+        await query.edit_message_text(
+            res, reply_markup=get_thongke_keyboard(), parse_mode="Markdown"
+        )
+    elif data == "goiy":
+        df = read_xsmb()
+        res = goi_y_du_doan(df, n=30)
+        await query.edit_message_text(
+            res, reply_markup=get_thongke_keyboard(), parse_mode="Markdown"
+        )
 
     # --- DỰ PHÒNG: Không xác định ---
     else:
