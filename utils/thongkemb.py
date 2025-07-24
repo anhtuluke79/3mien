@@ -62,20 +62,15 @@ def thongke_chan_le(df, n=30):
     res = f"*Thống kê chẵn/lẻ giải ĐB {n} ngày (2 số cuối mỗi ngày):*\nChẵn: {chan}, Lẻ: {le}"
     return res
 
-def goi_y_du_doan(df, n=30):
+def goi_y_du_doan(df, n=60):
+    # Top số về nhiều nhất 60 ngày
     top = thongke_so_ve_nhieu_nhat(df, n=n, top=10, bot_only=False)
-    lo_gan = thongke_lo_gan(df, n=n)
-    dau_cuoi = thongke_dau_cuoi(df, n=n)
-    chan_le = thongke_chan_le(df, n=n)
-    # Lấy 1–2 số bất kỳ trong top để dự đoán vui
-    top_lines = top.split("\n")[1:]
+    # Lấy danh sách các số nổi bật từ dòng thống kê
+    top_lines = top.split("\n")[1:]  # Bỏ dòng tiêu đề
     so_goiy = random.choice(top_lines).split("`")[1] if top_lines else "??"
     res = (
         f"🌟 *Dự đoán vui cho ngày mai:*\n"
         f"Số nổi bật: `{so_goiy}`\n\n"
-        f"{top}\n\n"
-        f"{lo_gan}\n\n"
-        f"{dau_cuoi}\n\n"
-        f"{chan_le}\n"
+        f"{top}"
     )
     return res
