@@ -20,6 +20,27 @@ from utils.thongkemb import (
     goi_y_du_doan
 )
 
+# ====== Hàm gửi message dài an toàn ======
+MAX_TG_MSG_LEN = 4000
+
+async def safe_edit_message_text(query, text, **kwargs):
+    """
+    Tự động cắt message nếu vượt quá giới hạn Telegram.
+    Nếu quá dài sẽ cắt và thêm thông báo "cắt bớt".
+    """
+    if len(text) <= MAX_TG_MSG_LEN:
+        await query.edit_message_text(text, **kwargs)
+    else:
+        # Tách message thành nhiều phần nếu quá dài (với Markdown nên cắt ở đầu dòng)
+        lines = text.split('\n')
+        buf = ""
+        for line in lines:
+            if len(buf) + len(line) + 1 > MAX_TG_MSG_LEN - 50:
+                buf += "\n...(kết quả đã được rút gọn)"
+                break
+            buf += line + "\n"
+        await query.edit_message_text(buf, **kwargs)
+
 async def menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     text = "📋 *Chào mừng bạn đến với Trợ lý Xổ số & Phong thủy!*"
@@ -41,7 +62,6 @@ async def menu_callback_handler(update: Update, context: ContextTypes.DEFAULT_TY
     data = query.data
     user_id = update.effective_user.id
 
-    # Xóa trạng thái chờ nhập để tránh lỗi input tự do không mong muốn
     context.user_data.clear()
 
     # --- ADMIN ---
@@ -172,7 +192,7 @@ async def menu_callback_handler(update: Update, context: ContextTypes.DEFAULT_TY
             reply_markup=get_menu_keyboard(user_id)
         )
 
-    # --- THỐNG KÊ ---
+    # --- THỐNG KÊ --- (dùng hàm gửi an toàn)
     elif data == "thongke_menu":
         await query.edit_message_text(
             "*📊 Chọn một thống kê bên dưới:*",
@@ -182,38 +202,38 @@ async def menu_callback_handler(update: Update, context: ContextTypes.DEFAULT_TY
     elif data == "topve":
         df = read_xsmb()
         res = thongke_so_ve_nhieu_nhat(df, n=30, top=10, bot_only=False)
-        await query.edit_message_text(
-            res, reply_markup=get_thongke_keyboard(), parse_mode="Markdown"
+        await safe_edit_message_text(
+            query, res, reply_markup=get_thongke_keyboard(), parse_mode="Markdown"
         )
     elif data == "topkhan":
         df = read_xsmb()
         res = thongke_so_ve_nhieu_nhat(df, n=30, top=10, bot_only=True)
-        await query.edit_message_text(
-            res, reply_markup=get_thongke_keyboard(), parse_mode="Markdown"
+        await safe_edit_message_text(
+            query, res, reply_markup=get_thongke_keyboard(), parse_mode="Markdown"
         )
     elif data == "dau_cuoi":
         df = read_xsmb()
         res = thongke_dau_cuoi(df, n=30)
-        await query.edit_message_text(
-            res, reply_markup=get_thongke_keyboard(), parse_mode="Markdown"
+        await safe_edit_message_text(
+            query, res, reply_markup=get_thongke_keyboard(), parse_mode="Markdown"
         )
     elif data == "chanle":
         df = read_xsmb()
         res = thongke_chan_le(df, n=30)
-        await query.edit_message_text(
-            res, reply_markup=get_thongke_keyboard(), parse_mode="Markdown"
+        await safe_edit_message_text(
+            query, res, reply_markup=get_thongke_keyboard(), parse_mode="Markdown"
         )
     elif data == "logan":
         df = read_xsmb()
         res = thongke_lo_gan(df, n=30)
-        await query.edit_message_text(
-            res, reply_markup=get_thongke_keyboard(), parse_mode="Markdown"
+        await safe_edit_message_text(
+            query, res, reply_markup=get_thongke_keyboard(), parse_mode="Markdown"
         )
     elif data == "goiy":
         df = read_xsmb()
         res = goi_y_du_doan(df, n=30)
-        await query.edit_message_text(
-            res, reply_markup=get_thongke_keyboard(), parse_mode="Markdown"
+        await safe_edit_message_text(
+            query, res, reply_markup=get_thongke_keyboard(), parse_mode="Markdown"
         )
 
     # --- DỰ PHÒNG: Không xác định ---
