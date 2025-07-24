@@ -4,25 +4,25 @@ from telegram.ext import (
 )
 from handlers.menu import menu, menu_callback_handler
 from handlers.input_handler import handle_user_free_input
-from handlers.ungho import ung_ho_gop_y
-from system.admin import admin_menu
+from system.admin import admin_menu, admin_callback_handler
 
 TOKEN = os.getenv("BOT_TOKEN", "YOUR_TELEGRAM_BOT_TOKEN")
 
 def main():
     app = Application.builder().token(TOKEN).build()
 
-    # Lệnh chính
+    # Lệnh gọi menu chính
     app.add_handler(CommandHandler("menu", menu))
-    app.add_handler(CommandHandler("ungho", ung_ho_gop_y))
+    # Lệnh gọi admin menu
     app.add_handler(CommandHandler("admin", admin_menu))
-
-    # Nhập tự do cho mọi chức năng đặc biệt (xiên, càng, phong thủy, kết quả...)
+    # Callback cho menu bot (cả người dùng và admin)
+    app.add_handler(CallbackQueryHandler(menu_callback_handler, pattern="^(?!admin_)"))  # không phải admin_ prefix
+    # Callback cho admin (phải đăng ký riêng)
+    app.add_handler(CallbackQueryHandler(admin_callback_handler, pattern="^admin_"))
+    # Xử lý nhập tự do (người dùng nhập bất kỳ text nào)
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_user_free_input))
-    # Callback menu
-    app.add_handler(CallbackQueryHandler(menu_callback_handler))
 
-    print("🤖 Bot is running...")
+    print("🤖 Bot is running... /menu để bắt đầu.")
     app.run_polling()
 
 if __name__ == "__main__":
