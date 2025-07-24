@@ -6,7 +6,7 @@ def format_xsmb_ketqua(r, ngay_str):
     db = str(r['DB']).strip().zfill(5)
     text = f"🎉 *KQ XSMB {ngay_str}* 🎉\n\n"
     text += f"*Đặc biệt*:   `{db}`\n"
-    text += f"*G1*:  `{str(r['G1']).strip()}`\n"
+    text += f"*Giải 1*:  `{str(r['G1']).strip()}`\n"
     for label, col in [
         ("*G2*", "G2"),
         ("*G3*", "G3"),
