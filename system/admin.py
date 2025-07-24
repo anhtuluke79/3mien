@@ -1,20 +1,19 @@
 import os
+import asyncio
 from telegram import InlineKeyboardMarkup, InlineKeyboardButton, Update
 from telegram.ext import ContextTypes
 from telegram.constants import ParseMode
 
 # ========== ADMIN IDS ==========
-ADMIN_IDS = set(
-    int(x) for x in os.getenv("ADMIN_IDS", "123456789").split(",")
-)
+ADMIN_IDS = set(int(x) for x in os.getenv("ADMIN_IDS", "123456789").split(","))
 
 # ========== KEYBOARD ==========
 def get_admin_menu_keyboard():
     keyboard = [
         [InlineKeyboardButton("📋 Xem log sử dụng", callback_data="admin_view_log")],
         [InlineKeyboardButton("📥 Crawl XSMB (chọn số ngày)", callback_data="admin_crawl_xsmb")],
-        [InlineKeyboardButton("⬇️ Tải xsmb.csv", callback_data="admin_download_csv")],
         [InlineKeyboardButton("⬆️ Upload xsmb.csv lên GitHub", callback_data="admin_upload_github")],
+        [InlineKeyboardButton("📤 Tải file xsmb.csv", callback_data="admin_download_csv")],
         [InlineKeyboardButton("⬅️ Trở về menu", callback_data="menu")]
     ]
     return InlineKeyboardMarkup(keyboard)
@@ -43,7 +42,7 @@ def log_user_action(action):
 # ========== ADMIN MENU ==========
 async def admin_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
-    text = "🛡️ *Menu quản trị* (chỉ admin):\n- Xem log\n- Crawl XSMB\n- Upload lên GitHub\n- Tải file csv\n- ..."
+    text = "🛡️ *Menu quản trị* (chỉ admin):\n- Xem log\n- Crawl XSMB\n- Upload lên GitHub\n- ... (nâng cấp sau)"
     if user_id not in ADMIN_IDS:
         text = "⛔ Bạn không có quyền truy cập menu quản trị!"
         if getattr(update, "message", None):
@@ -59,6 +58,47 @@ async def admin_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.callback_query.edit_message_text(
             text, parse_mode="Markdown", reply_markup=get_admin_menu_keyboard())
 
+# ========== ASYNC SUPPORT ==========
+async def do_upload_and_send(context, chat_id):
+    from utils.upload_github import upload_file_to_github
+    github_token = os.getenv("GITHUB_TOKEN")
+    try:
+        await asyncio.to_thread(
+            upload_file_to_github,
+            "xsmb.csv",
+            "anhtuluke79/3mien",
+            "xsmb.csv",
+            "Cập nhật xsmb.csv từ bot Telegram",
+            github_token
+        )
+        await context.bot.send_message(
+            chat_id=chat_id,
+            text="✅ Đã upload xsmb.csv lên GitHub thành công!",
+            reply_markup=get_admin_menu_keyboard()
+        )
+    except Exception as e:
+        await context.bot.send_message(
+            chat_id=chat_id,
+            text=f"❌ Lỗi khi upload GitHub: {e}",
+            reply_markup=get_admin_menu_keyboard()
+        )
+
+async def do_crawl_and_send(context, chat_id, days):
+    from utils.crawler import crawl_xsmb_Nngay_minhchinh_csv
+    try:
+        df = await asyncio.to_thread(
+            crawl_xsmb_Nngay_minhchinh_csv,
+            days, "xsmb.csv", 6, True
+        )
+        if df is not None and not df.empty:
+            msg = f"✅ Đã crawl xong {days} ngày XSMB!\nSố dòng hiện có: {len(df)}.\nGửi file xsmb.csv về cho bạn."
+            with open("xsmb.csv", "rb") as f:
+                await context.bot.send_document(chat_id, f, filename="xsmb.csv", caption=msg)
+        else:
+            await context.bot.send_message(chat_id, "❌ Lỗi: Crawl không thành công hoặc không có dữ liệu mới!")
+    except Exception as e:
+        await context.bot.send_message(chat_id, f"❌ Lỗi khi crawl: {e}")
+
 # ========== CALLBACK HANDLER ==========
 async def admin_callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -68,7 +108,6 @@ async def admin_callback_handler(update: Update, context: ContextTypes.DEFAULT_T
         await query.edit_message_text("⛔ Bạn không có quyền truy cập!", parse_mode="Markdown")
         return
 
-    # ---- Quay về menu ----
     if data == "admin_menu":
         await admin_menu(update, context)
         return
@@ -77,7 +116,7 @@ async def admin_callback_handler(update: Update, context: ContextTypes.DEFAULT_T
     if data == "admin_view_log":
         try:
             with open("user_log.txt", "r", encoding="utf-8") as f:
-                log_lines = f.readlines()[-30:]  # Hiển thị 30 dòng cuối
+                log_lines = f.readlines()[-30:]
             log_text = "*Log sử dụng gần nhất:*\n" + "".join([f"- {line}" for line in log_lines])
         except Exception:
             log_text = "Không có log nào."
@@ -97,23 +136,8 @@ async def admin_callback_handler(update: Update, context: ContextTypes.DEFAULT_T
             f"⏳ Đang crawl {days} ngày XSMB, vui lòng đợi...",
             reply_markup=get_admin_menu_keyboard()
         )
-        context.application.create_task(do_crawl_and_send(query, context, days))
-        return
-
-    # ---- TẢI FILE CSV VỀ ----
-    elif data == "admin_download_csv":
-        try:
-            if os.path.exists("xsmb.csv"):
-                await context.bot.send_document(
-                    chat_id=query.message.chat_id,
-                    document=open("xsmb.csv", "rb"),
-                    filename="xsmb.csv",
-                    caption="📥 File xsmb.csv hiện tại."
-                )
-            else:
-                await query.edit_message_text("❌ Không tìm thấy file xsmb.csv!", reply_markup=get_admin_menu_keyboard())
-        except Exception as e:
-            await query.edit_message_text(f"❌ Lỗi gửi file: {e}", reply_markup=get_admin_menu_keyboard())
+        chat_id = update.effective_chat.id
+        asyncio.create_task(do_crawl_and_send(context, chat_id, days))
         return
 
     # ---- UPLOAD xsmb.csv lên GITHUB ----
@@ -122,50 +146,19 @@ async def admin_callback_handler(update: Update, context: ContextTypes.DEFAULT_T
             "⏳ Đang upload file xsmb.csv lên GitHub, vui lòng đợi...",
             reply_markup=get_admin_menu_keyboard()
         )
-        context.application.create_task(do_upload_github(query, context))
+        chat_id = update.effective_chat.id
+        asyncio.create_task(do_upload_and_send(context, chat_id))
         return
+
+    # ---- TẢI FILE CSV ----
+    elif data == "admin_download_csv":
+        if not os.path.exists("xsmb.csv"):
+            await query.edit_message_text("❌ Không tìm thấy file xsmb.csv!", reply_markup=get_admin_menu_keyboard())
+        else:
+            await query.edit_message_text("Đang gửi file xsmb.csv về cho bạn...", reply_markup=get_admin_menu_keyboard())
+            with open("xsmb.csv", "rb") as f:
+                await context.bot.send_document(update.effective_chat.id, f, filename="xsmb.csv", caption="File xsmb.csv")
 
     # ---- DEFAULT ----
     else:
         await query.edit_message_text("❓ Chức năng quản trị chưa hỗ trợ.", reply_markup=get_admin_menu_keyboard())
-
-# ========== ASYNC TASKS ==========
-async def do_crawl_and_send(query, context, days):
-    try:
-        from utils.crawler import crawl_xsmb_Nngay_minhchinh_csv
-        df = crawl_xsmb_Nngay_minhchinh_csv(days, "xsmb.csv", delay_sec=6, use_random_delay=True)
-        if df is not None and not df.empty:
-            msg = f"✅ Đã crawl xong {days} ngày XSMB!\nSố dòng hiện có: {len(df)}.\nGửi file xsmb.csv về cho bạn."
-            await context.bot.send_document(
-                chat_id=query.message.chat_id,
-                document=open("xsmb.csv", "rb"),
-                filename="xsmb.csv",
-                caption=msg
-            )
-        else:
-            await context.bot.send_message(query.message.chat_id, f"❌ Lỗi: Crawl không thành công hoặc không có dữ liệu mới!")
-    except Exception as e:
-        await context.bot.send_message(query.message.chat_id, f"❌ Lỗi khi crawl: {e}")
-
-async def do_upload_github(query, context):
-    try:
-        from utils.upload_github import upload_file_to_github
-        github_token = os.getenv("GITHUB_TOKEN")
-        upload_file_to_github(
-            local_file_path="xsmb.csv",
-            repo_name="anhtuluke79/3mien",
-            remote_path="xsmb.csv",
-            commit_message="Cập nhật xsmb.csv từ Telegram admin",
-            github_token=github_token
-        )
-        await context.bot.send_message(
-            chat_id=query.message.chat_id,
-            text="✅ Đã upload xsmb.csv lên GitHub thành công!",
-            reply_markup=get_admin_menu_keyboard()
-        )
-    except Exception as e:
-        await context.bot.send_message(
-            chat_id=query.message.chat_id,
-            text=f"❌ Lỗi khi upload GitHub: {e}",
-            reply_markup=get_admin_menu_keyboard()
-        )
