@@ -33,12 +33,22 @@ def get_ketqua_keyboard():
 
 def get_thongke_keyboard():
     keyboard = [
-        [InlineKeyboardButton("🤖 AI Dự đoán (Random Forest)", callback_data="ai_rf")],
+        [InlineKeyboardButton("🤖 AI Dự đoán (Random Forest)", callback_data="ai_rf_choose_n")],
         [InlineKeyboardButton("📈 Top số về nhiều nhất", callback_data="topve")],
         [InlineKeyboardButton("📉 Top số về ít nhất", callback_data="topkhan")],
         [InlineKeyboardButton("🔍 Soi cầu/phân tích sâu", callback_data="soicau_menu")],
         [InlineKeyboardButton("🎯 Gợi ý dự đoán", callback_data="goiy")],
         [InlineKeyboardButton("⬅️ Trở về", callback_data="menu")]
+    ]
+    return InlineKeyboardMarkup(keyboard)
+
+def get_ai_rf_ngay_keyboard():
+    keyboard = [
+        [InlineKeyboardButton("7 ngày", callback_data="ai_rf_N_7"),
+         InlineKeyboardButton("14 ngày", callback_data="ai_rf_N_14")],
+        [InlineKeyboardButton("21 ngày", callback_data="ai_rf_N_21"),
+         InlineKeyboardButton("28 ngày", callback_data="ai_rf_N_28")],
+        [InlineKeyboardButton("⬅️ Trở về thống kê", callback_data="thongke_menu")]
     ]
     return InlineKeyboardMarkup(keyboard)
 
@@ -139,20 +149,35 @@ async def menu_callback_handler(update: Update, context: ContextTypes.DEFAULT_TY
     user_id = update.effective_user.id
     context.user_data.clear()
     
-    # Menu chính
     if data == "menu":
         await menu(update, context)
-    # Thống kê
     elif data == "thongke_menu":
         await query.edit_message_text(
             "*📊 Chọn một thống kê bên dưới:*",
             reply_markup=get_thongke_keyboard(),
             parse_mode="Markdown"
         )
-    elif data == "ai_rf":
+
+    # ========== AI RANDOM FOREST CHỌN SỐ NGÀY ==========
+    elif data == "ai_rf_choose_n":
+        await query.edit_message_text(
+            "Bạn muốn AI dự đoán dựa trên mấy ngày gần nhất? Chọn số ngày:",
+            reply_markup=get_ai_rf_ngay_keyboard(),
+            parse_mode="Markdown"
+        )
+        return
+
+    elif data.startswith("ai_rf_N_"):
+        N = int(data.split("_")[-1])
         df = tk.read_xsmb()
-        _, msg = ai_rf.predict_next(df, N=7, top_k=5, retrain=False)
-        await query.edit_message_text(msg, reply_markup=get_thongke_keyboard(), parse_mode="Markdown")
+        _, msg = ai_rf.predict_next(df, N=N, top_k=5, retrain=False)
+        await query.edit_message_text(
+            msg,
+            reply_markup=get_ai_rf_ngay_keyboard(),
+            parse_mode="Markdown"
+        )
+        return
+
     elif data == "topve":
         df = tk.read_xsmb()
         res = tk.thongke_so_ve_nhieu_nhat(df, n=60, top=10, bot_only=False)
@@ -197,6 +222,7 @@ async def menu_callback_handler(update: Update, context: ContextTypes.DEFAULT_TY
             reply_markup=get_soicau_keyboard(),
             parse_mode="Markdown"
         )
+
     # Kết quả xổ số
     elif data == "ketqua":
         await query.edit_message_text(
@@ -218,6 +244,7 @@ async def menu_callback_handler(update: Update, context: ContextTypes.DEFAULT_TY
             reply_markup=get_back_reset_keyboard("ketqua"),
             parse_mode="Markdown"
         )
+
     # Ghép xiên, càng, đảo số, phong thủy, hướng dẫn...
     elif data == "ghep_xien":
         await query.edit_message_text(
