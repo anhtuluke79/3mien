@@ -32,14 +32,18 @@ def get_ketqua_keyboard():
 
 def get_xien_cang_dao_keyboard():
     return InlineKeyboardMarkup([
-        [InlineKeyboardButton("🔢 Ghép xiên", callback_data="ghep_xien")],
-        [InlineKeyboardButton("🎯 Ghép càng/ Đảo số", callback_data="ghep_cang_dao")],
+        [InlineKeyboardButton("✨ Xiên 2", callback_data="xien2"),
+         InlineKeyboardButton("✨ Xiên 3", callback_data="xien3"),
+         InlineKeyboardButton("✨ Xiên 4", callback_data="xien4")],
+        [InlineKeyboardButton("🔢 Ghép càng 3D", callback_data="ghep_cang3d"),
+         InlineKeyboardButton("🔢 Ghép càng 4D", callback_data="ghep_cang4d")],
+        [InlineKeyboardButton("🔄 Đảo số", callback_data="dao_so")],
         [InlineKeyboardButton("⬅️ Trở về", callback_data="menu")]
     ])
 
 def get_tk_ai_keyboard(user_id=None):
     keyboard = [
-        [InlineKeyboardButton("🤖 AI Random Forest (chọn số ngày)", callback_data="ai_rf_choose_n")],
+        [InlineKeyboardButton("🤖 AI Random Forest (dự đoán)", callback_data="ai_rf_choose_n")],
         [InlineKeyboardButton("📈 Top số về nhiều nhất", callback_data="topve")],
         [InlineKeyboardButton("📉 Top số về ít nhất", callback_data="topkhan")],
         [InlineKeyboardButton("🎯 Gợi ý dự đoán", callback_data="goiy")],
@@ -47,12 +51,17 @@ def get_tk_ai_keyboard(user_id=None):
     ]
     return InlineKeyboardMarkup(keyboard)
 
-def get_ai_rf_ngay_keyboard():
+def get_ai_rf_ngay_keyboard(for_admin=False):
+    # for_admin: True = callback train, False = dự đoán
+    if for_admin:
+        prefix = "admin_train_rf_N_"
+    else:
+        prefix = "ai_rf_N_"
     return InlineKeyboardMarkup([
-        [InlineKeyboardButton("7 ngày", callback_data="ai_rf_N_7"),
-         InlineKeyboardButton("14 ngày", callback_data="ai_rf_N_14")],
-        [InlineKeyboardButton("21 ngày", callback_data="ai_rf_N_21"),
-         InlineKeyboardButton("28 ngày", callback_data="ai_rf_N_28")],
+        [InlineKeyboardButton("7 ngày", callback_data=f"{prefix}7"),
+         InlineKeyboardButton("14 ngày", callback_data=f"{prefix}14")],
+        [InlineKeyboardButton("21 ngày", callback_data=f"{prefix}21"),
+         InlineKeyboardButton("28 ngày", callback_data=f"{prefix}28")],
         [InlineKeyboardButton("⬅️ Thống kê & AI", callback_data="tk_ai_menu")]
     ])
 
@@ -159,11 +168,32 @@ async def menu_callback_handler(update: Update, context: ContextTypes.DEFAULT_TY
     # Ghép xiên/càng/đảo
     elif data == "ghep_xien_cang_dao":
         await query.edit_message_text("Chọn chức năng:", reply_markup=get_xien_cang_dao_keyboard(), parse_mode="Markdown")
-    elif data == "ghep_xien":
-        await query.edit_message_text("Nhập dàn số muốn ghép xiên:", reply_markup=get_back_reset_keyboard("ghep_xien_cang_dao"), parse_mode="Markdown")
-        context.user_data['wait_for_xien_input'] = None
-    elif data == "ghep_cang_dao":
-        await query.edit_message_text("Chọn chức năng ghép càng hoặc đảo số:", reply_markup=get_back_reset_keyboard("ghep_xien_cang_dao"), parse_mode="Markdown")
+
+    elif data in ["xien2", "xien3", "xien4"]:
+        n = int(data[-1])
+        context.user_data['wait_for_xien_input'] = n
+        await query.edit_message_text(
+            f"Nhập dàn số để ghép xiên {n} (cách nhau bởi dấu cách hoặc phẩy):",
+            reply_markup=get_back_reset_keyboard("ghep_xien_cang_dao"), parse_mode="Markdown"
+        )
+    elif data == "ghep_cang3d":
+        context.user_data['wait_cang3d_numbers'] = True
+        await query.edit_message_text(
+            "Nhập dàn số 2 chữ số để ghép càng 3D (cách nhau bởi dấu cách hoặc phẩy):",
+            reply_markup=get_back_reset_keyboard("ghep_xien_cang_dao"), parse_mode="Markdown"
+        )
+    elif data == "ghep_cang4d":
+        context.user_data['wait_cang4d_numbers'] = True
+        await query.edit_message_text(
+            "Nhập dàn số 3 chữ số để ghép càng 4D (cách nhau bởi dấu cách hoặc phẩy):",
+            reply_markup=get_back_reset_keyboard("ghep_xien_cang_dao"), parse_mode="Markdown"
+        )
+    elif data == "dao_so":
+        context.user_data['wait_for_dao_input'] = True
+        await query.edit_message_text(
+            "Nhập 1 số bất kỳ (2-6 chữ số, VD: 1234):",
+            reply_markup=get_back_reset_keyboard("ghep_xien_cang_dao"), parse_mode="Markdown"
+        )
 
     # Phong thủy
     elif data == "phongthuy":
@@ -174,12 +204,12 @@ async def menu_callback_handler(update: Update, context: ContextTypes.DEFAULT_TY
     elif data == "tk_ai_menu":
         await query.edit_message_text("*Chọn thống kê hoặc AI:*", reply_markup=get_tk_ai_keyboard(user_id), parse_mode="Markdown")
     elif data == "ai_rf_choose_n":
-        await query.edit_message_text("Chọn số ngày để AI Random Forest dự đoán:", reply_markup=get_ai_rf_ngay_keyboard(), parse_mode="Markdown")
+        await query.edit_message_text("Chọn số ngày để AI Random Forest dự đoán:", reply_markup=get_ai_rf_ngay_keyboard(for_admin=False), parse_mode="Markdown")
         return
     elif data.startswith("ai_rf_N_"):
         N = int(data.split("_")[-1])
         msg = ai_rf.predict_rf_model(num_days=N)
-        await query.edit_message_text(msg, reply_markup=get_ai_rf_ngay_keyboard(), parse_mode="Markdown")
+        await query.edit_message_text(msg, reply_markup=get_ai_rf_ngay_keyboard(for_admin=False), parse_mode="Markdown")
         return
     elif data == "topve":
         df = tk.read_xsmb()
