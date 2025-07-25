@@ -4,7 +4,7 @@ import pandas as pd
 from datetime import datetime
 from dateutil import parser
 import utils.thongkemb as tk
-import utils.soicau as sc
+#import utils.soicau as sc
 import utils.ai_rf as ai_rf
 from system.admin import ADMIN_IDS, admin_menu, admin_callback_handler
 
@@ -16,7 +16,7 @@ def get_menu_keyboard(user_id=None):
         [InlineKeyboardButton("🔢 Ghép xiên/ Càng/ Đảo số", callback_data="ghep_xien_cang_dao")],
         [InlineKeyboardButton("🔮 Phong thủy số", callback_data="phongthuy")],
         [InlineKeyboardButton("📊 Thống kê & AI", callback_data="tk_ai_menu")],
-        [InlineKeyboardButton("🧑‍💻 Soi cầu", callback_data="soicau_menu")],
+        #[InlineKeyboardButton("🧑‍💻 Soi cầu", callback_data="soicau_menu")],
         [InlineKeyboardButton("💖 Ủng hộ & Góp ý", callback_data="ung_ho_gop_y")],
         [InlineKeyboardButton("ℹ️ Hướng dẫn", callback_data="huongdan")],
         [InlineKeyboardButton("🔄 Reset", callback_data="reset")]
@@ -59,12 +59,12 @@ def get_ai_rf_ngay_keyboard():
         [InlineKeyboardButton("⬅️ Thống kê & AI", callback_data="tk_ai_menu")]
     ])
 
-def get_soicau_keyboard():
-    return InlineKeyboardMarkup([
-        [InlineKeyboardButton("🔥 Số ra liên tục nhiều ngày", callback_data="soicau_lientuc")],
-        [InlineKeyboardButton("♻️ Số gan cực đại", callback_data="soicau_ganmax")],
-        [InlineKeyboardButton("🔄 Số kép", callback_data="soicau_kep")],
-        [InlineKeyboardButton("⬅️ Trở về", callback_data="tk_ai_menu")]
+#def get_soicau_keyboard():
+    #return InlineKeyboardMarkup([
+        #[InlineKeyboardButton("🔥 Số ra liên tục nhiều ngày", callback_data="soicau_lientuc")],
+        #[InlineKeyboardButton("♻️ Số gan cực đại", callback_data="soicau_ganmax")],
+        #[InlineKeyboardButton("🔄 Số kép", callback_data="soicau_kep")],
+        #[InlineKeyboardButton("⬅️ Trở về", callback_data="tk_ai_menu")]
     ])
 
 def get_back_reset_keyboard(menu_callback="menu"):
@@ -207,20 +207,20 @@ async def menu_callback_handler(update: Update, context: ContextTypes.DEFAULT_TY
         await query.edit_message_text(res, reply_markup=get_tk_ai_keyboard(user_id), parse_mode="Markdown")
 
     # Soi cầu
-    elif data == "soicau_menu":
-        await query.edit_message_text("Chọn kiểu soi cầu:", reply_markup=get_soicau_keyboard(), parse_mode="Markdown")
-    elif data == "soicau_lientuc":
+    #elif data == "soicau_menu":
+        #await query.edit_message_text("Chọn kiểu soi cầu:", reply_markup=get_soicau_keyboard(), parse_mode="Markdown")
+    #elif data == "soicau_lientuc":
         df = tk.read_xsmb()
         res = sc.soicau_lientuc(df, n=60)
-        await query.edit_message_text(res, reply_markup=get_soicau_keyboard(), parse_mode="Markdown")
-    elif data == "soicau_ganmax":
+        #await query.edit_message_text(res, reply_markup=get_soicau_keyboard(), parse_mode="Markdown")
+    #elif data == "soicau_ganmax":
         df = tk.read_xsmb()
         res = sc.soicau_ganmax(df, n=60)
-        await query.edit_message_text(res, reply_markup=get_soicau_keyboard(), parse_mode="Markdown")
-    elif data == "soicau_kep":
+        #await query.edit_message_text(res, reply_markup=get_soicau_keyboard(), parse_mode="Markdown")
+    #elif data == "soicau_kep":
         df = tk.read_xsmb()
         res = sc.soicau_kep(df, n=60)
-        await query.edit_message_text(res, reply_markup=get_soicau_keyboard(), parse_mode="Markdown")
+        #await query.edit_message_text(res, reply_markup=get_soicau_keyboard(), parse_mode="Markdown")
 
     # Ủng hộ/Góp ý, hướng dẫn, reset
     elif data == "ung_ho_gop_y":
