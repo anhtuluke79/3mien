@@ -40,6 +40,7 @@ def get_thongke_keyboard():
         [InlineKeyboardButton("🔢 Thống kê đầu/đuôi ĐB", callback_data="dau_cuoi")],
         [InlineKeyboardButton("♻️ Chẵn/lẻ ĐB", callback_data="chanle")],
         [InlineKeyboardButton("🚨 Dàn lô gan", callback_data="logan")],
+        [InlineKeyboardButton("🤖 AI Dự đoán (Random Forest)", callback_data="ai_rf")],
         [InlineKeyboardButton("🎯 Gợi ý dự đoán", callback_data="goiy")],
         [InlineKeyboardButton("⬅️ Trở về", callback_data="menu")]
     ]
