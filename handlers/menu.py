@@ -1,101 +1,263 @@
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import ContextTypes
-from system.admin import ADMIN_IDS, log_user_action, admin_callback_handler, admin_menu
-from handlers.keyboards import *
-from handlers.input_handler import handle_user_free_input
-from utils import ai_rf
+import pandas as pd
+from datetime import datetime
+from dateutil import parser
+import utils.thongkemb as tk
+import utils.soicau as sc
+import utils.ai_rf as ai_rf
+from system.admin import ADMIN_IDS, admin_menu, admin_callback_handler
 
-# ... các import khác (kq, phongthuy, xien, cang_dao, soicau...)
+# =========== KEYBOARDS =============
 
-# ================== KEYBOARD CHO AI ==================
-def get_ai_rf_keyboard():
+def get_menu_keyboard(user_id=None):
     keyboard = [
-        [
-            InlineKeyboardButton("🤖 Dự đoán 7 ngày", callback_data="ai_rf_predict_7"),
-            InlineKeyboardButton("🤖 Dự đoán 14 ngày", callback_data="ai_rf_predict_14"),
-        ],
-        [
-            InlineKeyboardButton("🤖 Dự đoán 21 ngày", callback_data="ai_rf_predict_21"),
-            InlineKeyboardButton("🤖 Dự đoán 28 ngày", callback_data="ai_rf_predict_28"),
-        ]
+        [InlineKeyboardButton("🎲 Kết quả xổ số", callback_data="ketqua")],
+        [InlineKeyboardButton("🔢 Ghép xiên/ Càng/ Đảo số", callback_data="ghep_xien_cang_dao")],
+        [InlineKeyboardButton("🔮 Phong thủy số", callback_data="phongthuy")],
+        [InlineKeyboardButton("📊 Thống kê & AI", callback_data="tk_ai_menu")],
+        [InlineKeyboardButton("🧑‍💻 Soi cầu", callback_data="soicau_menu")],
+        [InlineKeyboardButton("💖 Ủng hộ & Góp ý", callback_data="ung_ho_gop_y")],
+        [InlineKeyboardButton("ℹ️ Hướng dẫn", callback_data="huongdan")],
+        [InlineKeyboardButton("🔄 Reset", callback_data="reset")]
     ]
-    # Thêm các nút TRAIN cho admin
-    keyboard.append([
-        InlineKeyboardButton("🛠️ Train 7 ngày", callback_data="ai_rf_train_7"),
-        InlineKeyboardButton("🛠️ Train 14 ngày", callback_data="ai_rf_train_14"),
-    ])
-    keyboard.append([
-        InlineKeyboardButton("🛠️ Train 21 ngày", callback_data="ai_rf_train_21"),
-        InlineKeyboardButton("🛠️ Train 28 ngày", callback_data="ai_rf_train_28"),
-    ])
-    keyboard.append([InlineKeyboardButton("⬅️ Menu", callback_data="menu")])
+    if user_id in ADMIN_IDS:
+        keyboard.append([InlineKeyboardButton("🛡️ Quản trị", callback_data="admin_menu")])
     return InlineKeyboardMarkup(keyboard)
 
-# ================ MAIN MENU HANDLER ===================
-@log_user_action("Mở menu chính")
+def get_ketqua_keyboard():
+    return InlineKeyboardMarkup([
+        [InlineKeyboardButton("📅 Kết quả theo ngày", callback_data="kq_theo_ngay")],
+        [InlineKeyboardButton("🔥 Kết quả mới nhất", callback_data="kq_moi_nhat")],
+        [InlineKeyboardButton("⬅️ Trở về", callback_data="menu")]
+    ])
+
+def get_xien_cang_dao_keyboard():
+    return InlineKeyboardMarkup([
+        [InlineKeyboardButton("🔢 Ghép xiên", callback_data="ghep_xien")],
+        [InlineKeyboardButton("🎯 Ghép càng/ Đảo số", callback_data="ghep_cang_dao")],
+        [InlineKeyboardButton("⬅️ Trở về", callback_data="menu")]
+    ])
+
+def get_tk_ai_keyboard(user_id=None):
+    keyboard = [
+        [InlineKeyboardButton("🤖 AI Random Forest (chọn số ngày)", callback_data="ai_rf_choose_n")],
+        [InlineKeyboardButton("📈 Top số về nhiều nhất", callback_data="topve")],
+        [InlineKeyboardButton("📉 Top số về ít nhất", callback_data="topkhan")],
+        [InlineKeyboardButton("🎯 Gợi ý dự đoán", callback_data="goiy")],
+        [InlineKeyboardButton("🔍 Soi cầu phân tích sâu", callback_data="soicau_menu")],
+        [InlineKeyboardButton("⬅️ Trở về", callback_data="menu")]
+    ]
+    return InlineKeyboardMarkup(keyboard)
+
+def get_ai_rf_ngay_keyboard():
+    return InlineKeyboardMarkup([
+        [InlineKeyboardButton("7 ngày", callback_data="ai_rf_N_7"),
+         InlineKeyboardButton("14 ngày", callback_data="ai_rf_N_14")],
+        [InlineKeyboardButton("21 ngày", callback_data="ai_rf_N_21"),
+         InlineKeyboardButton("28 ngày", callback_data="ai_rf_N_28")],
+        [InlineKeyboardButton("⬅️ Thống kê & AI", callback_data="tk_ai_menu")]
+    ])
+
+def get_soicau_keyboard():
+    return InlineKeyboardMarkup([
+        [InlineKeyboardButton("🔥 Số ra liên tục nhiều ngày", callback_data="soicau_lientuc")],
+        [InlineKeyboardButton("♻️ Số gan cực đại", callback_data="soicau_ganmax")],
+        [InlineKeyboardButton("🔄 Số kép", callback_data="soicau_kep")],
+        [InlineKeyboardButton("⬅️ Trở về", callback_data="tk_ai_menu")]
+    ])
+
+def get_back_reset_keyboard(menu_callback="menu"):
+    return InlineKeyboardMarkup([
+        [InlineKeyboardButton("⬅️ Trở về", callback_data=menu_callback),
+         InlineKeyboardButton("🔄 Reset", callback_data="reset")]
+    ])
+
+# ========== FORMAT KQ XSMB ===========
+
+def format_xsmb_ketqua(r, ngay_str):
+    db = str(r['DB']).strip().zfill(5)
+    text = f"🎉 *KQ XSMB {ngay_str}* 🎉\n\n"
+    text += f"*Đặc biệt*:   `{db}`\n"
+    text += f"*Giải nhất*:  `{str(r['G1']).strip()}`\n"
+    for label, col in [
+        ("*Giải nhì*", "G2"),
+        ("*Giải ba*", "G3"),
+        ("*Giải tư*", "G4"),
+        ("*Giải năm*", "G5"),
+        ("*Giải sáu*", "G6"),
+        ("*Giải bảy*", "G7"),
+    ]:
+        nums = str(r[col]).replace(",", " ").split()
+        if len(nums) <= 4:
+            text += f"{label}:  " + "  ".join(f"`{n.strip()}`" for n in nums) + "\n"
+        else:
+            n_half = (len(nums) + 1) // 2
+            text += f"{label}:\n"
+            text += "  ".join(f"`{n.strip()}`" for n in nums[:n_half]) + "\n"
+            text += "  ".join(f"`{n.strip()}`" for n in nums[n_half:]) + "\n"
+    return text
+
+def tra_ketqua_theo_ngay(ngay_str):
+    try:
+        df = pd.read_csv('xsmb.csv')
+        date_examples = df['date'].astype(str).head(3).tolist()
+        if all('-' in d and len(d.split('-')[0]) == 4 for d in date_examples):
+            df['date'] = pd.to_datetime(df['date'], errors='coerce')
+        else:
+            df['date'] = pd.to_datetime(df['date'], dayfirst=True, errors='coerce')
+        df['DB'] = df['DB'].astype(str).str.zfill(5)
+        day_now = datetime.now()
+        try:
+            parsed = parser.parse(ngay_str, dayfirst=True, yearfirst=False, default=day_now)
+        except Exception:
+            return "❗ Định dạng ngày không hợp lệ! Hãy nhập ngày dạng 23-07 hoặc 2025-07-23."
+        ngay_input = parsed.replace(hour=0, minute=0, second=0, microsecond=0).date()
+        df['date_only'] = df['date'].dt.date
+        row = df[df['date_only'] == ngay_input]
+        if row.empty:
+            return f"⛔ Không có kết quả cho ngày {ngay_input.strftime('%d-%m-%Y')}."
+        r = row.iloc[0]
+        ngay_str = ngay_input.strftime('%d-%m-%Y')
+        return format_xsmb_ketqua(r, ngay_str)
+    except Exception as e:
+        return f"❗ Lỗi tra cứu: {e}"
+
+async def tra_ketqua_moi_nhat():
+    try:
+        df = pd.read_csv('xsmb.csv')
+        date_examples = df['date'].astype(str).head(3).tolist()
+        if all('-' in d and len(d.split('-')[0]) == 4 for d in date_examples):
+            df['date'] = pd.to_datetime(df['date'], errors='coerce')
+        else:
+            df['date'] = pd.to_datetime(df['date'], dayfirst=True, errors='coerce')
+        df['DB'] = df['DB'].astype(str).str.zfill(5)
+        row = df.sort_values('date', ascending=False).iloc[0]
+        ngay_str = row['date'].strftime('%d-%m-%Y')
+        return format_xsmb_ketqua(row, ngay_str)
+    except Exception as e:
+        return f"❗ Lỗi tra cứu: {e}"
+
+# ========== MENU CALLBACK HANDLER ===========
+
 async def menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
-    text = "📋 *Chào mừng bạn đến với Trợ lý Xổ số & Phân tích AI!*"
+    text = "📋 *Chào mừng bạn đến với Trợ lý Xổ số & AI!*"
     if update.message:
         await update.message.reply_text(text, reply_markup=get_menu_keyboard(user_id), parse_mode="Markdown")
     elif update.callback_query:
         await update.callback_query.edit_message_text(text, reply_markup=get_menu_keyboard(user_id), parse_mode="Markdown")
 
-# =============== CALLBACK HANDLER ======================
 async def menu_callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     data = query.data
     user_id = update.effective_user.id
+    context.user_data.clear()
+    
+    if data == "menu":
+        await menu(update, context)
 
-    # ... các lệnh menu khác (ketqua, phongthuy, xien, soicau, ...)
-    if data == "ai_rf":
-        await query.edit_message_text("🤖 *AI Random Forest:*\nChọn chức năng hoặc số ngày:", reply_markup=get_ai_rf_keyboard(), parse_mode="Markdown")
+    # Kết quả xổ số
+    elif data == "ketqua":
+        await query.edit_message_text("Chọn chức năng:", reply_markup=get_ketqua_keyboard(), parse_mode="Markdown")
+    elif data == "kq_theo_ngay":
+        await query.edit_message_text("Nhập ngày muốn tra (23-07, 2025-07-23...):", reply_markup=get_back_reset_keyboard("ketqua"), parse_mode="Markdown")
+        context.user_data["wait_kq_theo_ngay"] = True
+    elif data == "kq_moi_nhat":
+        text = await tra_ketqua_moi_nhat()
+        await query.edit_message_text(text, reply_markup=get_back_reset_keyboard("ketqua"), parse_mode="Markdown")
+
+    # Ghép xiên/càng/đảo
+    elif data == "ghep_xien_cang_dao":
+        await query.edit_message_text("Chọn chức năng:", reply_markup=get_xien_cang_dao_keyboard(), parse_mode="Markdown")
+    elif data == "ghep_xien":
+        await query.edit_message_text("Nhập dàn số muốn ghép xiên:", reply_markup=get_back_reset_keyboard("ghep_xien_cang_dao"), parse_mode="Markdown")
+        context.user_data['wait_for_xien_input'] = None
+    elif data == "ghep_cang_dao":
+        await query.edit_message_text("Chọn chức năng ghép càng hoặc đảo số:", reply_markup=get_back_reset_keyboard("ghep_xien_cang_dao"), parse_mode="Markdown")
+
+    # Phong thủy
+    elif data == "phongthuy":
+        await query.edit_message_text("Nhập ngày dương hoặc can chi (VD: 2025-07-23, Giáp Tý):", reply_markup=get_back_reset_keyboard("menu"), parse_mode="Markdown")
+        context.user_data["wait_phongthuy"] = True
+
+    # Thống kê & AI
+    elif data == "tk_ai_menu":
+        await query.edit_message_text("*Chọn thống kê hoặc AI:*", reply_markup=get_tk_ai_keyboard(user_id), parse_mode="Markdown")
+    elif data == "ai_rf_choose_n":
+        await query.edit_message_text("Chọn số ngày để AI Random Forest dự đoán:", reply_markup=get_ai_rf_ngay_keyboard(), parse_mode="Markdown")
         return
-
-    # TRAIN RF: chỉ admin
-    if data.startswith("ai_rf_train_"):
-        n = int(data.split("_")[-1])
-        if user_id not in ADMIN_IDS:
-            await query.edit_message_text("⛔ Bạn không có quyền train AI!")
-            return
-        await query.edit_message_text(f"⏳ Đang train Random Forest với {n} ngày, vui lòng đợi…")
-        msg = ai_rf.train_rf_model(num_days=n, data_path="xsmb.csv")
-        await query.edit_message_text(msg, reply_markup=get_ai_rf_keyboard())
+    elif data.startswith("ai_rf_N_"):
+        N = int(data.split("_")[-1])
+        df = tk.read_xsmb()
+        _, msg = ai_rf.predict_next(df, N=N, top_k=5, retrain=False)
+        await query.edit_message_text(msg, reply_markup=get_ai_rf_ngay_keyboard(), parse_mode="Markdown")
         return
+    elif data == "topve":
+        df = tk.read_xsmb()
+        res = tk.thongke_so_ve_nhieu_nhat(df, n=60, top=10, bot_only=False)
+        await query.edit_message_text(res, reply_markup=get_tk_ai_keyboard(user_id), parse_mode="Markdown")
+    elif data == "topkhan":
+        df = tk.read_xsmb()
+        res = tk.thongke_so_ve_nhieu_nhat(df, n=60, top=10, bot_only=True)
+        await query.edit_message_text(res, reply_markup=get_tk_ai_keyboard(user_id), parse_mode="Markdown")
+    elif data == "goiy":
+        df = tk.read_xsmb()
+        res = tk.goi_y_du_doan(df, n=60)
+        await query.edit_message_text(res, reply_markup=get_tk_ai_keyboard(user_id), parse_mode="Markdown")
 
-    # DỰ ĐOÁN RF: mọi user đều dùng được
-    if data.startswith("ai_rf_predict_"):
-        n = int(data.split("_")[-1])
-        # Bạn có thể cho người dùng chọn ngày muốn dự đoán hoặc mặc định lấy ngày mới nhất
-        msg = ai_rf.predict_rf_model(num_days=n)
-        await query.edit_message_text(msg, reply_markup=get_ai_rf_keyboard())
-        return
+    # Soi cầu
+    elif data == "soicau_menu":
+        await query.edit_message_text("Chọn kiểu soi cầu:", reply_markup=get_soicau_keyboard(), parse_mode="Markdown")
+    elif data == "soicau_lientuc":
+        df = tk.read_xsmb()
+        res = sc.soicau_lientuc(df, n=60)
+        await query.edit_message_text(res, reply_markup=get_soicau_keyboard(), parse_mode="Markdown")
+    elif data == "soicau_ganmax":
+        df = tk.read_xsmb()
+        res = sc.soicau_ganmax(df, n=60)
+        await query.edit_message_text(res, reply_markup=get_soicau_keyboard(), parse_mode="Markdown")
+    elif data == "soicau_kep":
+        df = tk.read_xsmb()
+        res = sc.soicau_kep(df, n=60)
+        await query.edit_message_text(res, reply_markup=get_soicau_keyboard(), parse_mode="Markdown")
 
-    # ... các nhánh khác (admin, thống kê, vv)
-    if data == "admin_menu":
+    # Ủng hộ/Góp ý, hướng dẫn, reset
+    elif data == "ung_ho_gop_y":
+        text = (
+            "💖 *ỦNG HỘ & GÓP Ý*\n"
+            "Cảm ơn bạn đã sử dụng bot! Nếu thấy hữu ích, bạn có thể ủng hộ để mình duy trì bot.\n"
+            "Vietcombank: `0071003914986` - TRUONG ANH TU\n"
+            "Góp ý: Telegram hoặc email: tutruong19790519@gmail.com\n"
+        )
+        qr_path = "qr_ung_ho.png"
+        await query.message.reply_photo(
+            photo=open(qr_path, "rb"),
+            caption=text,
+            parse_mode="Markdown",
+            reply_markup=get_menu_keyboard(user_id)
+        )
+    elif data == "huongdan":
+        text = (
+            "🟣 *HƯỚNG DẪN NHANH:*\n"
+            "- Kết quả: Xem mới nhất/theo ngày\n"
+            "- Ghép xiên/càng/đảo: Tổ hợp các bộ số\n"
+            "- Phong thủy: Số hợp mệnh/ngày\n"
+            "- Thống kê & AI: Thống kê, AI Random Forest chọn số ngày, gợi ý, soi cầu\n"
+            "- Ủng hộ/Góp ý: Nhận phản hồi phát triển\n"
+            "- /menu hoặc nút Trở về để về đầu trang"
+        )
+        await query.edit_message_text(text, reply_markup=get_menu_keyboard(user_id), parse_mode="Markdown")
+    elif data == "reset":
+        context.user_data.clear()
+        await query.edit_message_text("🔄 Đã reset trạng thái!", reply_markup=get_menu_keyboard(user_id), parse_mode="Markdown")
+
+    # Admin menu
+    elif data == "admin_menu":
         await admin_menu(update, context)
         return
-    if data.startswith("admin_"):
+    elif data.startswith("admin_"):
         await admin_callback_handler(update, context)
         return
-
-    # fallback: quay lại menu chính nếu không xác định
-    await query.edit_message_text("❓ Không xác định chức năng.", reply_markup=get_menu_keyboard(user_id))
-
-# =============== CẬP NHẬT get_menu_keyboard =================
-def get_menu_keyboard(user_id=None):
-    keyboard = [
-        [InlineKeyboardButton("🔢 Ghép xiên", callback_data="ghep_xien")],
-        [InlineKeyboardButton("🎯 Ghép càng/Đảo số", callback_data="ghep_cang_dao")],
-        [InlineKeyboardButton("🔮 Phong thủy số", callback_data="phongthuy")],
-        [InlineKeyboardButton("🎲 Kết quả", callback_data="ketqua")],
-        [InlineKeyboardButton("📊 Thống kê", callback_data="thongke_menu")],
-        [InlineKeyboardButton("🎯 Soi cầu", callback_data="soicau_menu")],
-        [InlineKeyboardButton("🤖 AI Random Forest", callback_data="ai_rf")],
-        [InlineKeyboardButton("💖 Ủng hộ / Góp ý", callback_data="ung_ho_gop_y")],
-        [InlineKeyboardButton("ℹ️ Hướng dẫn & FAQ", callback_data="huongdan")],
-        [InlineKeyboardButton("🔄 Reset trạng thái", callback_data="reset")]
-    ]
-    if user_id in ADMIN_IDS:
-        keyboard.append([InlineKeyboardButton("🛡️ Quản trị", callback_data="admin_menu")])
-    return InlineKeyboardMarkup(keyboard)
+    else:
+        await query.edit_message_text("❓ Không xác định chức năng.", reply_markup=get_menu_keyboard(user_id))
