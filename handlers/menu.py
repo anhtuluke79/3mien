@@ -178,8 +178,7 @@ async def menu_callback_handler(update: Update, context: ContextTypes.DEFAULT_TY
         return
     elif data.startswith("ai_rf_N_"):
         N = int(data.split("_")[-1])
-        df = tk.read_xsmb()
-        _, msg = ai_rf.predict_next(df, N=N, top_k=5, retrain=False)
+        msg = ai_rf.predict_rf_model(num_days=N)
         await query.edit_message_text(msg, reply_markup=get_ai_rf_ngay_keyboard(), parse_mode="Markdown")
         return
     elif data == "topve":
