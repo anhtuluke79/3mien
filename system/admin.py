@@ -14,6 +14,7 @@ def get_admin_menu_keyboard():
         [InlineKeyboardButton("📥 Crawl XSMB (chọn số ngày)", callback_data="admin_crawl_xsmb")],
         [InlineKeyboardButton("⬆️ Upload xsmb.csv lên GitHub", callback_data="admin_upload_github")],
         [InlineKeyboardButton("📤 Tải file xsmb.csv", callback_data="admin_download_csv")],
+        [InlineKeyboardButton("🤖 Train AI Random Forest", callback_data="admin_train_rf")],
         [InlineKeyboardButton("⬅️ Trở về menu", callback_data="menu")]
     ]
     return InlineKeyboardMarkup(keyboard)
