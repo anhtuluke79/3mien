@@ -7,7 +7,7 @@ import utils.thongkemb as tk
 import utils.ai_rf as ai_rf
 from system.admin import ADMIN_IDS, admin_menu, admin_callback_handler
 
-# =========== KEYBOARDS =============
+# ====================== KEYBOARDS ======================
 
 def get_menu_keyboard(user_id=None):
     keyboard = [
@@ -52,11 +52,7 @@ def get_tk_ai_keyboard(user_id=None):
     return InlineKeyboardMarkup(keyboard)
 
 def get_ai_rf_ngay_keyboard(for_admin=False):
-    # for_admin: True = callback train, False = dự đoán
-    if for_admin:
-        prefix = "admin_train_rf_N_"
-    else:
-        prefix = "ai_rf_N_"
+    prefix = "admin_train_rf_N_" if for_admin else "ai_rf_N_"
     return InlineKeyboardMarkup([
         [InlineKeyboardButton("7 ngày", callback_data=f"{prefix}7"),
          InlineKeyboardButton("14 ngày", callback_data=f"{prefix}14")],
@@ -71,7 +67,7 @@ def get_back_reset_keyboard(menu_callback="menu"):
          InlineKeyboardButton("🔄 Reset", callback_data="reset")]
     ])
 
-# ========== FORMAT KQ XSMB ===========
+# =========== FORMAT KQ XSMB ===========
 
 def format_xsmb_ketqua(r, ngay_str):
     db = str(r['DB']).strip().zfill(5)
@@ -136,7 +132,7 @@ async def tra_ketqua_moi_nhat():
     except Exception as e:
         return f"❗ Lỗi tra cứu: {e}"
 
-# ========== MENU CALLBACK HANDLER ===========
+# ====================== MENU CALLBACK HANDLER ======================
 
 async def menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
@@ -151,7 +147,7 @@ async def menu_callback_handler(update: Update, context: ContextTypes.DEFAULT_TY
     data = query.data
     user_id = update.effective_user.id
     context.user_data.clear()
-    
+
     if data == "menu":
         await menu(update, context)
 
@@ -168,7 +164,6 @@ async def menu_callback_handler(update: Update, context: ContextTypes.DEFAULT_TY
     # Ghép xiên/càng/đảo
     elif data == "ghep_xien_cang_dao":
         await query.edit_message_text("Chọn chức năng:", reply_markup=get_xien_cang_dao_keyboard(), parse_mode="Markdown")
-
     elif data in ["xien2", "xien3", "xien4"]:
         n = int(data[-1])
         context.user_data['wait_for_xien_input'] = n
