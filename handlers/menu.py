@@ -7,7 +7,7 @@ import utils.thongkemb as tk
 import utils.ai_rf as ai_rf
 from system.admin import ADMIN_IDS, admin_menu, admin_callback_handler
 
-# ====================== KEYBOARDS ======================
+# ================== KEYBOARDS ==================
 
 def get_menu_keyboard(user_id=None):
     keyboard = [
@@ -132,7 +132,7 @@ async def tra_ketqua_moi_nhat():
     except Exception as e:
         return f"❗ Lỗi tra cứu: {e}"
 
-# ====================== MENU CALLBACK HANDLER ======================
+# ============= MENU CALLBACK HANDLER ==============
 
 async def menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
@@ -238,7 +238,7 @@ async def menu_callback_handler(update: Update, context: ContextTypes.DEFAULT_TY
         text = (
             "🟣 *HƯỚNG DẪN NHANH:*\n"
             "- Kết quả: Xem mới nhất/theo ngày\n"
-            "- Ghép xiên/càng/đảo: Tổ hợp các bộ số\n"
+            "- Ghép xiên/càng/đảo: Tổ hợp các bộ số, ghép càng 3D/4D\n"
             "- Phong thủy: Số hợp mệnh/ngày\n"
             "- Thống kê & AI: Thống kê, AI Random Forest chọn số ngày, gợi ý\n"
             "- Ủng hộ/Góp ý: Nhận phản hồi phát triển\n"
