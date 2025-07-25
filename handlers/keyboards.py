@@ -23,11 +23,20 @@ def get_ketqua_keyboard():
         [InlineKeyboardButton("⬅️ Trở về", callback_data="menu")]
     ]
     return InlineKeyboardMarkup(keyboard)
+def get_soicau_keyboard():
+    keyboard = [
+        [InlineKeyboardButton("🔥 Số ra liên tục nhiều ngày", callback_data="soicau_lientuc")],
+        [InlineKeyboardButton("♻️ Số gan cực đại", callback_data="soicau_ganmax")],
+        [InlineKeyboardButton("🔄 Số kép", callback_data="soicau_kep")],
+        [InlineKeyboardButton("⬅️ Trở về thống kê", callback_data="thongke_menu")]
+    ]
+    return InlineKeyboardMarkup(keyboard)
 
 def get_thongke_keyboard():
     keyboard = [
         [InlineKeyboardButton("📈 Top số về nhiều nhất", callback_data="topve")],
         [InlineKeyboardButton("📉 Top số về ít nhất", callback_data="topkhan")],
+        [InlineKeyboardButton("🔍 Soi cầu/phân tích sâu", callback_data="soicau_menu")],
         [InlineKeyboardButton("🔢 Thống kê đầu/đuôi ĐB", callback_data="dau_cuoi")],
         [InlineKeyboardButton("♻️ Chẵn/lẻ ĐB", callback_data="chanle")],
         [InlineKeyboardButton("🚨 Dàn lô gan", callback_data="logan")],
