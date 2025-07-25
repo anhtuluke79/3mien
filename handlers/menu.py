@@ -6,6 +6,7 @@ from dateutil import parser
 
 import utils.thongkemb as tk
 import utils.soicau as sc
+import utils.ai_rf as ai_rf
 
 # ====== KEYBOARDS ======
 
@@ -32,6 +33,7 @@ def get_ketqua_keyboard():
 
 def get_thongke_keyboard():
     keyboard = [
+        [InlineKeyboardButton("🤖 AI Dự đoán (Random Forest)", callback_data="ai_rf")],
         [InlineKeyboardButton("📈 Top số về nhiều nhất", callback_data="topve")],
         [InlineKeyboardButton("📉 Top số về ít nhất", callback_data="topkhan")],
         [InlineKeyboardButton("🔍 Soi cầu/phân tích sâu", callback_data="soicau_menu")],
@@ -56,7 +58,7 @@ def get_back_reset_keyboard(menu_callback="menu"):
     ]
     return InlineKeyboardMarkup(keyboard)
 
-# ====== FORMAT KQ XSMB ĐẸP (ĐB luôn đủ 5 số) ======
+# ====== FORMAT KQ XSMB ======
 
 def format_xsmb_ketqua(r, ngay_str):
     db = str(r['DB']).strip().zfill(5)
@@ -147,6 +149,10 @@ async def menu_callback_handler(update: Update, context: ContextTypes.DEFAULT_TY
             reply_markup=get_thongke_keyboard(),
             parse_mode="Markdown"
         )
+    elif data == "ai_rf":
+        df = tk.read_xsmb()
+        _, msg = ai_rf.predict_next(df, N=7, top_k=5, retrain=False)
+        await query.edit_message_text(msg, reply_markup=get_thongke_keyboard(), parse_mode="Markdown")
     elif data == "topve":
         df = tk.read_xsmb()
         res = tk.thongke_so_ve_nhieu_nhat(df, n=60, top=10, bot_only=False)
@@ -215,7 +221,7 @@ async def menu_callback_handler(update: Update, context: ContextTypes.DEFAULT_TY
     # Ghép xiên, càng, đảo số, phong thủy, hướng dẫn...
     elif data == "ghep_xien":
         await query.edit_message_text(
-            "*🔢 Ghép xiên* — Chọn loại xiên muốn ghép:",
+            "*🔢 Ghép xiên* — Nhập dàn số và chọn loại xiên muốn ghép:",
             reply_markup=get_back_reset_keyboard("menu"),
             parse_mode="Markdown"
         )
@@ -239,7 +245,7 @@ async def menu_callback_handler(update: Update, context: ContextTypes.DEFAULT_TY
             "— *Ghép càng/Đảo số*: Nhập dàn số 2 hoặc 3 chữ số, nhập càng muốn ghép, hoặc đảo số từ 2-6 chữ số.\n"
             "— *Phong thủy số*: Tra cứu số hợp theo ngày dương hoặc can chi (VD: 2025-07-23 hoặc Giáp Tý).\n"
             "— *Kết quả*: Xem xổ số miền Bắc mới nhất hoặc theo ngày.\n"
-            "— *Thống kê*: Xem các số nổi bật, soi cầu, dự đoán vui...\n"
+            "— *Thống kê*: Xem các số nổi bật, soi cầu, AI dự đoán, dự đoán vui...\n"
             "— Luôn có nút menu trở lại, reset trạng thái, hoặc gõ /menu để quay về ban đầu."
         )
         await query.edit_message_text(text, parse_mode="Markdown", reply_markup=get_menu_keyboard(user_id))
@@ -265,7 +271,7 @@ async def menu_callback_handler(update: Update, context: ContextTypes.DEFAULT_TY
             photo=open(qr_path, "rb"),
             caption=text,
             parse_mode="Markdown",
-            reply_markup=get_menu_keyboard(update.effective_user.id)
+            reply_markup=get_menu_keyboard(user_id)
         )
     else:
         await query.edit_message_text("❓ Không xác định chức năng.", reply_markup=get_menu_keyboard(user_id))
