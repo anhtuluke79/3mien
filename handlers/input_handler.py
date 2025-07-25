@@ -1,7 +1,7 @@
 from telegram import Update
 from telegram.ext import ContextTypes
-from handlers.xien import clean_numbers_input, gen_xien, format_xien_result
-from handlers.cang_dao import ghep_cang, dao_so
+from handlers.xien import clean_numbers_input as clean_numbers_xien, gen_xien, format_xien_result
+from handlers.cang_dao import clean_numbers_input, ghep_cang, dao_so
 from handlers.kq import tra_ketqua_theo_ngay
 from handlers.phongthuy import phongthuy_tudong
 from handlers.keyboards import get_back_reset_keyboard
@@ -17,29 +17,55 @@ async def handle_user_free_input(update: Update, context: ContextTypes.DEFAULT_T
     # ---- GHÉP XIÊN ----
     if user_data.get("wait_for_xien_input"):
         n = user_data.get("wait_for_xien_input")
-        numbers = clean_numbers_input(text)
+        numbers = clean_numbers_xien(text)
         combos = gen_xien(numbers, n)
         result = format_xien_result(combos)
         await update.message.reply_text(result, parse_mode="Markdown", reply_markup=get_back_reset_keyboard("ghep_xien_cang_dao"))
         user_data["wait_for_xien_input"] = None
         return
 
-    # ---- GHÉP CÀNG 3D ----
+    # ---- GHÉP CÀNG 3D: Nhập dàn số 2 số, tiếp tục hỏi càng ----
     if user_data.get("wait_cang3d_numbers"):
         numbers = clean_numbers_input(text)
-        result = ghep_cang(numbers, "3")
-        msg = "Kết quả ghép càng 3D:\n" + ", ".join(result)
-        await update.message.reply_text(msg, reply_markup=get_back_reset_keyboard("ghep_xien_cang_dao"))
+        user_data["cang3d_numbers"] = numbers
+        await update.message.reply_text(
+            "Nhập số càng muốn ghép (1 số 0–9, hoặc nhiều số cách nhau bởi dấu cách/phẩy):",
+            reply_markup=get_back_reset_keyboard("ghep_xien_cang_dao")
+        )
+        user_data["wait_cang3d_cang"] = True
         user_data["wait_cang3d_numbers"] = None
         return
 
-    # ---- GHÉP CÀNG 4D ----
+    if user_data.get("wait_cang3d_cang"):
+        cang = text
+        numbers = user_data.get("cang3d_numbers", [])
+        result = ghep_cang(numbers, cang)
+        msg = "Kết quả ghép càng 3D:\n" + ", ".join(result)
+        await update.message.reply_text(msg, reply_markup=get_back_reset_keyboard("ghep_xien_cang_dao"))
+        user_data["wait_cang3d_cang"] = None
+        user_data["cang3d_numbers"] = None
+        return
+
+    # ---- GHÉP CÀNG 4D: Nhập dàn số 3 số, tiếp tục hỏi càng ----
     if user_data.get("wait_cang4d_numbers"):
         numbers = clean_numbers_input(text)
-        result = ghep_cang(numbers, "4")
+        user_data["cang4d_numbers"] = numbers
+        await update.message.reply_text(
+            "Nhập số càng muốn ghép (1 số 0–9, hoặc nhiều số cách nhau bởi dấu cách/phẩy):",
+            reply_markup=get_back_reset_keyboard("ghep_xien_cang_dao")
+        )
+        user_data["wait_cang4d_cang"] = True
+        user_data["wait_cang4d_numbers"] = None
+        return
+
+    if user_data.get("wait_cang4d_cang"):
+        cang = text
+        numbers = user_data.get("cang4d_numbers", [])
+        result = ghep_cang(numbers, cang)
         msg = "Kết quả ghép càng 4D:\n" + ", ".join(result)
         await update.message.reply_text(msg, reply_markup=get_back_reset_keyboard("ghep_xien_cang_dao"))
-        user_data["wait_cang4d_numbers"] = None
+        user_data["wait_cang4d_cang"] = None
+        user_data["cang4d_numbers"] = None
         return
 
     # ---- ĐẢO SỐ ----
@@ -68,6 +94,5 @@ async def handle_user_free_input(update: Update, context: ContextTypes.DEFAULT_T
         user_data["wait_phongthuy"] = None
         return
 
-    # ---- Không khớp trạng thái nào, không trả lời ----
-    # Bạn có thể cho 1 reply mặc định hướng dẫn người dùng chọn lại từ menu nếu muốn:
-    # await update.message.reply_text("Vui lòng chọn lại chức năng từ menu bên dưới.", reply_markup=get_menu_keyboard(update.effective_user.id))
+    # ---- Không khớp trạng thái nào ----
+    # Có thể gửi msg hướng dẫn menu nếu muốn.
