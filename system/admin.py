@@ -33,11 +33,12 @@ def get_crawl_days_keyboard():
     return InlineKeyboardMarkup(keyboard)
 
 def get_ai_rf_ngay_keyboard():
+    prefix = "admin_train_rf_N_"
     keyboard = [
-        [InlineKeyboardButton("7 ngày", callback_data="admin_train_rf_N_7"),
-         InlineKeyboardButton("14 ngày", callback_data="admin_train_rf_N_14")],
-        [InlineKeyboardButton("21 ngày", callback_data="admin_train_rf_N_21"),
-         InlineKeyboardButton("28 ngày", callback_data="admin_train_rf_N_28")],
+        [InlineKeyboardButton("7 ngày", callback_data=f"{prefix}7"),
+         InlineKeyboardButton("14 ngày", callback_data=f"{prefix}14")],
+        [InlineKeyboardButton("21 ngày", callback_data=f"{prefix}21"),
+         InlineKeyboardButton("28 ngày", callback_data=f"{prefix}28")],
         [InlineKeyboardButton("⬅️ Quản trị", callback_data="admin_menu")]
     ]
     return InlineKeyboardMarkup(keyboard)
