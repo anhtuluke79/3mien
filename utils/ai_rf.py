@@ -1,62 +1,47 @@
-import pandas as pd
-import numpy as np
-from sklearn.ensemble import RandomForestClassifier
 import os
+import pandas as pd
+from sklearn.ensemble import RandomForestClassifier
 import joblib
 
-MODEL_DIR = os.path.join(os.path.dirname(__file__), "../data")  # Thư mục chứa .pkl
+def get_rf_model_path(num_days):
+    # Đảm bảo thư mục data/
+    if not os.path.exists("data"):
+        os.makedirs("data")
+    return os.path.join("data", f"rf_xsmb_model_N{num_days}.pkl")
 
-def get_model_path(N=7):
-    os.makedirs(MODEL_DIR, exist_ok=True)
-    return os.path.join(MODEL_DIR, f"rf_xsmb_model_N{N}.pkl")
+def prepare_rf_data(num_days=14, data_path="xsmb.csv"):
+    if not os.path.exists(data_path):
+        return None, None, "❌ Không tìm thấy file dữ liệu xsmb.csv!"
+    df = pd.read_csv(data_path)
+    df = df.sort_values("date", ascending=False).head(num_days)
+    # Ví dụ: dự đoán số cuối giải ĐB. X, y sẽ cần chuẩn hóa lại tùy mục đích thực tế
+    # Ở đây dự đoán số cuối của DB
+    X = df.index.values.reshape(-1, 1)  # chỉ số ngày (dummy), bạn nên đổi thành đặc trưng mạnh hơn
+    y = df["DB"].astype(str).str[-2:]   # 2 số cuối đặc biệt
+    return X, y, None
 
-def preprocess_data(df, N=7):
-    df = df.sort_values('date')
-    df['DB'] = df['DB'].astype(str).str.zfill(5)
-    features = []
-    labels = []
-    for i in range(N, len(df)):
-        prev_daus = [int(df.iloc[i-j]['DB'][-2:]) for j in range(N, 0, -1)]
-        features.append(prev_daus)
-        labels.append(int(df.iloc[i]['DB'][-2:]))
-    return np.array(features), np.array(labels)
+def train_rf_model(num_days=14, data_path="xsmb.csv"):
+    model_path = get_rf_model_path(num_days)
+    X, y, err = prepare_rf_data(num_days, data_path)
+    if err: return err
+    if len(X) < 2:
+        return f"❌ Không đủ dữ liệu để train với {num_days} ngày."
+    rf = RandomForestClassifier(n_estimators=100, random_state=42)
+    rf.fit(X, y)
+    joblib.dump(rf, model_path)
+    return f"✅ Đã train xong Random Forest {num_days} ngày và lưu tại {model_path}!"
 
-def train_model(df, N=7):
-    X, y = preprocess_data(df, N)
-    if len(X) < 30:
-        return None
-    clf = RandomForestClassifier(n_estimators=200, random_state=42)
-    clf.fit(X, y)
-    model_path = get_model_path(N)
-    joblib.dump(clf, model_path)
-    return clf
-
-def load_model(N=7):
-    model_path = get_model_path(N)
-    if os.path.exists(model_path):
-        return joblib.load(model_path)
-    return None
-
-def predict_next(df, N=7, top_k=5, retrain=False):
-    model_path = get_model_path(N)
-    if retrain or not os.path.exists(model_path):
-        clf = train_model(df, N)
-    else:
-        clf = load_model(N)
-        if clf is None:
-            clf = train_model(df, N)
-    if clf is None:
-        return None, f"Không đủ dữ liệu để huấn luyện AI với N={N}."
-    if len(df) < N:
-        return None, f"Không đủ dữ liệu để dự đoán (N={N})."
-    df = df.sort_values('date')
-    lastN = [int(df.iloc[-j]['DB'][-2:]) for j in range(N, 0, -1)]
-    probas = clf.predict_proba([lastN])[0]
-    top_idxs = np.argsort(probas)[-top_k:][::-1]
-    dudoan = [f"{idx:02d}" for idx in top_idxs]
-    msg = (
-        f"🤖 *AI (Random Forest, N={N}) dự đoán dàn số khả năng cao nhất kỳ tới:*\n"
-        + ", ".join(dudoan)
-        + "\n\n(Lưu ý: Dự đoán mang tính giải trí, không đảm bảo trúng thưởng!)"
-    )
-    return dudoan, msg
+def predict_rf_model(num_days=14):
+    model_path = get_rf_model_path(num_days)
+    if not os.path.exists(model_path):
+        return f"❌ Chưa train AI với {num_days} ngày. Hãy train trước."
+    # Dự đoán cho ngày tiếp theo
+    rf = joblib.load(model_path)
+    # Giả sử predict tiếp ngày mới nhất (index + 1)
+    try:
+        df = pd.read_csv("xsmb.csv")
+        X_input = [[df.shape[0]]]  # index tiếp theo (dummy feature)
+        y_pred = rf.predict(X_input)[0]
+        return f"🤖 Dự đoán Random Forest {num_days} ngày: *{y_pred}* (2 số cuối ĐB)"  # Bạn có thể mở rộng trả về cả xác suất vv
+    except Exception as e:
+        return f"❌ Lỗi khi dự đoán: {e}"
