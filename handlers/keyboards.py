@@ -40,12 +40,20 @@ def get_thongke_keyboard():
         [InlineKeyboardButton("🔢 Thống kê đầu/đuôi ĐB", callback_data="dau_cuoi")],
         [InlineKeyboardButton("♻️ Chẵn/lẻ ĐB", callback_data="chanle")],
         [InlineKeyboardButton("🚨 Dàn lô gan", callback_data="logan")],
-        [InlineKeyboardButton("🤖 AI Dự đoán (Random Forest)", callback_data="ai_rf")],
+        [InlineKeyboardButton("🤖 AI Dự đoán (Random Forest)", callback_data="ai_rf_choose_n")],
         [InlineKeyboardButton("🎯 Gợi ý dự đoán", callback_data="goiy")],
         [InlineKeyboardButton("⬅️ Trở về", callback_data="menu")]
     ]
     return InlineKeyboardMarkup(keyboard)
-
+def get_ai_rf_ngay_keyboard():
+    keyboard = [
+        [InlineKeyboardButton("7 ngày", callback_data="ai_rf_N_7"),
+         InlineKeyboardButton("14 ngày", callback_data="ai_rf_N_14")],
+        [InlineKeyboardButton("21 ngày", callback_data="ai_rf_N_21"),
+         InlineKeyboardButton("28 ngày", callback_data="ai_rf_N_28")],
+        [InlineKeyboardButton("⬅️ Trở về thống kê", callback_data="thongke_menu")]
+    ]
+    return InlineKeyboardMarkup(keyboard)
 def get_back_reset_keyboard(menu_callback="menu"):
     keyboard = [
         [
