@@ -9,11 +9,7 @@ def get_rf_model_path(num_days):
     return os.path.join("data", f"rf_xsmb_model_N{num_days}.pkl")
 
 def prepare_rf_X_y(df, num_days=14):
-    """
-    Trả về X, y với X là ma trận có shape (n_samples, num_days),
-    mỗi hàng là chuỗi N số cuối ĐB liền trước, y là số ĐB tiếp theo.
-    """
-    # Chỉ lấy phần cần thiết, đảo ngược cho đúng thứ tự thời gian
+    # df đã đảo ngược thứ tự: cũ -> mới
     db_list = df["DB"].astype(str).str[-2:].tolist()
     X, y = [], []
     for i in range(len(db_list) - num_days):
@@ -32,7 +28,6 @@ def train_rf_model(num_days=14, data_path="xsmb.csv"):
     db_col = df["DB"].astype(str).str[-2:]
     if len(db_col) < num_days + 2:
         return f"❌ Không đủ dữ liệu để train với {num_days} ngày."
-    # Đảm bảo mới nhất lên đầu
     db_col = db_col[::-1]
     df = df[::-1].reset_index(drop=True)
     df["DB"] = db_col
@@ -54,7 +49,7 @@ def predict_rf_model(num_days=14):
         db_col = df["DB"].astype(str).str[-2:]
         if len(db_col) < num_days:
             return f"❌ Không đủ dữ liệu để dự đoán với {num_days} ngày!"
-        # Lấy N số mới nhất (theo thứ tự từ cũ -> mới)
+        # Lấy N số mới nhất (cũ → mới)
         last_feat = [int(x) for x in db_col[::-1].head(num_days).tolist()][::-1]
         X_input = [last_feat]
         y_pred = rf.predict(X_input)[0]
