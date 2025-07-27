@@ -69,23 +69,19 @@ def get_back_reset_keyboard(menu_callback="menu"):
 
 async def format_ketqua(kq_dict):
     formatted = "*Kết quả xổ số:*\n\n"
-
-"
     for region, values in kq_dict.items():
-        formatted += f"*{region}*
-"
+        formatted += f"*{region}*\n"
         for giai, so in values.items():
-            formatted += f"`{giai}`: {so}
-"
-        formatted += "
-"
+            formatted += f"`{giai}`: {so}\n"
+        formatted += "\n"
     return formatted
 
 async def menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
-    text = "☘️ *Chào mừng bạn đến với bot xổ số 3 Miền!* ☘️
-
-Chọn chức năng bên dưới:"
+    text = (
+        "☘️ *Chào mừng bạn đến với bot xổ số 3 Miền!* ☘️\n"
+        "Chọn chức năng bên dưới:"
+    )
     await context.bot.send_message(
         chat_id=update.effective_chat.id,
         text=text,
@@ -101,9 +97,10 @@ async def menu_callback_handler(update: Update, context: ContextTypes.DEFAULT_TY
 
     if data == "menu":
         await query.edit_message_text(
-            text="☘️ *Chào mừng bạn đến với bot xổ số 3 Miền!* ☘️
-
-Chọn chức năng bên dưới:",
+            text=(
+                "☘️ *Chào mừng bạn đến với bot xổ số 3 Miền!* ☘️\n"
+                "Chọn chức năng bên dưới:"
+            ),
             reply_markup=get_menu_keyboard(user_id),
             parse_mode="Markdown"
         )
@@ -122,17 +119,19 @@ Chọn chức năng bên dưới:",
 
     elif data == "phongthuy":
         await query.edit_message_text(
-            text="🔮 Phong thủy số
-
-Nhập ngày/tháng/năm sinh (ví dụ: 12/05/1990) để xem phân tích:",
+            text=(
+                "🔮 Phong thủy số\n"
+                "Nhập ngày/tháng/năm sinh (ví dụ: 12/05/1990) để xem phân tích:"
+            ),
             reply_markup=get_back_reset_keyboard("menu")
         )
 
     elif data == "tk_ai_menu":
         await query.edit_message_text(
-            text="📊 Thống kê & AI
-
-Chọn chức năng:",
+            text=(
+                "📊 Thống kê & AI\n"
+                "Chọn chức năng:"
+            ),
             reply_markup=get_tk_ai_keyboard(user_id)
         )
 
@@ -148,29 +147,23 @@ Chọn chức năng:",
         predicted = ai_rf.train_and_predict_rf(df, n=n)
         so = ", ".join(predicted)
         await query.edit_message_text(
-            text=f"🎯 Kết quả dự đoán (RF-{n} ngày):
-
-*{so}*",
+            text=f"🎯 Kết quả dự đoán (RF-{n} ngày):\n*{so}*",
             reply_markup=get_tk_ai_keyboard(),
             parse_mode="Markdown"
         )
 
     elif data == "reset":
-        await query.edit_message_text("✅ Đã reset. Quay lại menu chính.",
-                                      reply_markup=get_menu_keyboard(user_id))
+        await query.edit_message_text(
+            text="✅ Đã reset. Quay lại menu chính.",
+            reply_markup=get_menu_keyboard(user_id)
+        )
 
     elif data == "huongdan":
         huongdan_text = (
-            "🧾 *Hướng dẫn sử dụng bot:*
-
-"
-            "- Chọn các chức năng từ menu chính.
-"
-            "- Dùng các công cụ để xử lý số, xem kết quả, tra phong thủy...
-"
-            "- Gõ *Reset* để quay lại ban đầu.
-
-"
+            "🧾 *Hướng dẫn sử dụng bot:*\n"
+            "- Chọn các chức năng từ menu chính.\n"
+            "- Dùng các công cụ để xử lý số, xem kết quả, tra phong thủy...\n"
+            "- Gõ *Reset* để quay lại ban đầu.\n"
             "Chúc bạn may mắn!"
         )
         await query.edit_message_text(
@@ -181,36 +174,31 @@ Chọn chức năng:",
 
     elif data == "ung_ho_gop_y":
         await query.edit_message_text(
-            text="💖 Cảm ơn bạn đã sử dụng bot!
-"
-                 "Nếu bạn thấy hữu ích, hãy chia sẻ và đóng góp ý kiến để bot phát triển hơn.",
+            text=(
+                "💖 Cảm ơn bạn đã sử dụng bot!\n"
+                "Nếu bạn thấy hữu ích, hãy chia sẻ và đóng góp ý kiến để bot phát triển hơn."
+            ),
             reply_markup=get_back_reset_keyboard("menu")
         )
 
     elif data.startswith("topve"):
         top = tk.thong_ke_top_ve()
         await query.edit_message_text(
-            text=f"📈 Top số về nhiều:
-
-{top}",
+            text=f"📈 Top số về nhiều:\n{top}",
             reply_markup=get_tk_ai_keyboard()
         )
 
     elif data.startswith("topkhan"):
         top = tk.thong_ke_top_khan()
         await query.edit_message_text(
-            text=f"📉 Top số khan:
-
-{top}",
+            text=f"📉 Top số khan:\n{top}",
             reply_markup=get_tk_ai_keyboard()
         )
 
     elif data == "goiy":
         goiy = tk.goi_y()
         await query.edit_message_text(
-            text=f"🎯 Gợi ý hôm nay:
-
-{goiy}",
+            text=f"🎯 Gợi ý hôm nay:\n{goiy}",
             reply_markup=get_tk_ai_keyboard()
         )
 
