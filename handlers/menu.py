@@ -68,7 +68,7 @@ def get_back_reset_keyboard(menu_callback="menu"):
     ])
 
 async def format_ketqua(kq_dict):
-    formatted = "*Kết quả xổ số:*
+    formatted = "*Kết quả xổ số:*\n\n"
 
 "
     for region, values in kq_dict.items():
