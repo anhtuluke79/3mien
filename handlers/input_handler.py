@@ -20,7 +20,7 @@ async def handle_user_free_input(update: Update, context: ContextTypes.DEFAULT_T
         numbers = clean_numbers_xien(text)
         combos = gen_xien(numbers, n)
         result = format_xien_result(combos)
-        await update.message.reply_text(result, parse_mode="Markdown", reply_markup=get_back_reset_keyboard("ghep_xien_cang_dao"))
+        await context.bot.send_message(chat_id=update.effective_chat.id, result, parse_mode="Markdown", reply_markup=get_back_reset_keyboard("ghep_xien_cang_dao"))
         user_data["wait_for_xien_input"] = None
         return
 
@@ -28,7 +28,7 @@ async def handle_user_free_input(update: Update, context: ContextTypes.DEFAULT_T
     if user_data.get("wait_cang3d_numbers"):
         numbers = clean_numbers_input(text)
         user_data["cang3d_numbers"] = numbers
-        await update.message.reply_text(
+        await context.bot.send_message(chat_id=update.effective_chat.id, 
             "Nhập số càng muốn ghép (1 số 0–9, hoặc nhiều số cách nhau bởi dấu cách/phẩy):",
             reply_markup=get_back_reset_keyboard("ghep_xien_cang_dao")
         )
@@ -41,7 +41,7 @@ async def handle_user_free_input(update: Update, context: ContextTypes.DEFAULT_T
         numbers = user_data.get("cang3d_numbers", [])
         result = ghep_cang(numbers, cang)
         msg = "Kết quả ghép càng 3D:\n" + ", ".join(result)
-        await update.message.reply_text(msg, reply_markup=get_back_reset_keyboard("ghep_xien_cang_dao"))
+        await context.bot.send_message(chat_id=update.effective_chat.id, msg, reply_markup=get_back_reset_keyboard("ghep_xien_cang_dao"))
         user_data["wait_cang3d_cang"] = None
         user_data["cang3d_numbers"] = None
         return
@@ -50,7 +50,7 @@ async def handle_user_free_input(update: Update, context: ContextTypes.DEFAULT_T
     if user_data.get("wait_cang4d_numbers"):
         numbers = clean_numbers_input(text)
         user_data["cang4d_numbers"] = numbers
-        await update.message.reply_text(
+        await context.bot.send_message(chat_id=update.effective_chat.id, 
             "Nhập số càng muốn ghép (1 số 0–9, hoặc nhiều số cách nhau bởi dấu cách/phẩy):",
             reply_markup=get_back_reset_keyboard("ghep_xien_cang_dao")
         )
@@ -63,7 +63,7 @@ async def handle_user_free_input(update: Update, context: ContextTypes.DEFAULT_T
         numbers = user_data.get("cang4d_numbers", [])
         result = ghep_cang(numbers, cang)
         msg = "Kết quả ghép càng 4D:\n" + ", ".join(result)
-        await update.message.reply_text(msg, reply_markup=get_back_reset_keyboard("ghep_xien_cang_dao"))
+        await context.bot.send_message(chat_id=update.effective_chat.id, msg, reply_markup=get_back_reset_keyboard("ghep_xien_cang_dao"))
         user_data["wait_cang4d_cang"] = None
         user_data["cang4d_numbers"] = None
         return
@@ -76,21 +76,21 @@ async def handle_user_free_input(update: Update, context: ContextTypes.DEFAULT_T
             msg = "Tất cả hoán vị:\n" + ", ".join(result)
         else:
             msg = "❗ Nhập số hợp lệ (2-6 chữ số)!"
-        await update.message.reply_text(msg, reply_markup=get_back_reset_keyboard("ghep_xien_cang_dao"))
+        await context.bot.send_message(chat_id=update.effective_chat.id, msg, reply_markup=get_back_reset_keyboard("ghep_xien_cang_dao"))
         user_data["wait_for_dao_input"] = None
         return
 
     # ---- TRA KẾT QUẢ XSMB THEO NGÀY ----
     if user_data.get("wait_kq_theo_ngay"):
         ketqua = tra_ketqua_theo_ngay(text)
-        await update.message.reply_text(ketqua, parse_mode="Markdown", reply_markup=get_back_reset_keyboard("ketqua"))
+        await context.bot.send_message(chat_id=update.effective_chat.id, ketqua, parse_mode="Markdown", reply_markup=get_back_reset_keyboard("ketqua"))
         user_data["wait_kq_theo_ngay"] = None
         return
 
     # ---- PHONG THỦY ----
     if user_data.get("wait_phongthuy"):
         res = phongthuy_tudong(text)
-        await update.message.reply_text(res, parse_mode="Markdown", reply_markup=get_back_reset_keyboard("menu"))
+        await context.bot.send_message(chat_id=update.effective_chat.id, res, parse_mode="Markdown", reply_markup=get_back_reset_keyboard("menu"))
         user_data["wait_phongthuy"] = None
         return
 

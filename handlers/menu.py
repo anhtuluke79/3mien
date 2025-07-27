@@ -138,9 +138,10 @@ async def menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     text = "📋 *Chào mừng bạn đến với Trợ lý Xổ số & AI!*"
     if update.message:
-        await update.message.reply_text(text, reply_markup=get_menu_keyboard(user_id), parse_mode="Markdown")
+        await context.bot.send_message(chat_id=update.effective_chat.id, text, reply_markup=get_menu_keyboard(user_id), parse_mode="Markdown")
     elif update.callback_query:
-        await update.callback_query.edit_message_text(text, reply_markup=get_menu_keyboard(user_id), parse_mode="Markdown")
+        await context.bot.send_message(chat_id=update.effective_chat.id, text, reply_markup=get_menu_keyboard(user_id)
+        await update.callback_query.answer(), parse_mode="Markdown")
 
 async def menu_callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query

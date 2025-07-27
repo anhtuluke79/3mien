@@ -23,7 +23,7 @@ async def all_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # ======= TRA CỨU KẾT QUẢ XSMB THEO NGÀY =======
     if user_data.get("wait_kq_theo_ngay"):
         result = tra_ketqua_theo_ngay(msg)
-        await update.message.reply_text(
+        await context.bot.send_message(chat_id=update.effective_chat.id, 
             result,
             parse_mode="Markdown",
             reply_markup=get_back_reset_keyboard("ketqua")
@@ -35,7 +35,7 @@ async def all_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if 'wait_for_xien_input' in user_data:
         n = user_data['wait_for_xien_input']
         if n is None:
-            await update.message.reply_text(
+            await context.bot.send_message(chat_id=update.effective_chat.id, 
                 "Chọn loại xiên: 2, 3 hoặc 4.",
                 reply_markup=get_xien_keyboard()
             )
@@ -43,13 +43,13 @@ async def all_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         numbers = split_numbers(msg)
         xiens = ghep_xien(numbers, n)
         if not xiens:
-            await update.message.reply_text(
+            await context.bot.send_message(chat_id=update.effective_chat.id, 
                 "⚠️ Không ghép được xiên, vui lòng nhập lại hoặc chọn loại xiên khác.",
                 reply_markup=get_xien_keyboard()
             )
         else:
             reply = f"*{len(xiens)} bộ xiên {n}:*\n" + ', '.join(xiens[:50])
-            await update.message.reply_text(
+            await context.bot.send_message(chat_id=update.effective_chat.id, 
                 reply,
                 reply_markup=get_menu_keyboard(),
                 parse_mode="Markdown"
@@ -61,7 +61,7 @@ async def all_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if user_data.get("wait_cang3d_numbers"):
         arr = split_numbers(msg)
         if not arr or not all(len(n) == 2 for n in arr):
-            await update.message.reply_text(
+            await context.bot.send_message(chat_id=update.effective_chat.id, 
                 "⚠️ Nhập dàn số 2 chữ số, cách nhau bằng dấu cách. VD: 12 34 56",
                 reply_markup=get_back_reset_keyboard("ghep_cang_dao")
             )
@@ -69,7 +69,7 @@ async def all_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         user_data["cang3d_numbers"] = arr
         user_data["wait_cang3d_numbers"] = False
         user_data["wait_cang_input"] = "3D"
-        await update.message.reply_text(
+        await context.bot.send_message(chat_id=update.effective_chat.id, 
             "📥 Nhập các càng muốn ghép (VD: 1 2 3):",
             reply_markup=get_back_reset_keyboard("ghep_cang_dao")
         )
@@ -79,7 +79,7 @@ async def all_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if user_data.get("wait_cang4d_numbers"):
         arr = split_numbers(msg)
         if not arr or not all(len(n) == 3 for n in arr):
-            await update.message.reply_text(
+            await context.bot.send_message(chat_id=update.effective_chat.id, 
                 "⚠️ Nhập dàn số 3 chữ số, cách nhau bằng dấu cách. VD: 123 456",
                 reply_markup=get_back_reset_keyboard("ghep_cang_dao")
             )
@@ -87,7 +87,7 @@ async def all_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         user_data["cang4d_numbers"] = arr
         user_data["wait_cang4d_numbers"] = False
         user_data["wait_cang_input"] = "4D"
-        await update.message.reply_text(
+        await context.bot.send_message(chat_id=update.effective_chat.id, 
             "📥 Nhập các càng muốn ghép (VD: 1 2 3):",
             reply_markup=get_back_reset_keyboard("ghep_cang_dao")
         )
@@ -99,13 +99,13 @@ async def all_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         numbers = user_data.get("cang3d_numbers", []) if kind == "3D" else user_data.get("cang4d_numbers", [])
         cangs = split_numbers(msg)
         if not cangs:
-            await update.message.reply_text(
+            await context.bot.send_message(chat_id=update.effective_chat.id, 
                 "⚠️ Vui lòng nhập ít nhất 1 càng (số 1 chữ số).",
                 reply_markup=get_back_reset_keyboard("ghep_cang_dao")
             )
             return
         result = [c + n for c in cangs for n in numbers]
-        await update.message.reply_text(
+        await context.bot.send_message(chat_id=update.effective_chat.id, 
             f"*✅ Ghép {kind}:* Tổng {len(result)} số\n" + ', '.join(result),
             reply_markup=get_menu_keyboard(),
             parse_mode="Markdown"
@@ -117,7 +117,7 @@ async def all_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if user_data.get("wait_for_dao_input"):
         arr = split_numbers(msg)
         if not arr or not all(2 <= len(x) <= 6 for x in arr):
-            await update.message.reply_text(
+            await context.bot.send_message(chat_id=update.effective_chat.id, 
                 "⚠️ Nhập từng số có 2-6 chữ số, cách nhau bằng dấu cách. VD: 123 4567",
                 reply_markup=get_back_reset_keyboard("ghep_cang_dao")
             )
@@ -126,7 +126,7 @@ async def all_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         text = []
         for a, b in zip(arr, daos):
             text.append(f"{a}: {', '.join(b)}")
-        await update.message.reply_text(
+        await context.bot.send_message(chat_id=update.effective_chat.id, 
             "*ĐẢO SỐ:*\n" + '\n'.join(text),
             reply_markup=get_menu_keyboard(),
             parse_mode="Markdown"
@@ -149,7 +149,7 @@ async def all_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 res = "❗ Nhập ngày (yyyy-mm-dd hoặc dd-mm) hoặc can chi (VD: Giáp Tý)"
         except Exception as e:
             res = f"Lỗi tra cứu: {e}"
-        await update.message.reply_text(
+        await context.bot.send_message(chat_id=update.effective_chat.id, 
             res,
             parse_mode="Markdown",
             reply_markup=get_menu_keyboard()
