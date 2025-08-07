@@ -1,3 +1,4 @@
+
 import os
 from telegram.ext import (
     Application, CommandHandler, CallbackQueryHandler, MessageHandler, filters
@@ -20,7 +21,7 @@ def main():
     # Callback cho admin (phải đăng ký riêng)
     app.add_handler(CallbackQueryHandler(admin_callback_handler, pattern="^admin_"))
     # Xử lý nhập tự do (người dùng nhập bất kỳ text nào)
-    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_user_free_input))
+    #app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_user_free_input))
 
     print("🤖 Bot is running... /menu để bắt đầu.")
     app.run_polling()
