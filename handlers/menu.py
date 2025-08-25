@@ -1,39 +1,35 @@
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+from telegram import InlineKeyboardMarkup, InlineKeyboardButton
 from telegram.ext import CallbackQueryHandler
+
 
 def menu(update, context):
     keyboard = [
-        [InlineKeyboardButton("🔢 Xiên 2", callback_data="xien2")],
-        [InlineKeyboardButton("🎯 Xiên 3", callback_data="xien3")],
+        [InlineKeyboardButton("🔮 Phong thủy số", callback_data="phongthuy")],
+        [InlineKeyboardButton("🎲 Xiên 2", callback_data="xien2")],
+        [InlineKeyboardButton("🎰 Xiên 3", callback_data="xien3")],
         [InlineKeyboardButton("✨ Xiên 4", callback_data="xien4")],
-        [InlineKeyboardButton("🔮 Phong thủy số", callback_data="phong_thuy")],
-        [InlineKeyboardButton("📊 Thống kê & AI", callback_data="thong_ke")],
-        [InlineKeyboardButton("💖 Ủng hộ & Góp ý", callback_data="ung_ho")],
-        [InlineKeyboardButton("ℹ️ Hướng dẫn", callback_data="huong_dan")],
-        [InlineKeyboardButton("🔄 Reset", callback_data="reset")],
     ]
-
     reply_markup = InlineKeyboardMarkup(keyboard)
-    update.message.reply_text("📌 Chọn chức năng:", reply_markup=reply_markup)
+    update.message.reply_text("📍 Chọn chức năng:", reply_markup=reply_markup)
 
 
 def menu_callback(update, context):
     query = update.callback_query
     query.answer()
 
-    if query.data == "xien2":
-        query.edit_message_text("🔢 Bạn chọn Xiên 2")
+    if query.data == "phongthuy":
+        query.edit_message_text("🍭 Chức năng phong thủy số.")
+    elif query.data == "xien2":
+        query.edit_message_text("🎲 Chức năng Xiên 2.")
     elif query.data == "xien3":
-        query.edit_message_text("🎯 Bạn chọn Xiên 3")
+        query.edit_message_text("🎰 Chức năng Xiên 3.")
     elif query.data == "xien4":
-        query.edit_message_text("✨ Bạn chọn Xiên 4")
-    elif query.data == "phong_thuy":
-        query.edit_message_text("🔮 Chức năng Phong thủy số đang phát triển...")
-    elif query.data == "thong_ke":
-        query.edit_message_text("📊 Chức năng Thống kê & AI đang phát triển...")
-    elif query.data == "ung_ho":
-        query.edit_message_text("💖 Cảm ơn bạn đã ủng hộ!")
-    elif query.data == "huong_dan":
+        query.edit_message_text("✨ Chức năng Xiên 4.")
+    else:
+        query.edit_message_text("❌ Lựa chọn không hợp lệ.")
+
+
+menu_handler = CallbackQueryHandler(menu_callback)
         query.edit_message_text("ℹ️ Đây là hướng dẫn sử dụng bot...")
     elif query.data == "reset":
         query.edit_message_text("🔄 Đã reset menu.")
