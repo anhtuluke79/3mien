@@ -1,32 +1,39 @@
-import logging
 import os
-from telegram.ext import (
-    Application,
-    CommandHandler,
-    CallbackQueryHandler,
-)
-from handlers.menu import menu, menu_callback
+from telegram.ext import Updater, CommandHandler
+from handlers.menu import menu, menu_handler
 
-# Bật log để debug khi chạy trên Railway
-logging.basicConfig(
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-    level=logging.INFO
-)
+# Lệnh /start
+def start(update, context):
+    update.message.reply_text("🤖 Xin chào! Đây là bot xổ số.")
+    menu(update, context)  # Hiện menu khi start
 
-TOKEN = os.getenv("BOT_TOKEN")  # Lấy token từ biến môi trường Railway
 
 def main():
-    # Tạo bot application
-    application = Application.builder().token(TOKEN).build()
+    # Lấy token từ biến môi trường Railway
+    TOKEN = os.getenv("BOT_TOKEN")
+    if not TOKEN:
+        raise ValueError("❌ BOT_TOKEN chưa được cấu hình trong Railway Variables!")
 
-    # Handler cho /menu
-    application.add_handler(CommandHandler("menu", menu))
+    # Khởi tạo bot
+    updater = Updater(TOKEN, use_context=True)
+    dispatcher = updater.dispatcher
 
-    # Handler cho các callback nút bấm
-    application.add_handler(CallbackQueryHandler(menu_callback))
+    # Lệnh /start
+    dispatcher.add_handler(CommandHandler("start", start))
 
-    # Chạy polling
-    application.run_polling()
+    # Menu callback
+    dispatcher.add_handler(menu_handler)
+
+    # Chạy bot
+    port = int(os.environ.get("PORT", 8443))
+    updater.start_webhook(
+        listen="0.0.0.0",
+        port=port,
+        url_path=TOKEN,
+        webhook_url=f"https://{os.environ.get('RAILWAY_STATIC_URL')}/{TOKEN}"
+    )
+    updater.idle()
+
 
 if __name__ == "__main__":
     main()
