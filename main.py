@@ -5,7 +5,7 @@ from telegram.ext import (
     CommandHandler,
     CallbackQueryHandler,
 )
-from menu import menu, menu_callback
+from handlers.menu import menu, menu_callback
 
 # Bật log để debug khi chạy trên Railway
 logging.basicConfig(
