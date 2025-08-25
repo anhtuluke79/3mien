@@ -1,39 +1,51 @@
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
-from telegram.ext import ContextTypes
-import pandas as pd
-from datetime import datetime
-from dateutil import parser
-import utils.thongkemb as tk
-import utils.ai_rf as ai_rf
-from system.admin import ADMIN_IDS, admin_menu, admin_callback_handler
+from telegram.ext import CallbackContext
 
-# ================== KEYBOARDS ==================
-
-def get_menu_keyboard(user_id=None):
+def get_main_menu():
     keyboard = [
-        [InlineKeyboardButton("🎲 Kết quả xổ số", callback_data="ketqua")],
-        [InlineKeyboardButton("🔢 Ghép xiên/ Càng/ Đảo số", callback_data="ghep_xien_cang_dao")],
-        [InlineKeyboardButton("🔮 Phong thủy số", callback_data="phongthuy")],
-        [InlineKeyboardButton("📊 Thống kê & AI", callback_data="tk_ai_menu")],
-        [InlineKeyboardButton("💖 Ủng hộ & Góp ý", callback_data="ung_ho_gop_y")],
-        [InlineKeyboardButton("ℹ️ Hướng dẫn", callback_data="huongdan")],
-        [InlineKeyboardButton("🔄 Reset", callback_data="reset")]
+        [
+            InlineKeyboardButton("🔢 Ghép xiên/ Càng/ Đảo số", callback_data="ghep")
+        ],
+        [
+            InlineKeyboardButton("🔮 Phong thủy số", callback_data="phongthuy"),
+            InlineKeyboardButton("📊 Thống kê & AI", callback_data="thongke"),
+        ],
+        [
+            InlineKeyboardButton("💖 Ủng hộ & Góp ý", callback_data="ungho"),
+            InlineKeyboardButton("ℹ️ Hướng dẫn", callback_data="huongdan"),
+        ],
+        [
+            InlineKeyboardButton("🔄 Reset", callback_data="reset"),
+        ]
     ]
-    if user_id in ADMIN_IDS:
-        keyboard.append([InlineKeyboardButton("🛡️ Quản trị", callback_data="admin_menu")])
     return InlineKeyboardMarkup(keyboard)
 
-def get_ketqua_keyboard():
-    return InlineKeyboardMarkup([
-        [InlineKeyboardButton("📅 Kết quả theo ngày", callback_data="kq_theo_ngay")],
-        [InlineKeyboardButton("🔥 Kết quả mới nhất", callback_data="kq_moi_nhat")],
-        [InlineKeyboardButton("⬅️ Trở về", callback_data="menu")]
-    ])
+def menu(update: Update, context: CallbackContext):
+    update.message.reply_text(
+        "📋 Chào mừng bạn đến với Trợ lý Xổ số & AI!",
+        reply_markup=get_main_menu()
+    )
 
-def get_xien_cang_dao_keyboard():
-    return InlineKeyboardMarkup([
-        [InlineKeyboardButton("✨ Xiên 2", callback_data="xien2"),
-         InlineKeyboardButton("✨ Xiên 3", callback_data="xien3"),
+def menu_callback(update: Update, context: CallbackContext):
+    query = update.callback_query
+    query.answer()
+    data = query.data
+
+    if data == "ghep":
+        query.edit_message_text("🔢 Chức năng ghép xiên/ càng/ đảo số đang hoạt động.")
+    elif data == "phongthuy":
+        query.edit_message_text("🔮 Chức năng phong thủy số.")
+    elif data == "thongke":
+        query.edit_message_text("📊 Thống kê & AI.")
+    elif data == "ungho":
+        query.edit_message_text("💖 Cảm ơn bạn đã ủng hộ & góp ý!")
+    elif data == "huongdan":
+        query.edit_message_text("ℹ️ Đây là phần hướng dẫn sử dụng bot.")
+    elif data == "reset":
+        query.edit_message_text(
+            "📋 Chào mừng bạn đến với Trợ lý Xổ số & AI!",
+            reply_markup=get_main_menu()
+        )
          InlineKeyboardButton("✨ Xiên 4", callback_data="xien4")],
         [InlineKeyboardButton("🔢 Ghép càng 3D", callback_data="ghep_cang3d"),
          InlineKeyboardButton("🔢 Ghép càng 4D", callback_data="ghep_cang4d")],
