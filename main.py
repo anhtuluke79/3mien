@@ -1,39 +1,30 @@
+
 import os
-from telegram.ext import Updater, CommandHandler
-from handlers.menu import menu, menu_handler
+from telegram.ext import (
+    Application, CommandHandler, CallbackQueryHandler, MessageHandler, filters
+)
+from handlers.menu import menu, menu_callback_handler
+from handlers.input_handler import handle_user_free_input
+from system.admin import admin_menu, admin_callback_handler
 
-# Lệnh /start
-def start(update, context):
-    update.message.reply_text("🤖 Xin chào! Đây là bot xổ số.")
-    menu(update, context)  # Hiện menu khi start
-
+TOKEN = os.getenv("BOT_TOKEN", "YOUR_TELEGRAM_BOT_TOKEN")
 
 def main():
-    # Lấy token từ biến môi trường Railway
-    TOKEN = os.getenv("BOT_TOKEN")
-    if not TOKEN:
-        raise ValueError("❌ BOT_TOKEN chưa được cấu hình trong Railway Variables!")
+    app = Application.builder().token(TOKEN).build()
 
-    # Khởi tạo bot
-    updater = Updater(TOKEN, use_context=True)
-    dispatcher = updater.dispatcher
+    # Lệnh gọi menu chính
+    app.add_handler(CommandHandler("menu", menu))
+    # Lệnh gọi admin menu
+    app.add_handler(CommandHandler("admin", admin_menu))
+    # Callback cho menu bot (cả người dùng và admin)
+    app.add_handler(CallbackQueryHandler(menu_callback_handler, pattern="^(?!admin_)"))  # không phải admin_ prefix
+    # Callback cho admin (phải đăng ký riêng)
+    app.add_handler(CallbackQueryHandler(admin_callback_handler, pattern="^admin_"))
+    # Xử lý nhập tự do (người dùng nhập bất kỳ text nào)
+    #app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_user_free_input))
 
-    # Lệnh /start
-    dispatcher.add_handler(CommandHandler("start", start))
-
-    # Menu callback
-    dispatcher.add_handler(menu_handler)
-
-    # Chạy bot
-    port = int(os.environ.get("PORT", 8443))
-    updater.start_webhook(
-        listen="0.0.0.0",
-        port=port,
-        url_path=TOKEN,
-        webhook_url=f"https://{os.environ.get('RAILWAY_STATIC_URL')}/{TOKEN}"
-    )
-    updater.idle()
-
+    print("🤖 Bot is running... /menu để bắt đầu.")
+    app.run_polling()
 
 if __name__ == "__main__":
     main()
