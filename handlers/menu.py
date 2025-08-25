@@ -1,39 +1,47 @@
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
-from telegram.ext import CallbackContext
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+from telegram.ext import CallbackQueryHandler
 
-def get_main_menu():
+def menu(update, context):
     keyboard = [
-        [
-            InlineKeyboardButton("🔢 Ghép xiên/ Càng/ Đảo số", callback_data="ghep")
-        ],
-        [
-            InlineKeyboardButton("🔮 Phong thủy số", callback_data="phongthuy"),
-            InlineKeyboardButton("📊 Thống kê & AI", callback_data="thongke"),
-        ],
-        [
-            InlineKeyboardButton("💖 Ủng hộ & Góp ý", callback_data="ungho"),
-            InlineKeyboardButton("ℹ️ Hướng dẫn", callback_data="huongdan"),
-        ],
-        [
-            InlineKeyboardButton("🔄 Reset", callback_data="reset"),
-        ]
+        [InlineKeyboardButton("🔢 Xiên 2", callback_data="xien2")],
+        [InlineKeyboardButton("🎯 Xiên 3", callback_data="xien3")],
+        [InlineKeyboardButton("✨ Xiên 4", callback_data="xien4")],
+        [InlineKeyboardButton("🔮 Phong thủy số", callback_data="phong_thuy")],
+        [InlineKeyboardButton("📊 Thống kê & AI", callback_data="thong_ke")],
+        [InlineKeyboardButton("💖 Ủng hộ & Góp ý", callback_data="ung_ho")],
+        [InlineKeyboardButton("ℹ️ Hướng dẫn", callback_data="huong_dan")],
+        [InlineKeyboardButton("🔄 Reset", callback_data="reset")],
     ]
-    return InlineKeyboardMarkup(keyboard)
 
-def menu(update: Update, context: CallbackContext):
-    update.message.reply_text(
-        "📋 Chào mừng bạn đến với Trợ lý Xổ số & AI!",
-        reply_markup=get_main_menu()
-    )
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    update.message.reply_text("📌 Chọn chức năng:", reply_markup=reply_markup)
 
-def menu_callback(update: Update, context: CallbackContext):
+
+def menu_callback(update, context):
     query = update.callback_query
     query.answer()
-    data = query.data
 
-    if data == "ghep":
-        query.edit_message_text("🔢 Chức năng ghép xiên/ càng/ đảo số đang hoạt động.")
-    elif data == "phongthuy":
+    if query.data == "xien2":
+        query.edit_message_text("🔢 Bạn chọn Xiên 2")
+    elif query.data == "xien3":
+        query.edit_message_text("🎯 Bạn chọn Xiên 3")
+    elif query.data == "xien4":
+        query.edit_message_text("✨ Bạn chọn Xiên 4")
+    elif query.data == "phong_thuy":
+        query.edit_message_text("🔮 Chức năng Phong thủy số đang phát triển...")
+    elif query.data == "thong_ke":
+        query.edit_message_text("📊 Chức năng Thống kê & AI đang phát triển...")
+    elif query.data == "ung_ho":
+        query.edit_message_text("💖 Cảm ơn bạn đã ủng hộ!")
+    elif query.data == "huong_dan":
+        query.edit_message_text("ℹ️ Đây là hướng dẫn sử dụng bot...")
+    elif query.data == "reset":
+        query.edit_message_text("🔄 Đã reset menu.")
+        menu(update, context)
+
+
+# Đăng ký callback
+menu_handler = CallbackQueryHandler(menu_callback)
         query.edit_message_text("🔮 Chức năng phong thủy số.")
     elif data == "thongke":
         query.edit_message_text("📊 Thống kê & AI.")
